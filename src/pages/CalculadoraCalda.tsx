@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { FlaskConical, Plus, Trash2, ListOrdered, Settings, Beaker, AlertTriangle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 type Formulacao = "WP" | "WG" | "SC" | "EC" | "SL" | "ADJ";
 
@@ -41,6 +42,17 @@ const UNIDADE_PADRAO: Record<Formulacao, "L/ha" | "kg/ha"> = {
   ADJ: "L/ha",
 };
 
+interface ProdutoCadastrado {
+  id: string;
+  name: string;
+  type: string;
+}
+
+const FORMULACAO_MAP: Record<string, Formulacao> = {
+  herbicida: "SL",
+  fungicida: "SC",
+};
+
 export default function CalculadoraCalda() {
   const [talhao, setTalhao] = useState("");
   const [areaTalhao, setAreaTalhao] = useState<number>(0);
@@ -54,6 +66,52 @@ export default function CalculadoraCalda() {
   const [novaUnidade, setNovaUnidade] = useState<"L/ha" | "kg/ha">("L/ha");
 
   const [mostrarResultado, setMostrarResultado] = useState(false);
+
+  // Autocomplete state
+  const [produtosCadastrados, setProdutosCadastrados] = useState<ProdutoCadastrado[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [filteredSuggestions, setFilteredSuggestions] = useState<ProdutoCadastrado[]>([]);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      const { data } = await supabase.from("products").select("id, name, type");
+      if (data) setProdutosCadastrados(data);
+    };
+    fetchProducts();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node) &&
+          inputRef.current && !inputRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleNomeChange = (value: string) => {
+    setNovoNome(value);
+    if (value.trim().length > 0) {
+      const filtered = produtosCadastrados.filter((p) =>
+        p.name.toLowerCase().includes(value.toLowerCase())
+      );
+      setFilteredSuggestions(filtered);
+      setShowSuggestions(true);
+    } else {
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleSelectProduct = (product: ProdutoCadastrado) => {
+    setNovoNome(product.name);
+    const mapped = FORMULACAO_MAP[product.type] || "SL";
+    handleFormulacaoChange(mapped);
+    setShowSuggestions(false);
+  };
 
   const areaPorTanque = useMemo(() => {
     if (vazaoTrabalho <= 0) return 0;
@@ -190,14 +248,46 @@ export default function CalculadoraCalda() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
+          <div className="space-y-2 relative">
             <Label htmlFor="nomeP">Nome Comercial</Label>
             <Input
+              ref={inputRef}
               id="nomeP"
-              placeholder="Ex: Glifosato"
+              placeholder="Digite para buscar ou cadastrar"
               value={novoNome}
-              onChange={(e) => setNovoNome(e.target.value)}
+              onChange={(e) => handleNomeChange(e.target.value)}
+              onFocus={() => {
+                if (novoNome.trim().length > 0) {
+                  const filtered = produtosCadastrados.filter((p) =>
+                    p.name.toLowerCase().includes(novoNome.toLowerCase())
+                  );
+                  setFilteredSuggestions(filtered);
+                  setShowSuggestions(true);
+                } else if (produtosCadastrados.length > 0) {
+                  setFilteredSuggestions(produtosCadastrados);
+                  setShowSuggestions(true);
+                }
+              }}
+              autoComplete="off"
             />
+            {showSuggestions && filteredSuggestions.length > 0 && (
+              <div
+                ref={suggestionsRef}
+                className="absolute z-50 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-md border border-border bg-popover shadow-md"
+              >
+                {filteredSuggestions.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
+                    onClick={() => handleSelectProduct(p)}
+                  >
+                    <span className="font-medium">{p.name}</span>
+                    <span className="text-xs text-muted-foreground capitalize">{p.type}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-2">
