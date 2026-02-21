@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Droplets, Plus, History, BookOpen, ArrowRight, Gauge, Shield, Zap } from "lucide-react";
+import { Droplets, Plus, History, BookOpen, ArrowRight, Gauge, Shield, Zap, FlaskConical } from "lucide-react";
 
 const features = [
   {
@@ -28,6 +28,13 @@ const actionCards = [
     title: "Nova Medição",
     description: "Iniciar uma nova avaliação de bicos",
     variant: "primary" as const,
+  },
+  {
+    to: "/calculadora-calda",
+    icon: FlaskConical,
+    title: "Calculadora de Calda",
+    description: "Ordem de mistura e dosagem por tanque",
+    variant: "secondary" as const,
   },
   {
     to: "/historico",
