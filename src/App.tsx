@@ -11,6 +11,7 @@ import EntradaDados from "./pages/EntradaDados";
 import Resultados from "./pages/Resultados";
 import Historico from "./pages/Historico";
 import TabelaReferencia from "./pages/TabelaReferencia";
+import CadastroProdutos from "./pages/CadastroProdutos";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
                 <Route path="/resultados" element={<Resultados />} />
                 <Route path="/historico" element={<Historico />} />
                 <Route path="/tabela-referencia" element={<TabelaReferencia />} />
+                <Route path="/cadastro-produtos" element={<CadastroProdutos />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>
