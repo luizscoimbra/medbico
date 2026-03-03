@@ -118,10 +118,22 @@ export default function CalculadoraCalda() {
     return capacidadeTanque / vazaoTrabalho;
   }, [capacidadeTanque, vazaoTrabalho]);
 
+  const volumeTotal = useMemo(() => areaTalhao * vazaoTrabalho, [areaTalhao, vazaoTrabalho]);
+
+  const tanquesCheios = useMemo(() => {
+    if (capacidadeTanque <= 0) return 0;
+    return Math.floor(volumeTotal / capacidadeTanque);
+  }, [volumeTotal, capacidadeTanque]);
+
+  const volumeRestante = useMemo(() => {
+    if (capacidadeTanque <= 0) return 0;
+    return volumeTotal - tanquesCheios * capacidadeTanque;
+  }, [volumeTotal, tanquesCheios, capacidadeTanque]);
+
   const tanquesNecessarios = useMemo(() => {
-    if (areaPorTanque <= 0 || areaTalhao <= 0) return 0;
-    return Math.ceil(areaTalhao / areaPorTanque);
-  }, [areaTalhao, areaPorTanque]);
+    if (capacidadeTanque <= 0 || volumeTotal <= 0) return 0;
+    return Math.ceil(volumeTotal / capacidadeTanque);
+  }, [volumeTotal, capacidadeTanque]);
 
   const produtosOrdenados = useMemo(() => {
     return [...produtos].sort(
@@ -229,10 +241,25 @@ export default function CalculadoraCalda() {
             </div>
           </div>
           {areaPorTanque > 0 && (
-            <div className="rounded-lg bg-primary/10 p-3 text-sm text-primary font-medium">
-              Cada tanque cobre <span className="font-mono font-bold">{areaPorTanque.toFixed(1)} ha</span>
-              {tanquesNecessarios > 0 && (
-                <> — serão necessários <span className="font-mono font-bold">{tanquesNecessarios} tanque(s)</span> para o talhão</>
+            <div className="rounded-lg bg-primary/10 p-4 text-sm text-primary space-y-2">
+              <p className="font-medium">
+                Cada tanque cobre <span className="font-mono font-bold">{areaPorTanque.toFixed(1)} ha</span>
+              </p>
+              {volumeTotal > 0 && (
+                <div className="space-y-1 border-t border-primary/20 pt-2">
+                  <p className="font-medium">
+                    Volume total necessário: <span className="font-mono font-bold">{volumeTotal.toLocaleString("pt-BR")} L</span>
+                  </p>
+                  <p className="font-medium">
+                    👉 <span className="font-mono font-bold">{tanquesCheios}</span> tanque(s) cheio(s) de {capacidadeTanque.toLocaleString("pt-BR")} L
+                    {volumeRestante > 0 && (
+                      <> + <span className="font-mono font-bold">1 tanque parcial</span> com <span className="font-mono font-bold">{volumeRestante.toLocaleString("pt-BR")} L</span></>
+                    )}
+                  </p>
+                  <p className="text-xs text-primary/70">
+                    Total: <span className="font-mono">{tanquesNecessarios} abastecimento(s)</span>
+                  </p>
+                </div>
               )}
             </div>
           )}
