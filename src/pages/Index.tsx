@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Droplets, Plus, History, BookOpen, ArrowRight, Gauge, Shield, Zap, FlaskConical } from "lucide-react";
+import { Droplets, Plus, History, BookOpen, ArrowRight, Gauge, Shield, Zap, FlaskConical, Activity } from "lucide-react";
 
 const features = [
   {
@@ -34,6 +34,13 @@ const actionCards = [
     icon: FlaskConical,
     title: "Calculadora de Calda",
     description: "Ordem de mistura e dosagem por tanque",
+    variant: "secondary" as const,
+  },
+  {
+    to: "/aferir-vazao",
+    icon: Activity,
+    title: "Aferir Vazão",
+    description: "Calibração de vazão do implemento",
     variant: "secondary" as const,
   },
   {
@@ -127,7 +134,7 @@ export default function Index() {
             O que você deseja fazer?
           </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {actionCards.map((card, index) => (
               <Link
                 key={card.to}
