@@ -415,90 +415,49 @@ export default function CalculadoraCalda() {
               Relatório de Mistura
             </CardTitle>
             <CardDescription>
-              {talhao && <>Talhão: {talhao} — </>}
-              {tanquesCheios > 0 && <>{tanquesCheios} tanque(s) cheio(s)</>}
-              {volumeRestante > 0 && <> + 1 tanque parcial ({volumeRestante.toLocaleString("pt-BR")} L)</>}
+              Para 1 tanque de {capacidadeTanque} L ({areaPorTanque.toFixed(1)} ha)
+              {talhao && <> — Talhão: {talhao}</>}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Tanque Cheio */}
-            {tanquesCheios > 0 && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-heading font-semibold text-foreground flex items-center gap-2">
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-primary text-xs font-bold">🛢</span>
-                  Tanque Cheio — {capacidadeTanque.toLocaleString("pt-BR")} L ({areaPorTanque.toFixed(1)} ha)
-                  {tanquesCheios > 1 && <span className="text-xs text-muted-foreground font-normal ml-1">× {tanquesCheios}</span>}
-                </h3>
-                {produtosOrdenados.map((p, idx) => {
-                  const doseTanqueCheio = areaPorTanque * p.dose;
-                  const un = p.unidade === "L/ha" ? "L" : "kg";
-                  const info = ORDEM_FORMULACAO[p.formulacao];
-                  return (
-                    <div key={p.id} className="rounded-lg border border-border bg-card p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-heading text-sm">
-                          {idx + 1}º
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-heading text-foreground">{p.nome}</span>
-                            <span className="text-xs rounded-full px-2 py-0.5 bg-accent/20 text-accent-foreground font-mono">
-                              {p.formulacao} — {info.descricao}
-                            </span>
-                          </div>
-                          <p className="text-2xl font-mono font-bold text-primary mt-1">
-                            {doseTanqueCheio.toFixed(2)} {un}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                            <AlertTriangle className="h-3 w-3" />
-                            {info.instrucao}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+          <CardContent className="space-y-3">
+            {produtosOrdenados.map((p, idx) => {
+              const dosePorTanque = areaPorTanque * p.dose;
+              const un = p.unidade === "L/ha" ? "L" : "kg";
+              const info = ORDEM_FORMULACAO[p.formulacao];
 
-            {/* Tanque Parcial */}
-            {volumeRestante > 0 && (
-              <div className="space-y-3">
-                <Separator />
-                <h3 className="text-sm font-heading font-semibold text-foreground flex items-center gap-2">
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-accent/20 text-accent-foreground text-xs font-bold">⚗</span>
-                  Tanque Parcial — {volumeRestante.toLocaleString("pt-BR")} L ({(volumeRestante / vazaoTrabalho).toFixed(2)} ha)
-                </h3>
-                {produtosOrdenados.map((p, idx) => {
-                  const areaParcial = volumeRestante / vazaoTrabalho;
-                  const doseParcial = areaParcial * p.dose;
-                  const un = p.unidade === "L/ha" ? "L" : "kg";
-                  const info = ORDEM_FORMULACAO[p.formulacao];
-                  return (
-                    <div key={`parcial-${p.id}`} className="rounded-lg border border-dashed border-border bg-muted/30 p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground font-heading text-sm">
-                          {idx + 1}º
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-heading text-foreground">{p.nome}</span>
-                            <span className="text-xs rounded-full px-2 py-0.5 bg-accent/20 text-accent-foreground font-mono">
-                              {p.formulacao}
-                            </span>
-                          </div>
-                          <p className="text-2xl font-mono font-bold text-accent-foreground mt-1">
-                            {doseParcial.toFixed(2)} {un}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                            <AlertTriangle className="h-3 w-3" />
-                            {info.instrucao}
-                          </p>
-                        </div>
-                      </div>
+              return (
+                <div
+                  key={p.id}
+                  className="rounded-lg border border-border bg-card p-4"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-heading text-sm">
+                      {idx + 1}º
                     </div>
-                  );
-                })}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-heading text-foreground">{p.nome}</span>
+                        <span className="text-xs rounded-full px-2 py-0.5 bg-accent/20 text-accent-foreground font-mono">
+                          {p.formulacao} — {info.descricao}
+                        </span>
+                      </div>
+                      <p className="text-2xl font-mono font-bold text-primary mt-1">
+                        {dosePorTanque.toFixed(2)} {un}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        {info.instrucao}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {tanquesNecessarios > 1 && (
+              <div className="rounded-lg bg-warning/10 border border-warning/30 p-3 text-sm text-warning-foreground">
+                <strong>Atenção:</strong> Para a área total de {areaTalhao} ha serão necessários{" "}
+                <strong>{tanquesNecessarios} tanques</strong>. Repita a mesma dosagem acima para cada abastecimento.
               </div>
             )}
           </CardContent>
