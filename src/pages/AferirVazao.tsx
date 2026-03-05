@@ -30,6 +30,47 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+interface Measurement {
+  nozzleNumber: number;
+  measuredValue: number;
+  status: "ok" | "cleaning" | "replacement";
+  action: string;
+}
+
+interface MeasurementData {
+  equipmentModel: string;
+  tractorModel?: string;
+  fleetNumber?: string;
+  measurementDate: Date;
+  workingPressure: number;
+  totalNozzles: number;
+  technicianName?: string;
+  readings: Measurement[];
+}
+
+interface DiagnosisSummary {
+  totalOk: number;
+  totalCleaning: number;
+  totalReplacement: number;
+  percentageAbove: number;
+  needsFullReplacement: boolean;
+}
+
+interface Nozzle {
+  id: string;
+  name: string;
+  color: string;
+  litersPerMin: number;
+  pressureRange: [number, number];
+  flowRateVariance: number;
+}
+
+interface NozzleStatus {
+  min: number;
+  max: number;
+  status: "ok" | "cleaning" | "replacement";
+}
+
 interface NozzleCollect {
   nozzleNumber: number;
   value: number;
@@ -66,7 +107,6 @@ export default function AferirVazao() {
   const [step, setStep] = useState<"config" | "coleta" | "resultado">("config");
   const reportRef = useRef<HTMLDivElement>(null);
 
-  // Identification fields
   const [modeloTrator, setModeloTrator] = useState("");
   const [frota, setFrota] = useState("");
   const [tipoImplemento, setTipoImplemento] = useState("");
@@ -76,15 +116,12 @@ export default function AferirVazao() {
   const [turno, setTurno] = useState("");
   const dataHora = useMemo(() => new Date(), []);
 
-  // Calculation parameters
   const [taxaDesejada, setTaxaDesejada] = useState("");
   const [velocidade, setVelocidade] = useState("");
   const [espacamento, setEspacamento] = useState("");
 
-  // Nozzle readings
   const [coletas, setColetas] = useState<NozzleCollect[]>([]);
 
-  // Derived calculations
   const nBicos = parseInt(numeroBicos) || 0;
   const T = parseFloat(taxaDesejada) || 0;
   const V = parseFloat(velocidade) || 0;
@@ -457,9 +494,10 @@ export default function AferirVazao() {
   const implementoLabel = tipoImplemento === "barra" ? "Barra" : tipoImplemento === "turbo" ? "Turbo" : tipoImplemento === "costal" ? "Costal" : "-";
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-8 animate-fade-in flex items-center justify-between">
+    <div className="container mx-auto px-4 py-8 print:px-2 print:py-1">
+      <div className="max-w-4xl mx-auto print:max-w-full">
+        {/* Screen header - hidden on print */}
+        <div className="mb-8 animate-fade-in flex items-center justify-between print:hidden">
           <div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
               <span className="px-2 py-1 rounded bg-primary/10 text-primary font-medium">
@@ -483,134 +521,147 @@ export default function AferirVazao() {
           </div>
         </div>
 
-        <div ref={reportRef} className="space-y-6 print:space-y-4">
-          {/* Status Card */}
-          <Card className={`shadow-lg animate-slide-up border-2 ${statusConfig.className}`}>
-            <CardContent className="p-6 flex items-center gap-4">
-              <div className="h-16 w-16 rounded-xl flex items-center justify-center bg-background">
-                <StatusIcon className="h-8 w-8" />
+        <div ref={reportRef} className="space-y-6 print:space-y-1">
+          {/* Print-only compact header */}
+          <div className="hidden print:block border-b border-border pb-1 mb-1">
+            <h1 className="text-sm font-heading text-foreground text-center">
+              Relatório de Calibração de Vazão
+            </h1>
+            <p className="text-center text-[8px] text-muted-foreground">
+              Gerado em: {dataHora.toLocaleString("pt-BR")}
+            </p>
+          </div>
+
+          {/* Status Card - compact on print */}
+          <Card className={`shadow-lg animate-slide-up border-2 ${statusConfig.className} print:shadow-none print:border`}>
+            <CardContent className="p-6 flex items-center gap-4 print:p-2 print:gap-2">
+              <div className="h-16 w-16 rounded-xl flex items-center justify-center bg-background print:h-7 print:w-7 print:rounded">
+                <StatusIcon className="h-8 w-8 print:h-4 print:w-4" />
               </div>
               <div>
-                <h2 className="text-2xl font-heading">{statusConfig.label}</h2>
-                <p className="text-sm opacity-80">
+                <h2 className="text-2xl font-heading print:text-xs">{statusConfig.label}</h2>
+                <p className="text-sm opacity-80 print:text-[8px]">
                   Desvio geral: {desvioPercent >= 0 ? "+" : ""}{desvioPercent.toFixed(2)}% em relação à vazão teórica
                 </p>
               </div>
             </CardContent>
           </Card>
 
-          {/* Identification Summary */}
-          <Card className="shadow-lg animate-slide-up" style={{ animationDelay: "0.05s" }}>
-            <CardHeader className="border-b border-border">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                Dados da Aferição
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Trator</p>
-                  <p className="font-medium text-foreground">{modeloTrator || "-"}</p>
+          {/* Identification + Calculation side by side on print */}
+          <div className="print:grid print:grid-cols-2 print:gap-1 space-y-6 print:space-y-0">
+            {/* Identification Summary */}
+            <Card className="shadow-lg animate-slide-up print:shadow-none" style={{ animationDelay: "0.05s" }}>
+              <CardHeader className="border-b border-border print:p-1.5 print:pb-0.5">
+                <CardTitle className="text-lg flex items-center gap-2 print:text-[9px]">
+                  <FileText className="h-5 w-5 text-primary print:h-3 print:w-3" />
+                  Dados da Aferição
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 print:p-1.5">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm print:grid-cols-2 print:gap-0.5 print:text-[8px]">
+                  <div>
+                    <p className="text-muted-foreground">Trator</p>
+                    <p className="font-medium text-foreground">{modeloTrator || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Frota</p>
+                    <p className="font-medium text-foreground">{frota || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Implemento</p>
+                    <p className="font-medium text-foreground">{implementoLabel}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Nº Bicos</p>
+                    <p className="font-medium text-foreground">{nBicos}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Local</p>
+                    <p className="font-medium text-foreground">{localColeta || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Operador</p>
+                    <p className="font-medium text-foreground">{operador || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Turno</p>
+                    <p className="font-medium text-foreground">{turnoLabel}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Data/Hora</p>
+                    <p className="font-medium text-foreground">{dataHora.toLocaleString("pt-BR")}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-muted-foreground">Frota</p>
-                  <p className="font-medium text-foreground">{frota || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Implemento</p>
-                  <p className="font-medium text-foreground">{implementoLabel}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Nº Bicos</p>
-                  <p className="font-medium text-foreground">{nBicos}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Local</p>
-                  <p className="font-medium text-foreground">{localColeta || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Operador</p>
-                  <p className="font-medium text-foreground">{operador || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Turno</p>
-                  <p className="font-medium text-foreground">{turnoLabel}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Data/Hora</p>
-                  <p className="font-medium text-foreground">{dataHora.toLocaleString("pt-BR")}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* Calculation Summary */}
-          <Card className="shadow-lg animate-slide-up" style={{ animationDelay: "0.1s" }}>
-            <CardHeader className="border-b border-border">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Calculator className="h-5 w-5 text-primary" />
-                Resumo do Cálculo
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <div className="p-4 rounded-lg bg-muted/50 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Taxa Desejada</p>
-                  <p className="text-xl font-heading text-foreground">{T} <span className="text-xs font-normal">L/ha</span></p>
-                </div>
-                <div className="p-4 rounded-lg bg-muted/50 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Vazão Teórica</p>
-                  <p className="text-xl font-heading text-primary">{vazaoTeorica.toFixed(3)} <span className="text-xs font-normal">L/min</span></p>
-                </div>
-                <div className="p-4 rounded-lg bg-muted/50 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Média Real</p>
-                  <p className="text-xl font-heading text-foreground">{mediaReal.toFixed(3)} <span className="text-xs font-normal">L/min</span></p>
-                </div>
-                <div className={`p-4 rounded-lg text-center ${
-                  Math.abs(desvioPercent) <= 5 ? "bg-success/10" :
-                  Math.abs(desvioPercent) <= 10 ? "bg-warning/10" : "bg-destructive/10"
-                }`}>
-                  <p className="text-xs text-muted-foreground mb-1">Desvio (%)</p>
-                  <p className={`text-xl font-heading ${
-                    Math.abs(desvioPercent) <= 5 ? "text-success" :
-                    Math.abs(desvioPercent) <= 10 ? "text-warning" : "text-destructive"
+            {/* Calculation Summary */}
+            <Card className="shadow-lg animate-slide-up print:shadow-none" style={{ animationDelay: "0.1s" }}>
+              <CardHeader className="border-b border-border print:p-1.5 print:pb-0.5">
+                <CardTitle className="text-lg flex items-center gap-2 print:text-[9px]">
+                  <Calculator className="h-5 w-5 text-primary print:h-3 print:w-3" />
+                  Resumo do Cálculo
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 print:p-1.5">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 print:grid-cols-2 print:gap-0.5">
+                  <div className="p-4 rounded-lg bg-muted/50 text-center print:p-1 print:rounded">
+                    <p className="text-xs text-muted-foreground mb-1 print:text-[7px] print:mb-0">Taxa Desejada</p>
+                    <p className="text-xl font-heading text-foreground print:text-[9px]">{T} <span className="text-xs font-normal print:text-[7px]">L/ha</span></p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50 text-center print:p-1 print:rounded">
+                    <p className="text-xs text-muted-foreground mb-1 print:text-[7px] print:mb-0">Vazão Teórica</p>
+                    <p className="text-xl font-heading text-primary print:text-[9px]">{vazaoTeorica.toFixed(3)} <span className="text-xs font-normal print:text-[7px]">L/min</span></p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50 text-center print:p-1 print:rounded">
+                    <p className="text-xs text-muted-foreground mb-1 print:text-[7px] print:mb-0">Média Real</p>
+                    <p className="text-xl font-heading text-foreground print:text-[9px]">{mediaReal.toFixed(3)} <span className="text-xs font-normal print:text-[7px]">L/min</span></p>
+                  </div>
+                  <div className={`p-4 rounded-lg text-center print:p-1 print:rounded ${
+                    Math.abs(desvioPercent) <= 5 ? "bg-success/10" :
+                    Math.abs(desvioPercent) <= 10 ? "bg-warning/10" : "bg-destructive/10"
                   }`}>
-                    {desvioPercent >= 0 ? "+" : ""}{desvioPercent.toFixed(2)}%
-                  </p>
+                    <p className="text-xs text-muted-foreground mb-1 print:text-[7px] print:mb-0">Desvio (%)</p>
+                    <p className={`text-xl font-heading print:text-[9px] ${
+                      Math.abs(desvioPercent) <= 5 ? "text-success" :
+                      Math.abs(desvioPercent) <= 10 ? "text-warning" : "text-destructive"
+                    }`}>
+                      {desvioPercent >= 0 ? "+" : ""}{desvioPercent.toFixed(2)}%
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="mt-4 p-3 rounded bg-muted/30 text-xs text-muted-foreground font-mono">
-                q<sub>t</sub> = ({T} × {V} × {E}) / 60.000 = {vazaoTeorica.toFixed(3)} L/min &nbsp;|&nbsp;
-                q̄ = Σcoletas / {nBicos} = {mediaReal.toFixed(3)} L/min &nbsp;|&nbsp;
-                Erro = (({mediaReal.toFixed(3)} - {vazaoTeorica.toFixed(3)}) / {vazaoTeorica.toFixed(3)}) × 100 = {desvioPercent.toFixed(2)}%
-              </div>
-            </CardContent>
-          </Card>
+                <div className="mt-4 p-3 rounded bg-muted/30 text-xs text-muted-foreground font-mono print:mt-1 print:p-1 print:text-[6px]">
+                  q<sub>t</sub> = ({T} × {V} × {E}) / 60.000 = {vazaoTeorica.toFixed(3)} L/min &nbsp;|&nbsp;
+                  q̄ = Σcoletas / {nBicos} = {mediaReal.toFixed(3)} L/min &nbsp;|&nbsp;
+                  Erro = {desvioPercent.toFixed(2)}%
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Nozzle Detail Table */}
-          <Card className="shadow-lg animate-slide-up" style={{ animationDelay: "0.15s" }}>
-            <CardHeader className="border-b border-border">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Gauge className="h-5 w-5 text-primary" />
+          <Card className="shadow-lg animate-slide-up print:shadow-none print:break-inside-avoid" style={{ animationDelay: "0.15s" }}>
+            <CardHeader className="border-b border-border print:p-1.5 print:pb-0.5">
+              <CardTitle className="text-lg flex items-center gap-2 print:text-[9px]">
+                <Gauge className="h-5 w-5 text-primary print:h-3 print:w-3" />
                 Coleta por Bico
                 {bicosAlerta.length > 0 && (
-                  <Badge variant="destructive" className="ml-2">
+                  <Badge variant="destructive" className="ml-2 print:text-[7px] print:px-1 print:py-0">
                     {bicosAlerta.length} bico(s) com desvio &gt; 10%
                   </Badge>
                 )}
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+            <CardContent className="p-6 print:p-1">
+              <div className="overflow-visible">
+                <table className="w-full text-sm print:text-[8px]">
                   <thead>
                     <tr className="border-b border-border text-left">
-                      <th className="py-2 px-3 text-muted-foreground font-medium">Bico</th>
-                      <th className="py-2 px-3 text-muted-foreground font-medium">Vazão (L/min)</th>
-                      <th className="py-2 px-3 text-muted-foreground font-medium">Desvio vs Média</th>
-                      <th className="py-2 px-3 text-muted-foreground font-medium">Status</th>
+                      <th className="py-2 px-3 text-muted-foreground font-medium print:py-0.5 print:px-1">Bico</th>
+                      <th className="py-2 px-3 text-muted-foreground font-medium print:py-0.5 print:px-1">Vazão (L/min)</th>
+                      <th className="py-2 px-3 text-muted-foreground font-medium print:py-0.5 print:px-1">Desvio vs Média</th>
+                      <th className="py-2 px-3 text-muted-foreground font-medium print:py-0.5 print:px-1">Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -622,19 +673,19 @@ export default function AferirVazao() {
                           key={c.nozzleNumber}
                           className={`border-b border-border/50 ${isAlerta ? "bg-destructive/5" : ""}`}
                         >
-                          <td className="py-2 px-3 font-mono">{c.nozzleNumber}</td>
-                          <td className="py-2 px-3 font-mono">{c.value.toFixed(3)}</td>
-                          <td className={`py-2 px-3 font-mono ${
+                          <td className="py-2 px-3 font-mono print:py-0 print:px-1">{c.nozzleNumber}</td>
+                          <td className="py-2 px-3 font-mono print:py-0 print:px-1">{c.value.toFixed(3)}</td>
+                          <td className={`py-2 px-3 font-mono print:py-0 print:px-1 ${
                             isAlerta ? "text-destructive font-semibold" :
                             Math.abs(desvioIndividual) <= 5 ? "text-success" : "text-warning"
                           }`}>
                             {desvioIndividual >= 0 ? "+" : ""}{desvioIndividual.toFixed(2)}%
                           </td>
-                          <td className="py-2 px-3">
+                          <td className="py-2 px-3 print:py-0 print:px-1">
                             {isAlerta ? (
-                              <Badge variant="destructive" className="text-xs">⚠ Fora do padrão</Badge>
+                              <Badge variant="destructive" className="text-xs print:text-[7px] print:px-0.5 print:py-0">⚠ Fora</Badge>
                             ) : (
-                              <Badge className="bg-success/10 text-success border-success/30 text-xs">OK</Badge>
+                              <Badge className="bg-success/10 text-success border-success/30 text-xs print:text-[7px] print:px-0.5 print:py-0">OK</Badge>
                             )}
                           </td>
                         </tr>
