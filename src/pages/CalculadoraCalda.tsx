@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { FlaskConical, Plus, Trash2, ListOrdered, Settings, Beaker, AlertTriangle } from "lucide-react";
+import { FlaskConical, Plus, Trash2, ListOrdered, Settings, Beaker, AlertTriangle, History, Search, Calendar, ChevronDown, ChevronUp, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 type Formulacao = "WP" | "WG" | "SC" | "EC" | "SL" | "ADJ";
@@ -22,6 +22,20 @@ interface Produto {
   formulacao: Formulacao;
   dose: number;
   unidade: "L/ha" | "kg/ha";
+}
+
+interface HistoricoCalda {
+  id: string;
+  data: string;
+  talhao: string;
+  areaTalhao: number;
+  vazaoTrabalho: number;
+  capacidadeTanque: number;
+  produtos: Produto[];
+  volumeTotal: number;
+  tanquesCheios: number;
+  volumeRestante: number;
+  tanquesNecessarios: number;
 }
 
 const ORDEM_FORMULACAO: Record<Formulacao, { ordem: number; descricao: string; instrucao: string }> = {
@@ -53,6 +67,21 @@ const FORMULACAO_MAP: Record<string, Formulacao> = {
   fungicida: "SC",
 };
 
+const HISTORICO_KEY = "historico_calda";
+
+function loadHistorico(): HistoricoCalda[] {
+  try {
+    const saved = localStorage.getItem(HISTORICO_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistorico(list: HistoricoCalda[]) {
+  localStorage.setItem(HISTORICO_KEY, JSON.stringify(list));
+}
+
 export default function CalculadoraCalda() {
   const [talhao, setTalhao] = useState("");
   const [areaTalhao, setAreaTalhao] = useState<number>(0);
@@ -67,12 +96,19 @@ export default function CalculadoraCalda() {
 
   const [mostrarResultado, setMostrarResultado] = useState(false);
 
+  // History
+  const [historico, setHistorico] = useState<HistoricoCalda[]>(loadHistorico);
+  const [showHistorico, setShowHistorico] = useState(false);
+  const [searchHistorico, setSearchHistorico] = useState("");
+  const [expandedHistorico, setExpandedHistorico] = useState<string | null>(null);
+
   // Autocomplete state
   const [produtosCadastrados, setProdutosCadastrados] = useState<ProdutoCadastrado[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<ProdutoCadastrado[]>([]);
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -168,9 +204,51 @@ export default function CalculadoraCalda() {
 
   const podeCalcular = produtos.length > 0 && vazaoTrabalho > 0 && capacidadeTanque > 0;
 
+  const handleCalcular = () => {
+    setMostrarResultado(true);
+    // Save to history
+    const entry: HistoricoCalda = {
+      id: crypto.randomUUID(),
+      data: new Date().toISOString(),
+      talhao: talhao || "Sem nome",
+      areaTalhao,
+      vazaoTrabalho,
+      capacidadeTanque,
+      produtos: [...produtos],
+      volumeTotal,
+      tanquesCheios,
+      volumeRestante,
+      tanquesNecessarios,
+    };
+    const updated = [entry, ...historico];
+    setHistorico(updated);
+    saveHistorico(updated);
+  };
+
+  const handleRemoverHistorico = (id: string) => {
+    const updated = historico.filter((h) => h.id !== id);
+    setHistorico(updated);
+    saveHistorico(updated);
+    if (expandedHistorico === id) setExpandedHistorico(null);
+  };
+
+  const filteredHistorico = historico.filter((h) => {
+    const s = searchHistorico.toLowerCase();
+    if (!s) return true;
+    return (
+      h.talhao.toLowerCase().includes(s) ||
+      h.produtos.some((p) => p.nome.toLowerCase().includes(s))
+    );
+  });
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+  const handlePrint = () => window.print();
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-2xl">
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-6 print:hidden">
         <div className="h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
           <FlaskConical className="h-6 w-6" />
         </div>
@@ -183,7 +261,7 @@ export default function CalculadoraCalda() {
       </div>
 
       {/* Configuração do Tanque */}
-      <Card className="mb-6">
+      <Card className="mb-6 print:hidden">
         <CardHeader className="pb-4">
           <CardTitle className="text-lg flex items-center gap-2">
             <Settings className="h-5 w-5 text-primary" />
@@ -267,7 +345,7 @@ export default function CalculadoraCalda() {
       </Card>
 
       {/* Adicionar Produtos */}
-      <Card className="mb-6">
+      <Card className="mb-6 print:hidden">
         <CardHeader className="pb-4">
           <CardTitle className="text-lg flex items-center gap-2">
             <Beaker className="h-5 w-5 text-primary" />
@@ -366,7 +444,7 @@ export default function CalculadoraCalda() {
 
       {/* Lista de Produtos */}
       {produtos.length > 0 && (
-        <Card className="mb-6">
+        <Card className="mb-6 print:hidden">
           <CardHeader className="pb-4">
             <CardTitle className="text-lg">Produtos Adicionados ({produtos.length})</CardTitle>
           </CardHeader>
@@ -376,7 +454,7 @@ export default function CalculadoraCalda() {
                 key={p.id}
                 className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-4 py-3"
               >
-                <div>
+                <div className="min-w-0 flex-1">
                   <span className="font-medium text-foreground">{p.nome}</span>
                   <span className="ml-2 text-xs rounded-full px-2 py-0.5 bg-primary/10 text-primary font-mono">
                     {p.formulacao}
@@ -394,7 +472,7 @@ export default function CalculadoraCalda() {
             <Separator className="my-4" />
 
             <Button
-              onClick={() => setMostrarResultado(true)}
+              onClick={handleCalcular}
               disabled={!podeCalcular}
               variant="hero"
               className="w-full"
@@ -406,125 +484,229 @@ export default function CalculadoraCalda() {
         </Card>
       )}
 
-      {/* Resultado */}
+      {/* Resultado / Relatório */}
       {mostrarResultado && podeCalcular && (
-        <Card className="border-primary/30 shadow-lg animate-slide-up">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <ListOrdered className="h-5 w-5 text-primary" />
-              Relatório de Mistura
-            </CardTitle>
-          <CardDescription>
-              {talhao && <>Talhão: {talhao} — </>}
-              Volume total: {volumeTotal.toLocaleString("pt-BR")} L para {areaTalhao} ha
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Resumo de abastecimentos */}
-            <div className="rounded-lg bg-primary/10 border border-primary/20 p-4 space-y-1 text-sm">
-              <p className="font-heading text-foreground">
-                📋 Plano de Abastecimento
-              </p>
+        <div ref={reportRef} className="print:p-0">
+          <Card className="border-primary/30 shadow-lg animate-slide-up mb-6 overflow-visible break-inside-avoid">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <ListOrdered className="h-5 w-5 text-primary" />
+                  Relatório de Mistura
+                </CardTitle>
+                <Button variant="outline" size="sm" onClick={handlePrint} className="print:hidden">
+                  <Printer className="h-4 w-4" />
+                  Imprimir
+                </Button>
+              </div>
+              <CardDescription>
+                {talhao && <>Talhão: {talhao} — </>}
+                Volume total: {volumeTotal.toLocaleString("pt-BR")} L para {areaTalhao} ha
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Resumo de abastecimentos */}
+              <div className="rounded-lg bg-primary/10 border border-primary/20 p-4 space-y-1 text-sm">
+                <p className="font-heading text-foreground">
+                  📋 Plano de Abastecimento
+                </p>
+                {tanquesCheios > 0 && (
+                  <p className="text-primary font-medium">
+                    👉 <span className="font-mono font-bold">{tanquesCheios}x</span> tanque(s) cheio(s) de{" "}
+                    <span className="font-mono font-bold">{capacidadeTanque.toLocaleString("pt-BR")} L</span>{" "}
+                    ({areaPorTanque.toFixed(1)} ha cada)
+                  </p>
+                )}
+                {volumeRestante > 0 && (
+                  <p className="text-primary font-medium">
+                    👉 <span className="font-mono font-bold">1x</span> tanque parcial com{" "}
+                    <span className="font-mono font-bold">{volumeRestante.toLocaleString("pt-BR")} L</span>{" "}
+                    ({(volumeRestante / vazaoTrabalho).toFixed(1)} ha)
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground pt-1">
+                  Total: {tanquesNecessarios} abastecimento(s)
+                </p>
+              </div>
+
+              {/* Dosagem Tanque Cheio */}
               {tanquesCheios > 0 && (
-                <p className="text-primary font-medium">
-                  👉 <span className="font-mono font-bold">{tanquesCheios}x</span> tanque(s) cheio(s) de{" "}
-                  <span className="font-mono font-bold">{capacidadeTanque.toLocaleString("pt-BR")} L</span>{" "}
-                  ({areaPorTanque.toFixed(1)} ha cada)
-                </p>
+                <>
+                  <Separator />
+                  <p className="font-heading text-foreground text-sm">
+                    🟢 Dosagem por Tanque Cheio ({capacidadeTanque.toLocaleString("pt-BR")} L — {areaPorTanque.toFixed(1)} ha)
+                  </p>
+                  {produtosOrdenados.map((p, idx) => {
+                    const doseCheio = areaPorTanque * p.dose;
+                    const un = p.unidade === "L/ha" ? "L" : "kg";
+                    const info = ORDEM_FORMULACAO[p.formulacao];
+                    return (
+                      <div key={`cheio-${p.id}`} className="rounded-lg border border-border bg-card p-3 break-inside-avoid">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-heading text-sm">
+                            {idx + 1}º
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-heading text-foreground">{p.nome}</span>
+                              <span className="text-xs rounded-full px-2 py-0.5 bg-accent/20 text-accent-foreground font-mono">
+                                {p.formulacao} — {info.descricao}
+                              </span>
+                            </div>
+                            <p className="text-xl font-mono font-bold text-primary mt-1">
+                              {doseCheio.toFixed(2)} {un}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                              <AlertTriangle className="h-3 w-3 shrink-0" />
+                              {info.instrucao}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
               )}
+
+              {/* Dosagem Tanque Parcial */}
               {volumeRestante > 0 && (
-                <p className="text-primary font-medium">
-                  👉 <span className="font-mono font-bold">1x</span> tanque parcial com{" "}
-                  <span className="font-mono font-bold">{volumeRestante.toLocaleString("pt-BR")} L</span>{" "}
-                  ({(volumeRestante / vazaoTrabalho).toFixed(1)} ha)
-                </p>
+                <>
+                  <Separator />
+                  <p className="font-heading text-foreground text-sm">
+                    🟡 Dosagem para Tanque Parcial ({volumeRestante.toLocaleString("pt-BR")} L — {(volumeRestante / vazaoTrabalho).toFixed(1)} ha)
+                  </p>
+                  {produtosOrdenados.map((p, idx) => {
+                    const areaParcial = volumeRestante / vazaoTrabalho;
+                    const doseParcial = areaParcial * p.dose;
+                    const un = p.unidade === "L/ha" ? "L" : "kg";
+                    const info = ORDEM_FORMULACAO[p.formulacao];
+                    return (
+                      <div key={`parcial-${p.id}`} className="rounded-lg border border-border bg-card p-3 break-inside-avoid">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-warning text-warning-foreground font-heading text-sm">
+                            {idx + 1}º
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-heading text-foreground">{p.nome}</span>
+                              <span className="text-xs rounded-full px-2 py-0.5 bg-accent/20 text-accent-foreground font-mono">
+                                {p.formulacao} — {info.descricao}
+                              </span>
+                            </div>
+                            <p className="text-xl font-mono font-bold text-warning mt-1">
+                              {doseParcial.toFixed(2)} {un}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                              <AlertTriangle className="h-3 w-3 shrink-0" />
+                              {info.instrucao}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
               )}
-              <p className="text-xs text-muted-foreground pt-1">
-                Total: {tanquesNecessarios} abastecimento(s)
-              </p>
-            </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-            {/* Dosagem Tanque Cheio */}
-            {tanquesCheios > 0 && (
+      {/* Histórico */}
+      <Card className="print:hidden">
+        <CardHeader className="pb-4">
+          <button
+            type="button"
+            className="flex items-center justify-between w-full"
+            onClick={() => setShowHistorico(!showHistorico)}
+          >
+            <CardTitle className="text-lg flex items-center gap-2">
+              <History className="h-5 w-5 text-primary" />
+              Histórico de Cálculos ({historico.length})
+            </CardTitle>
+            {showHistorico ? <ChevronUp className="h-5 w-5 text-muted-foreground" /> : <ChevronDown className="h-5 w-5 text-muted-foreground" />}
+          </button>
+        </CardHeader>
+        {showHistorico && (
+          <CardContent className="space-y-4">
+            {historico.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">Nenhum cálculo registrado ainda.</p>
+            ) : (
               <>
-                <Separator />
-                <p className="font-heading text-foreground text-sm">
-                  🟢 Dosagem por Tanque Cheio ({capacidadeTanque.toLocaleString("pt-BR")} L — {areaPorTanque.toFixed(1)} ha)
-                </p>
-                {produtosOrdenados.map((p, idx) => {
-                  const doseCheio = areaPorTanque * p.dose;
-                  const un = p.unidade === "L/ha" ? "L" : "kg";
-                  const info = ORDEM_FORMULACAO[p.formulacao];
-                  return (
-                    <div key={`cheio-${p.id}`} className="rounded-lg border border-border bg-card p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-heading text-sm">
-                          {idx + 1}º
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por talhão ou produto..."
+                    value={searchHistorico}
+                    onChange={(e) => setSearchHistorico(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                  {filteredHistorico.map((h) => (
+                    <div key={h.id} className="rounded-lg border border-border bg-muted/40">
+                      <button
+                        type="button"
+                        className="w-full text-left px-4 py-3 flex items-center justify-between"
+                        onClick={() => setExpandedHistorico(expandedHistorico === h.id ? null : h.id)}
+                      >
+                        <div className="min-w-0">
+                          <p className="font-medium text-foreground text-sm">{h.talhao}</p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                            <Calendar className="h-3 w-3" />
+                            {formatDate(h.data)} — {h.areaTalhao} ha — {h.tanquesNecessarios} abast.
+                          </p>
                         </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-heading text-foreground">{p.nome}</span>
-                            <span className="text-xs rounded-full px-2 py-0.5 bg-accent/20 text-accent-foreground font-mono">
-                              {p.formulacao} — {info.descricao}
-                            </span>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={(e) => { e.stopPropagation(); handleRemoverHistorico(h.id); }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                          {expandedHistorico === h.id ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                        </div>
+                      </button>
+                      {expandedHistorico === h.id && (
+                        <div className="px-4 pb-3 space-y-2 border-t border-border pt-3">
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="rounded bg-background p-2">
+                              <span className="text-muted-foreground">Vazão:</span>{" "}
+                              <span className="font-mono font-medium">{h.vazaoTrabalho} L/ha</span>
+                            </div>
+                            <div className="rounded bg-background p-2">
+                              <span className="text-muted-foreground">Tanque:</span>{" "}
+                              <span className="font-mono font-medium">{h.capacidadeTanque.toLocaleString("pt-BR")} L</span>
+                            </div>
+                            <div className="rounded bg-background p-2">
+                              <span className="text-muted-foreground">Vol. Total:</span>{" "}
+                              <span className="font-mono font-medium">{h.volumeTotal.toLocaleString("pt-BR")} L</span>
+                            </div>
+                            <div className="rounded bg-background p-2">
+                              <span className="text-muted-foreground">Abast.:</span>{" "}
+                              <span className="font-mono font-medium">{h.tanquesCheios} cheio(s){h.volumeRestante > 0 ? ` + ${h.volumeRestante.toLocaleString("pt-BR")} L` : ""}</span>
+                            </div>
                           </div>
-                          <p className="text-2xl font-mono font-bold text-primary mt-1">
-                            {doseCheio.toFixed(2)} {un}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                            <AlertTriangle className="h-3 w-3" />
-                            {info.instrucao}
-                          </p>
+                          <p className="text-xs font-medium text-foreground">Produtos:</p>
+                          {h.produtos.map((p) => (
+                            <div key={p.id} className="text-xs flex items-center gap-2 rounded bg-background px-2 py-1.5">
+                              <span className="font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px]">{p.formulacao}</span>
+                              <span className="font-medium">{p.nome}</span>
+                              <span className="text-muted-foreground ml-auto">{p.dose} {p.unidade}</span>
+                            </div>
+                          ))}
                         </div>
-                      </div>
+                      )}
                     </div>
-                  );
-                })}
-              </>
-            )}
-
-            {/* Dosagem Tanque Parcial */}
-            {volumeRestante > 0 && (
-              <>
-                <Separator />
-                <p className="font-heading text-foreground text-sm">
-                  🟡 Dosagem para Tanque Parcial ({volumeRestante.toLocaleString("pt-BR")} L — {(volumeRestante / vazaoTrabalho).toFixed(1)} ha)
-                </p>
-                {produtosOrdenados.map((p, idx) => {
-                  const areaParcial = volumeRestante / vazaoTrabalho;
-                  const doseParcial = areaParcial * p.dose;
-                  const un = p.unidade === "L/ha" ? "L" : "kg";
-                  const info = ORDEM_FORMULACAO[p.formulacao];
-                  return (
-                    <div key={`parcial-${p.id}`} className="rounded-lg border border-border bg-card p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-warning text-warning-foreground font-heading text-sm">
-                          {idx + 1}º
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-heading text-foreground">{p.nome}</span>
-                            <span className="text-xs rounded-full px-2 py-0.5 bg-accent/20 text-accent-foreground font-mono">
-                              {p.formulacao} — {info.descricao}
-                            </span>
-                          </div>
-                          <p className="text-2xl font-mono font-bold text-warning mt-1">
-                            {doseParcial.toFixed(2)} {un}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                            <AlertTriangle className="h-3 w-3" />
-                            {info.instrucao}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                  ))}
+                </div>
               </>
             )}
           </CardContent>
-        </Card>
-      )}
+        )}
+      </Card>
     </div>
   );
 }
