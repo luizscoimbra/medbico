@@ -130,7 +130,7 @@ export default function CalculadoraCalda() {
     setNovoNome(value);
     if (value.trim().length > 0) {
       const filtered = produtosCadastrados.filter((p) =>
-        p.name.toLowerCase().includes(value.toLowerCase())
+        p.commercial_name.toLowerCase().includes(value.toLowerCase())
       );
       setFilteredSuggestions(filtered);
       setShowSuggestions(true);
