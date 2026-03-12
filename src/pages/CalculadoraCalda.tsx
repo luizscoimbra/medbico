@@ -109,8 +109,8 @@ export default function CalculadoraCalda() {
 
   useEffect(() => {
     const fetchProducts = async () => {
-      const { data } = await supabase.from("products").select("id, name, type");
-      if (data) setProdutosCadastrados(data);
+      const { data } = await supabase.from("registered_products").select("id, commercial_name, formulation, unit, package_size");
+      if (data) setProdutosCadastrados(data as ProdutoCadastrado[]);
     };
     fetchProducts();
   }, []);
