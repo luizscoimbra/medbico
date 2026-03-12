@@ -385,8 +385,8 @@ export default function CalculadoraCalda() {
                     className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
                     onClick={() => handleSelectProduct(p)}
                   >
-                    <span className="font-medium">{p.name}</span>
-                    <span className="text-xs text-muted-foreground capitalize">{p.type}</span>
+                    <span className="font-medium">{p.commercial_name}</span>
+                    <span className="text-xs text-muted-foreground">{p.formulation}</span>
                   </button>
                 ))}
               </div>
