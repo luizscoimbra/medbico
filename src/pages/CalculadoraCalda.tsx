@@ -58,14 +58,11 @@ const UNIDADE_PADRAO: Record<Formulacao, "L/ha" | "kg/ha"> = {
 
 interface ProdutoCadastrado {
   id: string;
-  name: string;
-  type: string;
+  commercial_name: string;
+  formulation: string;
+  unit: string;
+  package_size: number;
 }
-
-const FORMULACAO_MAP: Record<string, Formulacao> = {
-  herbicida: "SL",
-  fungicida: "SC",
-};
 
 const HISTORICO_KEY = "historico_calda";
 
