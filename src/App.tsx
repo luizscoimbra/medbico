@@ -12,6 +12,7 @@ import Resultados from "./pages/Resultados";
 import Historico from "./pages/Historico";
 import TabelaReferencia from "./pages/TabelaReferencia";
 import CadastroProdutos from "./pages/CadastroProdutos";
+import Cadastros from "./pages/Cadastros";
 import CalculadoraCalda from "./pages/CalculadoraCalda";
 import AferirVazao from "./pages/AferirVazao";
 import NotFound from "./pages/NotFound";
