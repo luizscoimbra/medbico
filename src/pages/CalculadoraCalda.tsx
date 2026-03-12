@@ -140,9 +140,10 @@ export default function CalculadoraCalda() {
   };
 
   const handleSelectProduct = (product: ProdutoCadastrado) => {
-    setNovoNome(product.name);
-    const mapped = FORMULACAO_MAP[product.type] || "SL";
+    setNovoNome(product.commercial_name);
+    const mapped = (product.formulation as Formulacao) || "SL";
     handleFormulacaoChange(mapped);
+    setNovaUnidade(product.unit === "KG" ? "kg/ha" : "L/ha");
     setShowSuggestions(false);
   };
 
