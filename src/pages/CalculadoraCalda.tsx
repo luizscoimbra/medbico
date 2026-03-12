@@ -362,7 +362,7 @@ export default function CalculadoraCalda() {
               onFocus={() => {
                 if (novoNome.trim().length > 0) {
                   const filtered = produtosCadastrados.filter((p) =>
-                    p.name.toLowerCase().includes(novoNome.toLowerCase())
+                    p.commercial_name.toLowerCase().includes(novoNome.toLowerCase())
                   );
                   setFilteredSuggestions(filtered);
                   setShowSuggestions(true);
