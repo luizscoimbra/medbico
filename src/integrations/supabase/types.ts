@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      equipment: {
+        Row: {
+          created_at: string
+          equipment_model: string
+          fleet_number: string
+          id: string
+          total_nozzles: number
+          tractor_model: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          equipment_model: string
+          fleet_number: string
+          id?: string
+          total_nozzles: number
+          tractor_model?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          equipment_model?: string
+          fleet_number?: string
+          id?: string
+          total_nozzles?: number
+          tractor_model?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           created_at: string
@@ -50,6 +83,39 @@ export type Database = {
           updated_at?: string
           user_id?: string
           withholding_period?: string
+        }
+        Relationships: []
+      }
+      registered_products: {
+        Row: {
+          commercial_name: string
+          created_at: string
+          formulation: string
+          id: string
+          package_size: number
+          unit: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          commercial_name: string
+          created_at?: string
+          formulation: string
+          id?: string
+          package_size: number
+          unit: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          commercial_name?: string
+          created_at?: string
+          formulation?: string
+          id?: string
+          package_size?: number
+          unit?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

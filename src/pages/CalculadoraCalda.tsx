@@ -58,14 +58,11 @@ const UNIDADE_PADRAO: Record<Formulacao, "L/ha" | "kg/ha"> = {
 
 interface ProdutoCadastrado {
   id: string;
-  name: string;
-  type: string;
+  commercial_name: string;
+  formulation: string;
+  unit: string;
+  package_size: number;
 }
-
-const FORMULACAO_MAP: Record<string, Formulacao> = {
-  herbicida: "SL",
-  fungicida: "SC",
-};
 
 const HISTORICO_KEY = "historico_calda";
 
@@ -112,8 +109,8 @@ export default function CalculadoraCalda() {
 
   useEffect(() => {
     const fetchProducts = async () => {
-      const { data } = await supabase.from("products").select("id, name, type");
-      if (data) setProdutosCadastrados(data);
+      const { data } = await supabase.from("registered_products").select("id, commercial_name, formulation, unit, package_size");
+      if (data) setProdutosCadastrados(data as ProdutoCadastrado[]);
     };
     fetchProducts();
   }, []);
@@ -133,7 +130,7 @@ export default function CalculadoraCalda() {
     setNovoNome(value);
     if (value.trim().length > 0) {
       const filtered = produtosCadastrados.filter((p) =>
-        p.name.toLowerCase().includes(value.toLowerCase())
+        p.commercial_name.toLowerCase().includes(value.toLowerCase())
       );
       setFilteredSuggestions(filtered);
       setShowSuggestions(true);
@@ -143,9 +140,10 @@ export default function CalculadoraCalda() {
   };
 
   const handleSelectProduct = (product: ProdutoCadastrado) => {
-    setNovoNome(product.name);
-    const mapped = FORMULACAO_MAP[product.type] || "SL";
+    setNovoNome(product.commercial_name);
+    const mapped = (product.formulation as Formulacao) || "SL";
     handleFormulacaoChange(mapped);
+    setNovaUnidade(product.unit === "KG" ? "kg/ha" : "L/ha");
     setShowSuggestions(false);
   };
 
@@ -364,7 +362,7 @@ export default function CalculadoraCalda() {
               onFocus={() => {
                 if (novoNome.trim().length > 0) {
                   const filtered = produtosCadastrados.filter((p) =>
-                    p.name.toLowerCase().includes(novoNome.toLowerCase())
+                    p.commercial_name.toLowerCase().includes(novoNome.toLowerCase())
                   );
                   setFilteredSuggestions(filtered);
                   setShowSuggestions(true);
@@ -387,8 +385,8 @@ export default function CalculadoraCalda() {
                     className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
                     onClick={() => handleSelectProduct(p)}
                   >
-                    <span className="font-medium">{p.name}</span>
-                    <span className="text-xs text-muted-foreground capitalize">{p.type}</span>
+                    <span className="font-medium">{p.commercial_name}</span>
+                    <span className="text-xs text-muted-foreground">{p.formulation}</span>
                   </button>
                 ))}
               </div>
