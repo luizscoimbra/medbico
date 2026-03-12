@@ -57,6 +57,13 @@ const actionCards = [
     description: "Consultar valores de referência",
     variant: "secondary" as const,
   },
+  {
+    to: "/cadastros",
+    icon: ClipboardList,
+    title: "Cadastros",
+    description: "Equipamentos e produtos",
+    variant: "secondary" as const,
+  },
 ];
 
 export default function Index() {
