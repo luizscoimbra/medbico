@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Droplets, Plus, History, BookOpen, ArrowRight, Gauge, Shield, Zap, FlaskConical, Activity } from "lucide-react";
+import { Droplets, Plus, History, BookOpen, ArrowRight, Gauge, Shield, Zap, FlaskConical, Activity, ClipboardList } from "lucide-react";
 
 const features = [
   {
