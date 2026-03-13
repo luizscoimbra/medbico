@@ -14,14 +14,16 @@ import { Separator } from "@/components/ui/separator";
 import { FlaskConical, Plus, Trash2, ListOrdered, Settings, Beaker, AlertTriangle, History, Search, Calendar, ChevronDown, ChevronUp, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
-type Formulacao = "WP" | "WG" | "SC" | "EC" | "SL" | "ADJ";
+type FormulacaoConhecida = "WP" | "WG" | "SC" | "EC" | "SL" | "ADJ";
 
 interface Produto {
   id: string;
   nome: string;
-  formulacao: Formulacao;
+  formulacao: string;
   dose: number;
   unidade: "L/ha" | "kg/ha";
+  packageSize?: number;
+  packageUnit?: string;
 }
 
 interface HistoricoCalda {
