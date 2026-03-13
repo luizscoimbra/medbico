@@ -196,10 +196,14 @@ export default function CalculadoraCalda() {
       formulacao: novaFormulacao,
       dose: novaDose,
       unidade: novaUnidade,
+      packageSize: selectedPackageSize,
+      packageUnit: selectedPackageUnit,
     };
     setProdutos((prev) => [...prev, novoProduto]);
     setNovoNome("");
     setNovaDose(0);
+    setSelectedPackageSize(undefined);
+    setSelectedPackageUnit(undefined);
     setMostrarResultado(false);
   };
 
