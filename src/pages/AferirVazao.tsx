@@ -126,6 +126,65 @@ export default function AferirVazao() {
   const [turno, setTurno] = useState("");
   const dataHora = useMemo(() => new Date(), []);
 
+  // Fleet search
+  const [equipments, setEquipments] = useState<EquipmentRecord[]>([]);
+  const [showFleetSuggestions, setShowFleetSuggestions] = useState(false);
+  const [fleetNotFound, setFleetNotFound] = useState(false);
+  const fleetInputRef = useRef<HTMLInputElement>(null);
+  const fleetSuggestionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchEquipments = async () => {
+      const { data } = await supabase.from("equipment").select("id, fleet_number, tractor_model, equipment_model, total_nozzles");
+      if (data) setEquipments(data as EquipmentRecord[]);
+    };
+    fetchEquipments();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (fleetSuggestionsRef.current && !fleetSuggestionsRef.current.contains(e.target as Node) &&
+          fleetInputRef.current && !fleetInputRef.current.contains(e.target as Node)) {
+        setShowFleetSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredFleets = useMemo(() => {
+    if (!frota.trim()) return equipments;
+    return equipments.filter((eq) =>
+      eq.fleet_number.toLowerCase().includes(frota.toLowerCase())
+    );
+  }, [frota, equipments]);
+
+  const handleFrotaChange = (value: string) => {
+    setFrota(value);
+    setFleetNotFound(false);
+    if (value.trim().length > 0) {
+      const matches = equipments.filter((eq) =>
+        eq.fleet_number.toLowerCase().includes(value.toLowerCase())
+      );
+      setShowFleetSuggestions(true);
+      if (matches.length === 0 && value.trim().length >= 2) {
+        setFleetNotFound(true);
+      }
+    } else {
+      setShowFleetSuggestions(false);
+    }
+  };
+
+  const handleSelectFleet = (eq: EquipmentRecord) => {
+    setFrota(eq.fleet_number);
+    setModeloTrator(eq.tractor_model || "");
+    setTipoImplemento(eq.equipment_model || "");
+    setNumeroBicos(String(eq.total_nozzles));
+    setShowFleetSuggestions(false);
+    setFleetNotFound(false);
+    toast.success(`Frota ${eq.fleet_number} carregada!`);
+  };
+
   const [taxaDesejada, setTaxaDesejada] = useState("");
   const [velocidade, setVelocidade] = useState("");
   const [espacamento, setEspacamento] = useState("");
