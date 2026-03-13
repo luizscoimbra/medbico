@@ -657,7 +657,8 @@ export default function CalculadoraCalda() {
                       const areaParcial = volumeRestante / vazaoTrabalho;
                       const doseParcial = areaParcial * p.dose;
                       const un = p.unidade === "L/ha" ? "L" : "kg";
-                      const info = ORDEM_FORMULACAO[p.formulacao];
+                      const info = getFormulacaoInfo(p.formulacao);
+                      const galoes = p.packageSize ? doseParcial / p.packageSize : null;
                       return (
                         <div key={`parcial-${p.id}`} className="rounded-lg border border-border bg-card p-3 print:p-2 print:rounded-none break-inside-avoid">
                           <div className="flex items-center gap-3 print:gap-2">
@@ -674,6 +675,11 @@ export default function CalculadoraCalda() {
                               <p className="text-lg print:text-base font-mono font-bold text-warning mt-0.5">
                                 {doseParcial.toFixed(2)} {un}
                               </p>
+                              {galoes !== null && (
+                                <p className="text-xs text-muted-foreground mt-0.5 font-mono">
+                                  ≈ {galoes.toFixed(2)} embalagem(ns) de {p.packageSize} {p.packageUnit === "KG" ? "kg" : "L"}
+                                </p>
+                              )}
                             </div>
                             <p className="text-xs text-muted-foreground hidden print:block shrink-0">
                               {info.instrucao}

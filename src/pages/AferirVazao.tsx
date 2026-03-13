@@ -313,16 +313,47 @@ export default function AferirVazao() {
                       required
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 relative">
                     <Label className="flex items-center gap-2">
-                      <Hash className="h-4 w-4 text-muted-foreground" />
-                      Frota
+                      <Search className="h-4 w-4 text-muted-foreground" />
+                      Buscar Frota
                     </Label>
                     <Input
-                      placeholder="Ex: FR-001"
+                      ref={fleetInputRef}
+                      placeholder="Digite o número da frota"
                       value={frota}
-                      onChange={(e) => setFrota(e.target.value)}
+                      onChange={(e) => handleFrotaChange(e.target.value)}
+                      onFocus={() => {
+                        if (equipments.length > 0) {
+                          setShowFleetSuggestions(true);
+                        }
+                      }}
+                      autoComplete="off"
                     />
+                    {showFleetSuggestions && filteredFleets.length > 0 && (
+                      <div
+                        ref={fleetSuggestionsRef}
+                        className="absolute z-50 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-md border border-border bg-popover shadow-md"
+                      >
+                        {filteredFleets.map((eq) => (
+                          <button
+                            key={eq.id}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
+                            onClick={() => handleSelectFleet(eq)}
+                          >
+                            <span className="font-medium">{eq.fleet_number}</span>
+                            <span className="text-xs text-muted-foreground">{eq.tractor_model || eq.equipment_model}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {fleetNotFound && (
+                      <p className="text-xs text-destructive flex items-center gap-1 mt-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        Veículo não cadastrado
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Tipo de Implemento *</Label>
