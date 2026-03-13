@@ -66,8 +66,8 @@ export default function Cadastros() {
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        toast.error("Faça login para acessar os cadastros");
-        navigate("/");
+      toast.error("Faça login para acessar os cadastros");
+        navigate("/auth");
         return;
       }
       setUserId(user.id);
