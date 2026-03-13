@@ -69,6 +69,44 @@ export default function Cadastros() {
     package_size: "",
   });
 
+  // Custom formulations
+  const defaultFormulations = [
+    { value: "WP", label: "WP - Pó Molhável" },
+    { value: "WG", label: "WG - Grânulos Dispersíveis" },
+    { value: "SC", label: "SC - Suspensão Concentrada" },
+    { value: "EC", label: "EC - Concentrado Emulsionável" },
+    { value: "SL", label: "SL - Concentrado Solúvel" },
+    { value: "ADJ", label: "ADJ - Adjuvante / Óleo" },
+  ];
+  const [customFormulations, setCustomFormulations] = useState<{ value: string; label: string }[]>(() => {
+    const saved = localStorage.getItem("customFormulations");
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [newFormulation, setNewFormulation] = useState({ value: "", label: "" });
+  const [formDialogOpen, setFormDialogOpen] = useState(false);
+
+  const allFormulations = [...defaultFormulations, ...customFormulations];
+
+  const handleAddFormulation = () => {
+    const code = newFormulation.value.trim().toUpperCase();
+    const desc = newFormulation.label.trim();
+    if (!code || !desc) {
+      toast.error("Preencha a sigla e a descrição");
+      return;
+    }
+    if (allFormulations.some((f) => f.value === code)) {
+      toast.error("Essa sigla já existe");
+      return;
+    }
+    const updated = [...customFormulations, { value: code, label: `${code} - ${desc}` }];
+    setCustomFormulations(updated);
+    localStorage.setItem("customFormulations", JSON.stringify(updated));
+    setProdForm((p) => ({ ...p, formulation: code }));
+    setNewFormulation({ value: "", label: "" });
+    setFormDialogOpen(false);
+    toast.success("Formulação adicionada!");
+  };
+
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser();
