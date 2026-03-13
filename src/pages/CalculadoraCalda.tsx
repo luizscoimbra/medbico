@@ -482,6 +482,11 @@ export default function CalculadoraCalda() {
                   <span className="ml-2 text-sm text-muted-foreground">
                     {p.dose} {p.unidade}
                   </span>
+                  {p.packageSize && (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      (Emb: {p.packageSize} {p.packageUnit === "KG" ? "kg" : "L"})
+                    </span>
+                  )}
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => handleRemoverProduto(p.id)}>
                   <Trash2 className="h-4 w-4 text-destructive" />
