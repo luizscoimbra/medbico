@@ -212,9 +212,9 @@ export default function CalculadoraCalda() {
     setMostrarResultado(false);
   };
 
-  const handleFormulacaoChange = (val: Formulacao) => {
+  const handleFormulacaoChange = (val: string) => {
     setNovaFormulacao(val);
-    setNovaUnidade(UNIDADE_PADRAO[val]);
+    setNovaUnidade(UNIDADE_PADRAO[val] || "L/ha");
   };
 
   const podeCalcular = produtos.length > 0 && vazaoTrabalho > 0 && capacidadeTanque > 0;
