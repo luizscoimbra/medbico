@@ -412,16 +412,21 @@ export default function CalculadoraCalda() {
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-2">
               <Label>Formulação</Label>
-              <Select value={novaFormulacao} onValueChange={(v) => handleFormulacaoChange(v as Formulacao)}>
+              <Select value={novaFormulacao} onValueChange={(v) => handleFormulacaoChange(v)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {(Object.keys(ORDEM_FORMULACAO) as Formulacao[]).map((f) => (
+                  {Object.keys(ORDEM_FORMULACAO).map((f) => (
                     <SelectItem key={f} value={f}>
                       {f}
                     </SelectItem>
                   ))}
+                  {novaFormulacao && !ORDEM_FORMULACAO[novaFormulacao] && (
+                    <SelectItem value={novaFormulacao}>
+                      {novaFormulacao}
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
