@@ -95,7 +95,7 @@ export default function CalculadoraCalda() {
 
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [novoNome, setNovoNome] = useState("");
-  const [novaFormulacao, setNovaFormulacao] = useState<Formulacao>("SL");
+  const [novaFormulacao, setNovaFormulacao] = useState<string>("SL");
   const [novaDose, setNovaDose] = useState<number>(0);
   const [novaUnidade, setNovaUnidade] = useState<"L/ha" | "kg/ha">("L/ha");
 
