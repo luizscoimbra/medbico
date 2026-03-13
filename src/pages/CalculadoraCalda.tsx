@@ -147,11 +147,16 @@ export default function CalculadoraCalda() {
     }
   };
 
+  const [selectedPackageSize, setSelectedPackageSize] = useState<number | undefined>();
+  const [selectedPackageUnit, setSelectedPackageUnit] = useState<string | undefined>();
+
   const handleSelectProduct = (product: ProdutoCadastrado) => {
     setNovoNome(product.commercial_name);
-    const mapped = (product.formulation as Formulacao) || "SL";
+    const mapped = product.formulation || "SL";
     handleFormulacaoChange(mapped);
     setNovaUnidade(product.unit === "KG" ? "kg/ha" : "L/ha");
+    setSelectedPackageSize(product.package_size);
+    setSelectedPackageUnit(product.unit);
     setShowSuggestions(false);
   };
 
