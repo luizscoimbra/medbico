@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -61,6 +68,44 @@ export default function Cadastros() {
     unit: "L",
     package_size: "",
   });
+
+  // Custom formulations
+  const defaultFormulations = [
+    { value: "WP", label: "WP - Pó Molhável" },
+    { value: "WG", label: "WG - Grânulos Dispersíveis" },
+    { value: "SC", label: "SC - Suspensão Concentrada" },
+    { value: "EC", label: "EC - Concentrado Emulsionável" },
+    { value: "SL", label: "SL - Concentrado Solúvel" },
+    { value: "ADJ", label: "ADJ - Adjuvante / Óleo" },
+  ];
+  const [customFormulations, setCustomFormulations] = useState<{ value: string; label: string }[]>(() => {
+    const saved = localStorage.getItem("customFormulations");
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [newFormulation, setNewFormulation] = useState({ value: "", label: "" });
+  const [formDialogOpen, setFormDialogOpen] = useState(false);
+
+  const allFormulations = [...defaultFormulations, ...customFormulations];
+
+  const handleAddFormulation = () => {
+    const code = newFormulation.value.trim().toUpperCase();
+    const desc = newFormulation.label.trim();
+    if (!code || !desc) {
+      toast.error("Preencha a sigla e a descrição");
+      return;
+    }
+    if (allFormulations.some((f) => f.value === code)) {
+      toast.error("Essa sigla já existe");
+      return;
+    }
+    const updated = [...customFormulations, { value: code, label: `${code} - ${desc}` }];
+    setCustomFormulations(updated);
+    localStorage.setItem("customFormulations", JSON.stringify(updated));
+    setProdForm((p) => ({ ...p, formulation: code }));
+    setNewFormulation({ value: "", label: "" });
+    setFormDialogOpen(false);
+    toast.success("Formulação adicionada!");
+  };
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -320,22 +365,60 @@ export default function Cadastros() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="prod_form">Formulação *</Label>
-                    <Select
-                      value={prodForm.formulation}
-                      onValueChange={(v) => setProdForm((p) => ({ ...p, formulation: v }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="WP">WP - Pó Molhável</SelectItem>
-                        <SelectItem value="WG">WG - Grânulos Dispersíveis</SelectItem>
-                        <SelectItem value="SC">SC - Suspensão Concentrada</SelectItem>
-                        <SelectItem value="EC">EC - Concentrado Emulsionável</SelectItem>
-                        <SelectItem value="SL">SL - Concentrado Solúvel</SelectItem>
-                        <SelectItem value="ADJ">ADJ - Adjuvante / Óleo</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex gap-2">
+                      <Select
+                        value={prodForm.formulation}
+                        onValueChange={(v) => setProdForm((p) => ({ ...p, formulation: v }))}
+                      >
+                        <SelectTrigger className="flex-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {allFormulations.map((f) => (
+                            <SelectItem key={f.value} value={f.value}>
+                              {f.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Dialog open={formDialogOpen} onOpenChange={setFormDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button type="button" variant="outline" size="icon" title="Adicionar formulação">
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-sm">
+                          <DialogHeader>
+                            <DialogTitle>Nova Formulação</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4 pt-2">
+                            <div className="space-y-2">
+                              <Label htmlFor="form_code">Sigla *</Label>
+                              <Input
+                                id="form_code"
+                                placeholder="Ex: ME"
+                                maxLength={6}
+                                value={newFormulation.value}
+                                onChange={(e) => setNewFormulation((p) => ({ ...p, value: e.target.value }))}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="form_desc">Descrição *</Label>
+                              <Input
+                                id="form_desc"
+                                placeholder="Ex: Microemulsão"
+                                value={newFormulation.label}
+                                onChange={(e) => setNewFormulation((p) => ({ ...p, label: e.target.value }))}
+                              />
+                            </div>
+                            <Button onClick={handleAddFormulation} className="w-full">
+                              <Plus className="h-4 w-4 mr-2" />
+                              Adicionar
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="prod_unit">Unidade *</Label>
