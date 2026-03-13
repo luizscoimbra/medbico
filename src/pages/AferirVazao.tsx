@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,8 +27,18 @@ import {
   XCircle,
   ArrowRight,
   RotateCcw,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+
+interface EquipmentRecord {
+  id: string;
+  fleet_number: string;
+  tractor_model: string | null;
+  equipment_model: string;
+  total_nozzles: number;
+}
 
 interface Measurement {
   nozzleNumber: number;
