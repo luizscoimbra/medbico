@@ -184,7 +184,7 @@ export default function CalculadoraCalda() {
 
   const produtosOrdenados = useMemo(() => {
     return [...produtos].sort(
-      (a, b) => ORDEM_FORMULACAO[a.formulacao].ordem - ORDEM_FORMULACAO[b.formulacao].ordem
+      (a, b) => getFormulacaoInfo(a.formulacao).ordem - getFormulacaoInfo(b.formulacao).ordem
     );
   }, [produtos]);
 
