@@ -606,7 +606,8 @@ export default function CalculadoraCalda() {
                     {produtosOrdenados.map((p, idx) => {
                       const doseCheio = areaPorTanque * p.dose;
                       const un = p.unidade === "L/ha" ? "L" : "kg";
-                      const info = ORDEM_FORMULACAO[p.formulacao];
+                      const info = getFormulacaoInfo(p.formulacao);
+                      const galoes = p.packageSize ? doseCheio / p.packageSize : null;
                       return (
                         <div key={`cheio-${p.id}`} className="rounded-lg border border-border bg-card p-3 print:p-2 print:rounded-none break-inside-avoid">
                           <div className="flex items-center gap-3 print:gap-2">
@@ -623,6 +624,11 @@ export default function CalculadoraCalda() {
                               <p className="text-lg print:text-base font-mono font-bold text-primary mt-0.5">
                                 {doseCheio.toFixed(2)} {un}
                               </p>
+                              {galoes !== null && (
+                                <p className="text-xs text-muted-foreground mt-0.5 font-mono">
+                                  ≈ {galoes.toFixed(2)} embalagem(ns) de {p.packageSize} {p.packageUnit === "KG" ? "kg" : "L"}
+                                </p>
+                              )}
                             </div>
                             <p className="text-xs text-muted-foreground hidden print:block shrink-0">
                               {info.instrucao}
