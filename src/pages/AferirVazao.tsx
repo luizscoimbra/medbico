@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,8 +27,18 @@ import {
   XCircle,
   ArrowRight,
   RotateCcw,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+
+interface EquipmentRecord {
+  id: string;
+  fleet_number: string;
+  tractor_model: string | null;
+  equipment_model: string;
+  total_nozzles: number;
+}
 
 interface Measurement {
   nozzleNumber: number;
@@ -115,6 +125,65 @@ export default function AferirVazao() {
   const [operador, setOperador] = useState("");
   const [turno, setTurno] = useState("");
   const dataHora = useMemo(() => new Date(), []);
+
+  // Fleet search
+  const [equipments, setEquipments] = useState<EquipmentRecord[]>([]);
+  const [showFleetSuggestions, setShowFleetSuggestions] = useState(false);
+  const [fleetNotFound, setFleetNotFound] = useState(false);
+  const fleetInputRef = useRef<HTMLInputElement>(null);
+  const fleetSuggestionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchEquipments = async () => {
+      const { data } = await supabase.from("equipment").select("id, fleet_number, tractor_model, equipment_model, total_nozzles");
+      if (data) setEquipments(data as EquipmentRecord[]);
+    };
+    fetchEquipments();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (fleetSuggestionsRef.current && !fleetSuggestionsRef.current.contains(e.target as Node) &&
+          fleetInputRef.current && !fleetInputRef.current.contains(e.target as Node)) {
+        setShowFleetSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredFleets = useMemo(() => {
+    if (!frota.trim()) return equipments;
+    return equipments.filter((eq) =>
+      eq.fleet_number.toLowerCase().includes(frota.toLowerCase())
+    );
+  }, [frota, equipments]);
+
+  const handleFrotaChange = (value: string) => {
+    setFrota(value);
+    setFleetNotFound(false);
+    if (value.trim().length > 0) {
+      const matches = equipments.filter((eq) =>
+        eq.fleet_number.toLowerCase().includes(value.toLowerCase())
+      );
+      setShowFleetSuggestions(true);
+      if (matches.length === 0 && value.trim().length >= 2) {
+        setFleetNotFound(true);
+      }
+    } else {
+      setShowFleetSuggestions(false);
+    }
+  };
+
+  const handleSelectFleet = (eq: EquipmentRecord) => {
+    setFrota(eq.fleet_number);
+    setModeloTrator(eq.tractor_model || "");
+    setTipoImplemento(eq.equipment_model || "");
+    setNumeroBicos(String(eq.total_nozzles));
+    setShowFleetSuggestions(false);
+    setFleetNotFound(false);
+    toast.success(`Frota ${eq.fleet_number} carregada!`);
+  };
 
   const [taxaDesejada, setTaxaDesejada] = useState("");
   const [velocidade, setVelocidade] = useState("");
@@ -244,16 +313,47 @@ export default function AferirVazao() {
                       required
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 relative">
                     <Label className="flex items-center gap-2">
-                      <Hash className="h-4 w-4 text-muted-foreground" />
-                      Frota
+                      <Search className="h-4 w-4 text-muted-foreground" />
+                      Buscar Frota
                     </Label>
                     <Input
-                      placeholder="Ex: FR-001"
+                      ref={fleetInputRef}
+                      placeholder="Digite o número da frota"
                       value={frota}
-                      onChange={(e) => setFrota(e.target.value)}
+                      onChange={(e) => handleFrotaChange(e.target.value)}
+                      onFocus={() => {
+                        if (equipments.length > 0) {
+                          setShowFleetSuggestions(true);
+                        }
+                      }}
+                      autoComplete="off"
                     />
+                    {showFleetSuggestions && filteredFleets.length > 0 && (
+                      <div
+                        ref={fleetSuggestionsRef}
+                        className="absolute z-50 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-md border border-border bg-popover shadow-md"
+                      >
+                        {filteredFleets.map((eq) => (
+                          <button
+                            key={eq.id}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
+                            onClick={() => handleSelectFleet(eq)}
+                          >
+                            <span className="font-medium">{eq.fleet_number}</span>
+                            <span className="text-xs text-muted-foreground">{eq.tractor_model || eq.equipment_model}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {fleetNotFound && (
+                      <p className="text-xs text-destructive flex items-center gap-1 mt-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        Veículo não cadastrado
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Tipo de Implemento *</Label>

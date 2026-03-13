@@ -14,14 +14,16 @@ import { Separator } from "@/components/ui/separator";
 import { FlaskConical, Plus, Trash2, ListOrdered, Settings, Beaker, AlertTriangle, History, Search, Calendar, ChevronDown, ChevronUp, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
-type Formulacao = "WP" | "WG" | "SC" | "EC" | "SL" | "ADJ";
+type FormulacaoConhecida = "WP" | "WG" | "SC" | "EC" | "SL" | "ADJ";
 
 interface Produto {
   id: string;
   nome: string;
-  formulacao: Formulacao;
+  formulacao: string;
   dose: number;
   unidade: "L/ha" | "kg/ha";
+  packageSize?: number;
+  packageUnit?: string;
 }
 
 interface HistoricoCalda {
@@ -38,7 +40,7 @@ interface HistoricoCalda {
   tanquesNecessarios: number;
 }
 
-const ORDEM_FORMULACAO: Record<Formulacao, { ordem: number; descricao: string; instrucao: string }> = {
+const ORDEM_FORMULACAO: Record<string, { ordem: number; descricao: string; instrucao: string }> = {
   WP: { ordem: 1, descricao: "Pó Molhável", instrucao: "Dissolver bem antes do próximo" },
   WG: { ordem: 1, descricao: "Grânulos Dispersíveis", instrucao: "Dissolver bem antes do próximo" },
   SC: { ordem: 2, descricao: "Suspensão Concentrada", instrucao: "Agitar bem após adicionar" },
@@ -47,7 +49,13 @@ const ORDEM_FORMULACAO: Record<Formulacao, { ordem: number; descricao: string; i
   ADJ: { ordem: 5, descricao: "Adjuvante / Óleo", instrucao: "Adicionar por último" },
 };
 
-const UNIDADE_PADRAO: Record<Formulacao, "L/ha" | "kg/ha"> = {
+const DEFAULT_FORMULACAO_INFO = { ordem: 3, descricao: "Formulação customizada", instrucao: "Seguir recomendação do fabricante" };
+
+function getFormulacaoInfo(f: string) {
+  return ORDEM_FORMULACAO[f] || DEFAULT_FORMULACAO_INFO;
+}
+
+const UNIDADE_PADRAO: Record<string, "L/ha" | "kg/ha"> = {
   WP: "kg/ha",
   WG: "kg/ha",
   SC: "L/ha",
@@ -87,7 +95,7 @@ export default function CalculadoraCalda() {
 
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [novoNome, setNovoNome] = useState("");
-  const [novaFormulacao, setNovaFormulacao] = useState<Formulacao>("SL");
+  const [novaFormulacao, setNovaFormulacao] = useState<string>("SL");
   const [novaDose, setNovaDose] = useState<number>(0);
   const [novaUnidade, setNovaUnidade] = useState<"L/ha" | "kg/ha">("L/ha");
 
@@ -139,11 +147,16 @@ export default function CalculadoraCalda() {
     }
   };
 
+  const [selectedPackageSize, setSelectedPackageSize] = useState<number | undefined>();
+  const [selectedPackageUnit, setSelectedPackageUnit] = useState<string | undefined>();
+
   const handleSelectProduct = (product: ProdutoCadastrado) => {
     setNovoNome(product.commercial_name);
-    const mapped = (product.formulation as Formulacao) || "SL";
+    const mapped = product.formulation || "SL";
     handleFormulacaoChange(mapped);
     setNovaUnidade(product.unit === "KG" ? "kg/ha" : "L/ha");
+    setSelectedPackageSize(product.package_size);
+    setSelectedPackageUnit(product.unit);
     setShowSuggestions(false);
   };
 
@@ -171,7 +184,7 @@ export default function CalculadoraCalda() {
 
   const produtosOrdenados = useMemo(() => {
     return [...produtos].sort(
-      (a, b) => ORDEM_FORMULACAO[a.formulacao].ordem - ORDEM_FORMULACAO[b.formulacao].ordem
+      (a, b) => getFormulacaoInfo(a.formulacao).ordem - getFormulacaoInfo(b.formulacao).ordem
     );
   }, [produtos]);
 
@@ -183,10 +196,14 @@ export default function CalculadoraCalda() {
       formulacao: novaFormulacao,
       dose: novaDose,
       unidade: novaUnidade,
+      packageSize: selectedPackageSize,
+      packageUnit: selectedPackageUnit,
     };
     setProdutos((prev) => [...prev, novoProduto]);
     setNovoNome("");
     setNovaDose(0);
+    setSelectedPackageSize(undefined);
+    setSelectedPackageUnit(undefined);
     setMostrarResultado(false);
   };
 
@@ -195,9 +212,9 @@ export default function CalculadoraCalda() {
     setMostrarResultado(false);
   };
 
-  const handleFormulacaoChange = (val: Formulacao) => {
+  const handleFormulacaoChange = (val: string) => {
     setNovaFormulacao(val);
-    setNovaUnidade(UNIDADE_PADRAO[val]);
+    setNovaUnidade(UNIDADE_PADRAO[val] || "L/ha");
   };
 
   const podeCalcular = produtos.length > 0 && vazaoTrabalho > 0 && capacidadeTanque > 0;
@@ -395,16 +412,21 @@ export default function CalculadoraCalda() {
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-2">
               <Label>Formulação</Label>
-              <Select value={novaFormulacao} onValueChange={(v) => handleFormulacaoChange(v as Formulacao)}>
+              <Select value={novaFormulacao} onValueChange={(v) => handleFormulacaoChange(v)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {(Object.keys(ORDEM_FORMULACAO) as Formulacao[]).map((f) => (
+                  {Object.keys(ORDEM_FORMULACAO).map((f) => (
                     <SelectItem key={f} value={f}>
                       {f}
                     </SelectItem>
                   ))}
+                  {novaFormulacao && !ORDEM_FORMULACAO[novaFormulacao] && (
+                    <SelectItem value={novaFormulacao}>
+                      {novaFormulacao}
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -460,6 +482,11 @@ export default function CalculadoraCalda() {
                   <span className="ml-2 text-sm text-muted-foreground">
                     {p.dose} {p.unidade}
                   </span>
+                  {p.packageSize && (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      (Emb: {p.packageSize} {p.packageUnit === "KG" ? "kg" : "L"})
+                    </span>
+                  )}
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => handleRemoverProduto(p.id)}>
                   <Trash2 className="h-4 w-4 text-destructive" />
@@ -579,7 +606,8 @@ export default function CalculadoraCalda() {
                     {produtosOrdenados.map((p, idx) => {
                       const doseCheio = areaPorTanque * p.dose;
                       const un = p.unidade === "L/ha" ? "L" : "kg";
-                      const info = ORDEM_FORMULACAO[p.formulacao];
+                      const info = getFormulacaoInfo(p.formulacao);
+                      const galoes = p.packageSize ? doseCheio / p.packageSize : null;
                       return (
                         <div key={`cheio-${p.id}`} className="rounded-lg border border-border bg-card p-3 print:p-2 print:rounded-none break-inside-avoid">
                           <div className="flex items-center gap-3 print:gap-2">
@@ -596,6 +624,11 @@ export default function CalculadoraCalda() {
                               <p className="text-lg print:text-base font-mono font-bold text-primary mt-0.5">
                                 {doseCheio.toFixed(2)} {un}
                               </p>
+                              {galoes !== null && (
+                                <p className="text-xs text-muted-foreground mt-0.5 font-mono">
+                                  ≈ {galoes.toFixed(2)} embalagem(ns) de {p.packageSize} {p.packageUnit === "KG" ? "kg" : "L"}
+                                </p>
+                              )}
                             </div>
                             <p className="text-xs text-muted-foreground hidden print:block shrink-0">
                               {info.instrucao}
@@ -624,7 +657,8 @@ export default function CalculadoraCalda() {
                       const areaParcial = volumeRestante / vazaoTrabalho;
                       const doseParcial = areaParcial * p.dose;
                       const un = p.unidade === "L/ha" ? "L" : "kg";
-                      const info = ORDEM_FORMULACAO[p.formulacao];
+                      const info = getFormulacaoInfo(p.formulacao);
+                      const galoes = p.packageSize ? doseParcial / p.packageSize : null;
                       return (
                         <div key={`parcial-${p.id}`} className="rounded-lg border border-border bg-card p-3 print:p-2 print:rounded-none break-inside-avoid">
                           <div className="flex items-center gap-3 print:gap-2">
@@ -641,6 +675,11 @@ export default function CalculadoraCalda() {
                               <p className="text-lg print:text-base font-mono font-bold text-warning mt-0.5">
                                 {doseParcial.toFixed(2)} {un}
                               </p>
+                              {galoes !== null && (
+                                <p className="text-xs text-muted-foreground mt-0.5 font-mono">
+                                  ≈ {galoes.toFixed(2)} embalagem(ns) de {p.packageSize} {p.packageUnit === "KG" ? "kg" : "L"}
+                                </p>
+                              )}
                             </div>
                             <p className="text-xs text-muted-foreground hidden print:block shrink-0">
                               {info.instrucao}
