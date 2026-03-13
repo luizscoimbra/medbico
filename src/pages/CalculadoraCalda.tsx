@@ -40,7 +40,7 @@ interface HistoricoCalda {
   tanquesNecessarios: number;
 }
 
-const ORDEM_FORMULACAO: Record<Formulacao, { ordem: number; descricao: string; instrucao: string }> = {
+const ORDEM_FORMULACAO: Record<string, { ordem: number; descricao: string; instrucao: string }> = {
   WP: { ordem: 1, descricao: "Pó Molhável", instrucao: "Dissolver bem antes do próximo" },
   WG: { ordem: 1, descricao: "Grânulos Dispersíveis", instrucao: "Dissolver bem antes do próximo" },
   SC: { ordem: 2, descricao: "Suspensão Concentrada", instrucao: "Agitar bem após adicionar" },
@@ -49,7 +49,13 @@ const ORDEM_FORMULACAO: Record<Formulacao, { ordem: number; descricao: string; i
   ADJ: { ordem: 5, descricao: "Adjuvante / Óleo", instrucao: "Adicionar por último" },
 };
 
-const UNIDADE_PADRAO: Record<Formulacao, "L/ha" | "kg/ha"> = {
+const DEFAULT_FORMULACAO_INFO = { ordem: 3, descricao: "Formulação customizada", instrucao: "Seguir recomendação do fabricante" };
+
+function getFormulacaoInfo(f: string) {
+  return ORDEM_FORMULACAO[f] || DEFAULT_FORMULACAO_INFO;
+}
+
+const UNIDADE_PADRAO: Record<string, "L/ha" | "kg/ha"> = {
   WP: "kg/ha",
   WG: "kg/ha",
   SC: "L/ha",
