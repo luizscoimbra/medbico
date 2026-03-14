@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { FlaskConical, Plus, Trash2, ListOrdered, Settings, Beaker, AlertTriangle, History, Search, Calendar, ChevronDown, ChevronUp, Printer } from "lucide-react";
+import { FlaskConical, Plus, Trash2, ListOrdered, Settings, Beaker, AlertTriangle, History, Search, Calendar, ChevronDown, ChevronUp, Printer, Droplets } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 type FormulacaoConhecida = "WP" | "WG" | "SC" | "EC" | "SL" | "ADJ";
