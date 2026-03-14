@@ -40,16 +40,47 @@ interface HistoricoCalda {
   tanquesNecessarios: number;
 }
 
-const ORDEM_FORMULACAO: Record<string, { ordem: number; descricao: string; instrucao: string }> = {
-  WP: { ordem: 1, descricao: "Pó Molhável", instrucao: "Dissolver bem antes do próximo" },
-  WG: { ordem: 1, descricao: "Grânulos Dispersíveis", instrucao: "Dissolver bem antes do próximo" },
-  SC: { ordem: 2, descricao: "Suspensão Concentrada", instrucao: "Agitar bem após adicionar" },
-  EC: { ordem: 3, descricao: "Concentrado Emulsionável", instrucao: "Misturar até emulsionar" },
-  SL: { ordem: 4, descricao: "Concentrado Solúvel", instrucao: "Adicionar e misturar" },
-  ADJ: { ordem: 5, descricao: "Adjuvante / Óleo", instrucao: "Adicionar por último" },
+// Categorias com cores semânticas
+type Categoria = "ÁGUA" | "ESPECIAIS_PRE" | "SÓLIDOS" | "SUSPENSÕES" | "INTERMEDIÁRIO" | "EMULSÕES" | "ALTA_SOLUBILIDADE" | "ESPECIAIS_POS";
+
+const CATEGORIA_CONFIG: Record<Categoria, { label: string; cor: string; bgClass: string; textClass: string }> = {
+  ÁGUA:              { label: "ÁGUA",              cor: "hsl(200 70% 55%)", bgClass: "bg-[hsl(200,70%,55%)]/15", textClass: "text-[hsl(200,70%,55%)]" },
+  ESPECIAIS_PRE:     { label: "ESPECIAIS",         cor: "hsl(35 50% 60%)",  bgClass: "bg-[hsl(35,50%,60%)]/15",  textClass: "text-[hsl(35,50%,60%)]" },
+  SÓLIDOS:           { label: "SÓLIDOS",           cor: "hsl(0 65% 50%)",   bgClass: "bg-destructive/10",        textClass: "text-destructive" },
+  SUSPENSÕES:        { label: "SUSPENSÕES",        cor: "hsl(210 70% 50%)", bgClass: "bg-[hsl(210,70%,50%)]/15", textClass: "text-[hsl(210,70%,50%)]" },
+  INTERMEDIÁRIO:     { label: "INTERMEDIÁRIO",     cor: "hsl(25 80% 55%)",  bgClass: "bg-[hsl(25,80%,55%)]/15",  textClass: "text-[hsl(25,80%,55%)]" },
+  EMULSÕES:          { label: "EMULSÕES",          cor: "hsl(45 85% 50%)",  bgClass: "bg-warning/10",            textClass: "text-warning" },
+  ALTA_SOLUBILIDADE: { label: "ALTA SOLUBILIDADE", cor: "hsl(145 55% 40%)", bgClass: "bg-success/10",            textClass: "text-success" },
+  ESPECIAIS_POS:     { label: "ESPECIAIS",         cor: "hsl(35 50% 60%)",  bgClass: "bg-[hsl(35,50%,60%)]/15",  textClass: "text-[hsl(35,50%,60%)]" },
 };
 
-const DEFAULT_FORMULACAO_INFO = { ordem: 3, descricao: "Formulação customizada", instrucao: "Seguir recomendação do fabricante" };
+const ORDEM_FORMULACAO: Record<string, { ordem: number; descricao: string; instrucao: string; categoria: Categoria }> = {
+  CORRETIVO:   { ordem: 1,  descricao: "Adjuvante Corretivo (pH, quelatizante)", instrucao: "Adicionar e aguardar correção do pH",          categoria: "ESPECIAIS_PRE" },
+  SG:          { ordem: 2,  descricao: "Granulado Solúvel",                      instrucao: "Pré-diluir se necessário",                     categoria: "SÓLIDOS" },
+  SP:          { ordem: 3,  descricao: "Pó Solúvel",                             instrucao: "Pré-diluir se necessário",                     categoria: "SÓLIDOS" },
+  WP:          { ordem: 4,  descricao: "Pó Molhável",                            instrucao: "Pré-diluir se necessário. Aguardar dispersão", categoria: "SÓLIDOS" },
+  WG:          { ordem: 5,  descricao: "Granulado Dispersível",                   instrucao: "Pré-diluir se necessário. Aguardar dispersão", categoria: "SÓLIDOS" },
+  CS:          { ordem: 6,  descricao: "Suspensão de Encapsulado",               instrucao: "Agitar bem após adicionar",                    categoria: "SUSPENSÕES" },
+  SC:          { ordem: 7,  descricao: "Suspensão Concentrada",                  instrucao: "Agitar bem após adicionar",                    categoria: "SUSPENSÕES" },
+  OD:          { ordem: 8,  descricao: "Dispersão de Óleo",                      instrucao: "Agitar bem após adicionar",                    categoria: "SUSPENSÕES" },
+  SE:          { ordem: 9,  descricao: "Suspo-Emulsão",                          instrucao: "Agitar até homogeneizar",                      categoria: "INTERMEDIÁRIO" },
+  EC:          { ordem: 10, descricao: "Concentrado Emulsionável",               instrucao: "Misturar até emulsionar",                      categoria: "EMULSÕES" },
+  ADJ_OLEO:    { ordem: 11, descricao: "Adjuvante em Óleo",                      instrucao: "Misturar até emulsionar",                      categoria: "EMULSÕES" },
+  ADJ:         { ordem: 11, descricao: "Adjuvante em Óleo",                      instrucao: "Misturar até emulsionar",                      categoria: "EMULSÕES" },
+  EO:          { ordem: 12, descricao: "Emulsão de Água em Óleo",               instrucao: "Misturar até emulsionar",                      categoria: "EMULSÕES" },
+  EW:          { ordem: 13, descricao: "Emulsão de Óleo em Água",               instrucao: "Misturar até emulsionar",                      categoria: "EMULSÕES" },
+  ME:          { ordem: 14, descricao: "Microemulsão",                           instrucao: "Misturar até emulsionar",                      categoria: "EMULSÕES" },
+  SL:          { ordem: 15, descricao: "Concentrado Solúvel",                    instrucao: "Adicionar e misturar",                         categoria: "ALTA_SOLUBILIDADE" },
+  SURFACTANTE: { ordem: 16, descricao: "Adjuvante Surfactante (Espalhante)",     instrucao: "Adicionar e misturar bem",                     categoria: "ESPECIAIS_POS" },
+  FOLIARE:     { ordem: 17, descricao: "Fertilizante Foliar",                    instrucao: "Adicionar e misturar bem",                     categoria: "ESPECIAIS_POS" },
+  REDUTOR:     { ordem: 18, descricao: "Adjuvante Redutor de Espuma",            instrucao: "Adicionar por último antes da água",            categoria: "ESPECIAIS_POS" },
+};
+
+const FORMULACAO_OPTIONS = Object.entries(ORDEM_FORMULACAO)
+  .filter(([key]) => key !== "ADJ_OLEO") // avoid duplicate display (ADJ covers it)
+  .sort((a, b) => a[1].ordem - b[1].ordem);
+
+const DEFAULT_FORMULACAO_INFO = { ordem: 15, descricao: "Formulação customizada", instrucao: "Seguir recomendação do fabricante", categoria: "ALTA_SOLUBILIDADE" as Categoria };
 
 function getFormulacaoInfo(f: string) {
   return ORDEM_FORMULACAO[f] || DEFAULT_FORMULACAO_INFO;
