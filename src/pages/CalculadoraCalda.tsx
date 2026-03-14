@@ -449,9 +449,9 @@ export default function CalculadoraCalda() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.keys(ORDEM_FORMULACAO).map((f) => (
-                    <SelectItem key={f} value={f}>
-                      {f}
+                  {FORMULACAO_OPTIONS.map(([key, info]) => (
+                    <SelectItem key={key} value={key}>
+                      {key} — {info.descricao}
                     </SelectItem>
                   ))}
                   {novaFormulacao && !ORDEM_FORMULACAO[novaFormulacao] && (
