@@ -603,6 +603,14 @@ export default function CalculadoraCalda() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 print:p-0 print:space-y-2">
+              {/* Agitation warning */}
+              <div className="rounded-lg bg-warning/10 border border-warning/20 p-3 text-sm flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
+                <p className="font-medium text-foreground">
+                  Mantenha a <strong>agitação ligada</strong> durante todo o processo de preparo da calda.
+                </p>
+              </div>
+
               {/* Resumo de abastecimentos - screen only */}
               <div className="rounded-lg bg-primary/10 border border-primary/20 p-4 space-y-1 text-sm print:hidden">
                 <p className="font-heading text-foreground">
@@ -635,13 +643,32 @@ export default function CalculadoraCalda() {
                     🟢 Dosagem por Tanque Cheio ({capacidadeTanque.toLocaleString("pt-BR")} L — {areaPorTanque.toFixed(1)} ha)
                   </p>
                   <div className="space-y-2 print:space-y-1">
+                    {/* Passo 1: Água inicial */}
+                    <div className={`rounded-lg border border-border p-3 print:p-2 print:rounded-none break-inside-avoid ${CATEGORIA_CONFIG.ÁGUA.bgClass}`}>
+                      <div className="flex items-center gap-3 print:gap-2">
+                        <div className="flex h-8 w-8 print:h-6 print:w-6 shrink-0 items-center justify-center rounded-full bg-[hsl(200,70%,55%)] text-white font-heading text-sm print:text-xs">
+                          <Droplets className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-mono rounded-full px-2 py-0.5 bg-[hsl(200,70%,55%)]/20 text-[hsl(200,70%,55%)]">ÁGUA</span>
+                          </div>
+                          <p className="font-heading text-foreground mt-0.5">
+                            Encher o tanque com <span className="font-mono font-bold">{(capacidadeTanque * 0.7).toLocaleString("pt-BR")} L</span> de água (70%)
+                          </p>
+                          <p className="text-xs text-muted-foreground">Iniciar agitação máxima e manter</p>
+                        </div>
+                      </div>
+                    </div>
+
                     {produtosOrdenados.map((p, idx) => {
                       const doseCheio = areaPorTanque * p.dose;
                       const un = p.unidade === "L/ha" ? "L" : "kg";
                       const info = getFormulacaoInfo(p.formulacao);
+                      const cat = CATEGORIA_CONFIG[info.categoria];
                       const galoes = p.packageSize ? doseCheio / p.packageSize : null;
                       return (
-                        <div key={`cheio-${p.id}`} className="rounded-lg border border-border bg-card p-3 print:p-2 print:rounded-none break-inside-avoid">
+                        <div key={`cheio-${p.id}`} className={`rounded-lg border border-border p-3 print:p-2 print:rounded-none break-inside-avoid ${cat.bgClass}`}>
                           <div className="flex items-center gap-3 print:gap-2">
                             <div className="flex h-8 w-8 print:h-6 print:w-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-heading text-sm print:text-xs">
                               {idx + 1}º
@@ -649,8 +676,11 @@ export default function CalculadoraCalda() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-heading text-foreground print:text-sm">{p.nome}</span>
-                                <span className="text-xs rounded-full px-2 py-0.5 bg-accent/20 text-accent-foreground font-mono">
+                                <span className={`text-xs rounded-full px-2 py-0.5 font-mono ${cat.bgClass} ${cat.textClass}`}>
                                   {p.formulacao}
+                                </span>
+                                <span className={`text-[10px] font-medium ${cat.textClass}`}>
+                                  {cat.label}
                                 </span>
                               </div>
                               <p className="text-lg print:text-base font-mono font-bold text-primary mt-0.5">
@@ -673,6 +703,23 @@ export default function CalculadoraCalda() {
                         </div>
                       );
                     })}
+
+                    {/* Passo final: Água para completar */}
+                    <div className={`rounded-lg border border-border p-3 print:p-2 print:rounded-none break-inside-avoid ${CATEGORIA_CONFIG.ÁGUA.bgClass}`}>
+                      <div className="flex items-center gap-3 print:gap-2">
+                        <div className="flex h-8 w-8 print:h-6 print:w-6 shrink-0 items-center justify-center rounded-full bg-[hsl(200,70%,55%)] text-white font-heading text-sm print:text-xs">
+                          <Droplets className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-mono rounded-full px-2 py-0.5 bg-[hsl(200,70%,55%)]/20 text-[hsl(200,70%,55%)]">ÁGUA</span>
+                          </div>
+                          <p className="font-heading text-foreground mt-0.5">
+                            Completar o tanque até <span className="font-mono font-bold">{capacidadeTanque.toLocaleString("pt-BR")} L</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -685,14 +732,33 @@ export default function CalculadoraCalda() {
                     🟡 Dosagem para Tanque Parcial ({volumeRestante.toLocaleString("pt-BR")} L — {(volumeRestante / vazaoTrabalho).toFixed(1)} ha)
                   </p>
                   <div className="space-y-2 print:space-y-1">
+                    {/* Passo 1: Água inicial parcial */}
+                    <div className={`rounded-lg border border-border p-3 print:p-2 print:rounded-none break-inside-avoid ${CATEGORIA_CONFIG.ÁGUA.bgClass}`}>
+                      <div className="flex items-center gap-3 print:gap-2">
+                        <div className="flex h-8 w-8 print:h-6 print:w-6 shrink-0 items-center justify-center rounded-full bg-[hsl(200,70%,55%)] text-white font-heading text-sm print:text-xs">
+                          <Droplets className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-mono rounded-full px-2 py-0.5 bg-[hsl(200,70%,55%)]/20 text-[hsl(200,70%,55%)]">ÁGUA</span>
+                          </div>
+                          <p className="font-heading text-foreground mt-0.5">
+                            Encher o tanque com <span className="font-mono font-bold">{(volumeRestante * 0.7).toLocaleString("pt-BR")} L</span> de água (70%)
+                          </p>
+                          <p className="text-xs text-muted-foreground">Iniciar agitação máxima e manter</p>
+                        </div>
+                      </div>
+                    </div>
+
                     {produtosOrdenados.map((p, idx) => {
                       const areaParcial = volumeRestante / vazaoTrabalho;
                       const doseParcial = areaParcial * p.dose;
                       const un = p.unidade === "L/ha" ? "L" : "kg";
                       const info = getFormulacaoInfo(p.formulacao);
+                      const cat = CATEGORIA_CONFIG[info.categoria];
                       const galoes = p.packageSize ? doseParcial / p.packageSize : null;
                       return (
-                        <div key={`parcial-${p.id}`} className="rounded-lg border border-border bg-card p-3 print:p-2 print:rounded-none break-inside-avoid">
+                        <div key={`parcial-${p.id}`} className={`rounded-lg border border-border p-3 print:p-2 print:rounded-none break-inside-avoid ${cat.bgClass}`}>
                           <div className="flex items-center gap-3 print:gap-2">
                             <div className="flex h-8 w-8 print:h-6 print:w-6 shrink-0 items-center justify-center rounded-full bg-warning text-warning-foreground font-heading text-sm print:text-xs">
                               {idx + 1}º
@@ -700,8 +766,11 @@ export default function CalculadoraCalda() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-heading text-foreground print:text-sm">{p.nome}</span>
-                                <span className="text-xs rounded-full px-2 py-0.5 bg-accent/20 text-accent-foreground font-mono">
+                                <span className={`text-xs rounded-full px-2 py-0.5 font-mono ${cat.bgClass} ${cat.textClass}`}>
                                   {p.formulacao}
+                                </span>
+                                <span className={`text-[10px] font-medium ${cat.textClass}`}>
+                                  {cat.label}
                                 </span>
                               </div>
                               <p className="text-lg print:text-base font-mono font-bold text-warning mt-0.5">
@@ -724,6 +793,23 @@ export default function CalculadoraCalda() {
                         </div>
                       );
                     })}
+
+                    {/* Passo final: Água para completar */}
+                    <div className={`rounded-lg border border-border p-3 print:p-2 print:rounded-none break-inside-avoid ${CATEGORIA_CONFIG.ÁGUA.bgClass}`}>
+                      <div className="flex items-center gap-3 print:gap-2">
+                        <div className="flex h-8 w-8 print:h-6 print:w-6 shrink-0 items-center justify-center rounded-full bg-[hsl(200,70%,55%)] text-white font-heading text-sm print:text-xs">
+                          <Droplets className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-mono rounded-full px-2 py-0.5 bg-[hsl(200,70%,55%)]/20 text-[hsl(200,70%,55%)]">ÁGUA</span>
+                          </div>
+                          <p className="font-heading text-foreground mt-0.5">
+                            Completar o tanque até <span className="font-mono font-bold">{volumeRestante.toLocaleString("pt-BR")} L</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
