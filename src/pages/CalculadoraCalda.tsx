@@ -87,12 +87,13 @@ function getFormulacaoInfo(f: string) {
 }
 
 const UNIDADE_PADRAO: Record<string, "L/ha" | "kg/ha"> = {
-  WP: "kg/ha",
-  WG: "kg/ha",
-  SC: "L/ha",
-  EC: "L/ha",
+  CORRETIVO: "L/ha",
+  SG: "kg/ha", SP: "kg/ha", WP: "kg/ha", WG: "kg/ha",
+  CS: "L/ha", SC: "L/ha", OD: "L/ha",
+  SE: "L/ha",
+  EC: "L/ha", ADJ_OLEO: "L/ha", ADJ: "L/ha", EO: "L/ha", EW: "L/ha", ME: "L/ha",
   SL: "L/ha",
-  ADJ: "L/ha",
+  SURFACTANTE: "L/ha", FOLIARE: "L/ha", REDUTOR: "L/ha",
 };
 
 interface ProdutoCadastrado {
