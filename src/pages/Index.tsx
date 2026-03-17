@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Droplets, Plus, History, BookOpen, ArrowRight, Gauge, Shield, Zap, FlaskConical, Activity, ClipboardList } from "lucide-react";
+import { Droplets, Plus, History, BookOpen, ArrowRight, Gauge, Shield, Zap, FlaskConical, Activity, ClipboardList, FileText } from "lucide-react";
 
 const features = [
   {
@@ -62,6 +62,13 @@ const actionCards = [
     icon: ClipboardList,
     title: "Cadastros",
     description: "Equipamentos e produtos",
+    variant: "secondary" as const,
+  },
+  {
+    to: "/ordem-servico",
+    icon: FileText,
+    title: "Ordem de Serviço",
+    description: "Gerar OS de aplicação",
     variant: "secondary" as const,
   },
 ];

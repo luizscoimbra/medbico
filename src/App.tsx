@@ -15,6 +15,7 @@ import CadastroProdutos from "./pages/CadastroProdutos";
 import Cadastros from "./pages/Cadastros";
 import CalculadoraCalda from "./pages/CalculadoraCalda";
 import AferirVazao from "./pages/AferirVazao";
+import OrdemServico from "./pages/OrdemServico";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -42,6 +43,7 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/calculadora-calda" element={<CalculadoraCalda />} />
                 <Route path="/aferir-vazao" element={<AferirVazao />} />
+                <Route path="/ordem-servico" element={<OrdemServico />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>

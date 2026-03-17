@@ -220,4 +220,19 @@
   * {
     box-shadow: none !important;
   }
+
+  .no-print {
+    display: none !important;
+  }
+
+  header {
+    display: none !important;
+  }
+
+  .print-area {
+    width: 100% !important;
+    max-width: 210mm !important;
+    margin: 0 !important;
+    padding: 10mm !important;
+  }
 }

@@ -1,0 +1,196 @@
+import { useState, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { OSForm } from "@/components/os/OSForm";
+import { OSPreview } from "@/components/os/OSPreview";
+import { generateOSId, saveOS, getAllOS, type OrdemServico as OSType, type TalhaoData } from "@/lib/osStorage";
+import { Printer, FileDown, Share2, ArrowLeft, History } from "lucide-react";
+import { toast } from "sonner";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import { Link } from "react-router-dom";
+
+type View = "form" | "preview" | "history";
+
+export default function OrdemServico() {
+  const [view, setView] = useState<View>("form");
+  const [currentOS, setCurrentOS] = useState<OSType | null>(null);
+  const [historico, setHistorico] = useState<OSType[]>([]);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  // Form state
+  const [propriedade, setPropriedade] = useState("");
+  const [codigoArea, setCodigoArea] = useState("");
+  const [dataOS, setDataOS] = useState(new Date().toISOString().slice(0, 10));
+  const [responsavelTecnico, setResponsavelTecnico] = useState("");
+  const [aplicador, setAplicador] = useState("");
+  const [talhoes, setTalhoes] = useState<TalhaoData[]>([
+    { nome: "", area: "", produto: "", dose: "", testemunho: false, testeProduto: false, produtoTeste: "" },
+  ]);
+
+  const handleGenerate = async () => {
+    if (!propriedade.trim()) {
+      toast.error("Informe o nome da propriedade");
+      return;
+    }
+    const id = await generateOSId();
+    const os: OSType = {
+      id,
+      data: dataOS,
+      propriedade,
+      codigoArea,
+      responsavelTecnico,
+      aplicador,
+      talhoes,
+      createdAt: new Date().toISOString(),
+    };
+    await saveOS(os);
+    setCurrentOS(os);
+    setView("preview");
+    toast.success(`OS ${id} gerada com sucesso!`);
+  };
+
+  const handlePrint = () => window.print();
+
+  const handlePDF = async () => {
+    if (!printRef.current) return;
+    toast.info("Gerando PDF...");
+    const canvas = await html2canvas(printRef.current, { scale: 2, useCORS: true });
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pdfW = pdf.internal.pageSize.getWidth();
+    const pdfH = (canvas.height * pdfW) / canvas.width;
+    pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
+    pdf.save(`OS-${currentOS?.id || "export"}.pdf`);
+    toast.success("PDF salvo!");
+  };
+
+  const handleShare = async () => {
+    if (!printRef.current) return;
+    try {
+      const canvas = await html2canvas(printRef.current, { scale: 2, useCORS: true });
+      const blob = await new Promise<Blob>((res) => canvas.toBlob((b) => res(b!), "image/png"));
+      const file = new File([blob], `OS-${currentOS?.id}.png`, { type: "image/png" });
+
+      if (navigator.share) {
+        await navigator.share({
+          title: `Ordem de Serviço ${currentOS?.id}`,
+          text: `OS ${currentOS?.id} - ${currentOS?.propriedade}`,
+          files: [file],
+        });
+      } else {
+        toast.error("Compartilhamento não suportado neste navegador");
+      }
+    } catch (e: any) {
+      if (e.name !== "AbortError") toast.error("Erro ao compartilhar");
+    }
+  };
+
+  const loadHistorico = async () => {
+    const all = await getAllOS();
+    setHistorico(all);
+    setView("history");
+  };
+
+  const viewOS = (os: OSType) => {
+    setCurrentOS(os);
+    setView("preview");
+  };
+
+  const resetForm = () => {
+    setPropriedade("");
+    setCodigoArea("");
+    setDataOS(new Date().toISOString().slice(0, 10));
+    setResponsavelTecnico("");
+    setAplicador("");
+    setTalhoes([{ nome: "", area: "", produto: "", dose: "", testemunho: false, testeProduto: false, produtoTeste: "" }]);
+    setCurrentOS(null);
+    setView("form");
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-6 max-w-4xl">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6 no-print">
+        <div className="flex items-center gap-3">
+          <Link to="/">
+            <Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button>
+          </Link>
+          <h1 className="text-2xl font-heading text-foreground">Ordem de Serviço</h1>
+        </div>
+        <div className="flex gap-2">
+          {view !== "form" && (
+            <Button variant="outline" size="sm" onClick={resetForm}>Nova OS</Button>
+          )}
+          <Button variant="secondary" size="sm" onClick={loadHistorico}>
+            <History className="h-4 w-4 mr-1" /> Histórico
+          </Button>
+        </div>
+      </div>
+
+      {/* Form View */}
+      {view === "form" && (
+        <OSForm
+          propriedade={propriedade} setPropriedade={setPropriedade}
+          codigoArea={codigoArea} setCodigoArea={setCodigoArea}
+          dataOS={dataOS} setDataOS={setDataOS}
+          responsavelTecnico={responsavelTecnico} setResponsavelTecnico={setResponsavelTecnico}
+          aplicador={aplicador} setAplicador={setAplicador}
+          talhoes={talhoes} setTalhoes={setTalhoes}
+          onGenerate={handleGenerate}
+        />
+      )}
+
+      {/* Preview View */}
+      {view === "preview" && currentOS && (
+        <div>
+          <div className="flex flex-wrap gap-2 mb-4 no-print">
+            <Button onClick={handlePrint} variant="outline" size="sm">
+              <Printer className="h-4 w-4 mr-1" /> Imprimir
+            </Button>
+            <Button onClick={handlePDF} variant="outline" size="sm">
+              <FileDown className="h-4 w-4 mr-1" /> Exportar PDF
+            </Button>
+            <Button onClick={handleShare} variant="outline" size="sm">
+              <Share2 className="h-4 w-4 mr-1" /> Compartilhar
+            </Button>
+          </div>
+          <OSPreview ref={printRef} os={currentOS} />
+        </div>
+      )}
+
+      {/* History View */}
+      {view === "history" && (
+        <div className="space-y-3">
+          {historico.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                Nenhuma OS salva ainda.
+              </CardContent>
+            </Card>
+          ) : (
+            historico.map((os) => (
+              <Card
+                key={os.id}
+                className="cursor-pointer hover:border-primary/30 transition-colors"
+                onClick={() => viewOS(os)}
+              >
+                <CardContent className="py-4 flex items-center justify-between">
+                  <div>
+                    <p className="font-heading font-semibold">OS {os.id}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {os.propriedade} — {os.talhoes.length} talhões
+                    </p>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {new Date(os.data).toLocaleDateString("pt-BR")}
+                  </p>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

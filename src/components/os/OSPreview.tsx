@@ -1,0 +1,116 @@
+import { forwardRef } from "react";
+import type { OrdemServico } from "@/lib/osStorage";
+import { Droplets } from "lucide-react";
+
+interface OSPreviewProps {
+  os: OrdemServico;
+}
+
+export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref) => {
+  const areaTotal = os.talhoes.reduce((sum, t) => sum + (parseFloat(t.area) || 0), 0);
+
+  return (
+    <div ref={ref} className="bg-white text-black p-8 max-w-[210mm] mx-auto print-area" id="os-print">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-green-700 text-white flex items-center justify-center">
+            <Droplets className="h-6 w-6" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold">SprayCheck</h1>
+            <p className="text-xs text-gray-600">Ordem de Serviço</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-lg font-bold font-mono">OS nº {os.id}</p>
+          <p className="text-sm text-gray-600">{new Date(os.data).toLocaleDateString("pt-BR")}</p>
+        </div>
+      </div>
+
+      {/* Dados da Propriedade */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="border border-gray-300 rounded p-3">
+          <p className="text-xs text-gray-500 uppercase font-semibold">Propriedade</p>
+          <p className="font-medium">{os.propriedade}</p>
+        </div>
+        <div className="border border-gray-300 rounded p-3">
+          <p className="text-xs text-gray-500 uppercase font-semibold">Código da Área</p>
+          <p className="font-medium">{os.codigoArea}</p>
+        </div>
+        <div className="border border-gray-300 rounded p-3">
+          <p className="text-xs text-gray-500 uppercase font-semibold">Responsável Técnico</p>
+          <p className="font-medium">{os.responsavelTecnico}</p>
+        </div>
+        <div className="border border-gray-300 rounded p-3">
+          <p className="text-xs text-gray-500 uppercase font-semibold">Aplicador</p>
+          <p className="font-medium">{os.aplicador}</p>
+        </div>
+      </div>
+
+      {/* Tabela de Talhões */}
+      <div className="mb-6">
+        <h2 className="text-sm font-bold uppercase mb-2 text-gray-700">Detalhamento por Talhão</h2>
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border border-gray-300 px-3 py-2 text-left">Talhão</th>
+              <th className="border border-gray-300 px-3 py-2 text-right">Área (ha)</th>
+              <th className="border border-gray-300 px-3 py-2 text-left">Produto</th>
+              <th className="border border-gray-300 px-3 py-2 text-right">Dose (L/ha)</th>
+              <th className="border border-gray-300 px-3 py-2 text-left">Observações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {os.talhoes.map((t, i) => (
+              <tr key={i} className={t.testemunho ? "bg-yellow-50" : ""}>
+                <td className="border border-gray-300 px-3 py-2">{t.nome || `T-${i + 1}`}</td>
+                <td className="border border-gray-300 px-3 py-2 text-right">{t.area || "—"}</td>
+                <td className="border border-gray-300 px-3 py-2">
+                  {t.testemunho ? "—" : t.produto || "—"}
+                </td>
+                <td className="border border-gray-300 px-3 py-2 text-right">
+                  {t.testemunho ? "0" : t.dose || "—"}
+                </td>
+                <td className="border border-gray-300 px-3 py-2 text-xs">
+                  {t.testemunho && "Testemunho"}
+                  {t.testeProduto && `Teste: ${t.produtoTeste}`}
+                  {!t.testemunho && !t.testeProduto && "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="font-semibold bg-gray-50">
+              <td className="border border-gray-300 px-3 py-2">TOTAL</td>
+              <td className="border border-gray-300 px-3 py-2 text-right">{areaTotal.toFixed(2)}</td>
+              <td colSpan={3} className="border border-gray-300 px-3 py-2"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      {/* Assinaturas */}
+      <div className="grid grid-cols-2 gap-12 mt-16">
+        <div className="text-center">
+          <div className="border-t border-black pt-2">
+            <p className="text-sm font-medium">Responsável Técnico</p>
+            <p className="text-xs text-gray-500">{os.responsavelTecnico}</p>
+          </div>
+        </div>
+        <div className="text-center">
+          <div className="border-t border-black pt-2">
+            <p className="text-sm font-medium">Aplicador</p>
+            <p className="text-xs text-gray-500">{os.aplicador}</p>
+          </div>
+        </div>
+      </div>
+
+      <p className="text-center text-[10px] text-gray-400 mt-8">
+        Documento gerado por SprayCheck em {new Date().toLocaleDateString("pt-BR")}
+      </p>
+    </div>
+  );
+});
+
+OSPreview.displayName = "OSPreview";
