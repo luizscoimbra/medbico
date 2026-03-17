@@ -56,29 +56,46 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
             <tr className="bg-gray-100">
               <th className="border border-gray-300 px-3 py-2 text-left">Talhão</th>
               <th className="border border-gray-300 px-3 py-2 text-right">Área (ha)</th>
-              <th className="border border-gray-300 px-3 py-2 text-left">Produto</th>
+              <th className="border border-gray-300 px-3 py-2 text-left">Produto(s)</th>
               <th className="border border-gray-300 px-3 py-2 text-right">Dose (L/ha)</th>
               <th className="border border-gray-300 px-3 py-2 text-left">Observações</th>
             </tr>
           </thead>
           <tbody>
-            {os.talhoes.map((t, i) => (
-              <tr key={i} className={t.testemunho ? "bg-yellow-50" : ""}>
-                <td className="border border-gray-300 px-3 py-2">{t.nome || `T-${i + 1}`}</td>
-                <td className="border border-gray-300 px-3 py-2 text-right">{t.area || "—"}</td>
-                <td className="border border-gray-300 px-3 py-2">
-                  {t.testemunho ? "—" : t.produto || "—"}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-right">
-                  {t.testemunho ? "0" : t.dose || "—"}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-xs">
-                  {t.testemunho && "Testemunho"}
-                  {t.testeProduto && `Teste: ${t.produtoTeste}`}
-                  {!t.testemunho && !t.testeProduto && "—"}
-                </td>
-              </tr>
-            ))}
+            {os.talhoes.map((t, i) => {
+              const rowSpan = t.testemunho ? 1 : Math.max(t.produtos.length, 1);
+              return t.testemunho ? (
+                <tr key={i} className="bg-yellow-50">
+                  <td className="border border-gray-300 px-3 py-2">{t.nome || `T-${i + 1}`}</td>
+                  <td className="border border-gray-300 px-3 py-2 text-right">{t.area || "—"}</td>
+                  <td className="border border-gray-300 px-3 py-2">—</td>
+                  <td className="border border-gray-300 px-3 py-2 text-right">0</td>
+                  <td className="border border-gray-300 px-3 py-2 text-xs">Testemunho</td>
+                </tr>
+              ) : (
+                t.produtos.map((p, j) => (
+                  <tr key={`${i}-${j}`}>
+                    {j === 0 && (
+                      <>
+                        <td className="border border-gray-300 px-3 py-2" rowSpan={rowSpan}>
+                          {t.nome || `T-${i + 1}`}
+                        </td>
+                        <td className="border border-gray-300 px-3 py-2 text-right" rowSpan={rowSpan}>
+                          {t.area || "—"}
+                        </td>
+                      </>
+                    )}
+                    <td className="border border-gray-300 px-3 py-2">{p.produto || "—"}</td>
+                    <td className="border border-gray-300 px-3 py-2 text-right">{p.dose || "—"}</td>
+                    {j === 0 && (
+                      <td className="border border-gray-300 px-3 py-2 text-xs" rowSpan={rowSpan}>
+                        {t.testeProduto ? `Teste: ${t.produtoTeste}` : "—"}
+                      </td>
+                    )}
+                  </tr>
+                ))
+              );
+            })}
           </tbody>
           <tfoot>
             <tr className="font-semibold bg-gray-50">

@@ -4,9 +4,9 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Copy, Plus, Minus } from "lucide-react";
+import { Copy, Plus, Minus, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import type { TalhaoData } from "@/lib/osStorage";
+import type { TalhaoData, ProdutoDose } from "@/lib/osStorage";
 
 interface OSFormProps {
   propriedade: string;
@@ -24,11 +24,12 @@ interface OSFormProps {
   onGenerate: () => void;
 }
 
+const emptyProduto = (): ProdutoDose => ({ produto: "", dose: "" });
+
 const emptyTalhao = (): TalhaoData => ({
   nome: "",
   area: "",
-  produto: "",
-  dose: "",
+  produtos: [emptyProduto()],
   testemunho: false,
   testeProduto: false,
   produtoTeste: "",
@@ -43,14 +44,14 @@ export function OSForm({
   talhoes, setTalhoes,
   onGenerate,
 }: OSFormProps) {
-  const [produtos, setProdutos] = useState<string[]>([]);
+  const [produtosDB, setProdutosDB] = useState<string[]>([]);
 
   useEffect(() => {
     supabase
       .from("registered_products")
       .select("commercial_name")
       .then(({ data }) => {
-        if (data) setProdutos(data.map((p) => p.commercial_name));
+        if (data) setProdutosDB(data.map((p) => p.commercial_name));
       });
   }, []);
 
@@ -58,9 +59,32 @@ export function OSForm({
     const updated = [...talhoes];
     updated[index] = { ...updated[index], [field]: value };
     if (field === "testemunho" && value === true) {
-      updated[index].dose = "0";
-      updated[index].produto = "";
+      updated[index].produtos = [];
     }
+    setTalhoes(updated);
+  };
+
+  const updateProduto = (talhaoIdx: number, prodIdx: number, field: keyof ProdutoDose, value: string) => {
+    const updated = [...talhoes];
+    const prods = [...updated[talhaoIdx].produtos];
+    prods[prodIdx] = { ...prods[prodIdx], [field]: value };
+    updated[talhaoIdx] = { ...updated[talhaoIdx], produtos: prods };
+    setTalhoes(updated);
+  };
+
+  const addProduto = (talhaoIdx: number) => {
+    const updated = [...talhoes];
+    updated[talhaoIdx] = {
+      ...updated[talhaoIdx],
+      produtos: [...updated[talhaoIdx].produtos, emptyProduto()],
+    };
+    setTalhoes(updated);
+  };
+
+  const removeProduto = (talhaoIdx: number, prodIdx: number) => {
+    const updated = [...talhoes];
+    const prods = updated[talhaoIdx].produtos.filter((_, j) => j !== prodIdx);
+    updated[talhaoIdx] = { ...updated[talhaoIdx], produtos: prods };
     setTalhoes(updated);
   };
 
@@ -78,7 +102,7 @@ export function OSForm({
       talhoes.map((t, i) =>
         i === 0
           ? t
-          : { ...t, produto: primeiro.produto, dose: primeiro.dose }
+          : { ...t, produtos: primeiro.produtos.map((p) => ({ ...p })) }
       )
     );
   };
@@ -146,7 +170,7 @@ export function OSForm({
           {talhoes.length > 1 && (
             <Button type="button" variant="secondary" size="sm" onClick={replicarPrimeiro}>
               <Copy className="h-4 w-4 mr-2" />
-              Replicar dosagem do Talhão 1
+              Replicar produtos do Talhão 1
             </Button>
           )}
 
@@ -162,7 +186,7 @@ export function OSForm({
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label className="text-xs">Nome/Número</Label>
                     <Input value={t.nome} onChange={(e) => updateTalhao(i, "nome", e.target.value)} placeholder="T-01" />
@@ -171,32 +195,51 @@ export function OSForm({
                     <Label className="text-xs">Área (ha)</Label>
                     <Input type="number" step="0.01" value={t.area} onChange={(e) => updateTalhao(i, "area", e.target.value)} />
                   </div>
-                  <div>
-                    <Label className="text-xs">Produto</Label>
-                    <Input
-                      list={`produtos-list-${i}`}
-                      value={t.produto}
-                      onChange={(e) => updateTalhao(i, "produto", e.target.value)}
-                      disabled={t.testemunho}
-                      placeholder="Selecione..."
-                    />
-                    <datalist id={`produtos-list-${i}`}>
-                      {produtos.map((p) => (
-                        <option key={p} value={p} />
-                      ))}
-                    </datalist>
-                  </div>
-                  <div>
-                    <Label className="text-xs">Dose (L/ha)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={t.dose}
-                      onChange={(e) => updateTalhao(i, "dose", e.target.value)}
-                      disabled={t.testemunho}
-                    />
-                  </div>
                 </div>
+
+                {/* Produtos */}
+                {!t.testemunho && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold">Produtos e Doses</Label>
+                      <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => addProduto(i)}>
+                        <Plus className="h-3 w-3 mr-1" /> Produto
+                      </Button>
+                    </div>
+                    {t.produtos.map((p, j) => (
+                      <div key={j} className="flex items-end gap-2">
+                        <div className="flex-1">
+                          {j === 0 && <Label className="text-xs">Produto</Label>}
+                          <Input
+                            list={`produtos-list-${i}-${j}`}
+                            value={p.produto}
+                            onChange={(e) => updateProduto(i, j, "produto", e.target.value)}
+                            placeholder="Selecione..."
+                          />
+                          <datalist id={`produtos-list-${i}-${j}`}>
+                            {produtosDB.map((name) => (
+                              <option key={name} value={name} />
+                            ))}
+                          </datalist>
+                        </div>
+                        <div className="w-28">
+                          {j === 0 && <Label className="text-xs">Dose (L/ha)</Label>}
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={p.dose}
+                            onChange={(e) => updateProduto(i, j, "dose", e.target.value)}
+                          />
+                        </div>
+                        {t.produtos.length > 1 && (
+                          <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => removeProduto(i, j)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <div className="flex flex-wrap gap-4">
                   <div className="flex items-center gap-2">
