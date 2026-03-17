@@ -25,7 +25,7 @@ export default function OrdemServico() {
   const [responsavelTecnico, setResponsavelTecnico] = useState("");
   const [aplicador, setAplicador] = useState("");
   const [talhoes, setTalhoes] = useState<TalhaoData[]>([
-    { nome: "", area: "", produto: "", dose: "", testemunho: false, testeProduto: false, produtoTeste: "" },
+    { nome: "", area: "", produtos: [{ produto: "", dose: "" }], testemunho: false, testeProduto: false, produtoTeste: "" },
   ]);
 
   const handleGenerate = async () => {
