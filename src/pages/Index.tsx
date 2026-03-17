@@ -64,6 +64,13 @@ const actionCards = [
     description: "Equipamentos e produtos",
     variant: "secondary" as const,
   },
+  {
+    to: "/ordem-servico",
+    icon: FileText,
+    title: "Ordem de Serviço",
+    description: "Gerar OS de aplicação",
+    variant: "secondary" as const,
+  },
 ];
 
 export default function Index() {

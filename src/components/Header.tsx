@@ -9,6 +9,7 @@ const navItems = [
   { path: "/nova-medicao", label: "Nova Medição" },
   { path: "/historico", label: "Histórico" },
   { path: "/tabela-referencia", label: "Tabela ISO" },
+  { path: "/ordem-servico", label: "Ordem de Serviço" },
 ];
 
 export function Header() {
