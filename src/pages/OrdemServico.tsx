@@ -103,7 +103,7 @@ export default function OrdemServico() {
     setDataOS(new Date().toISOString().slice(0, 10));
     setResponsavelTecnico("");
     setAplicador("");
-    setTalhoes([{ nome: "", area: "", produto: "", dose: "", testemunho: false, testeProduto: false, produtoTeste: "" }]);
+    setTalhoes([{ nome: "", area: "", produtos: [{ produto: "", dose: "" }], testemunho: false, testeProduto: false, produtoTeste: "" }]);
     setCurrentOS(null);
     setView("form");
   };
