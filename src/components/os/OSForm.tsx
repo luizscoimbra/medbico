@@ -1,0 +1,237 @@
+import { useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Copy, Plus, Minus } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import type { TalhaoData } from "@/lib/osStorage";
+
+interface OSFormProps {
+  propriedade: string;
+  setPropriedade: (v: string) => void;
+  codigoArea: string;
+  setCodigoArea: (v: string) => void;
+  dataOS: string;
+  setDataOS: (v: string) => void;
+  responsavelTecnico: string;
+  setResponsavelTecnico: (v: string) => void;
+  aplicador: string;
+  setAplicador: (v: string) => void;
+  talhoes: TalhaoData[];
+  setTalhoes: (t: TalhaoData[]) => void;
+  onGenerate: () => void;
+}
+
+const emptyTalhao = (): TalhaoData => ({
+  nome: "",
+  area: "",
+  produto: "",
+  dose: "",
+  testemunho: false,
+  testeProduto: false,
+  produtoTeste: "",
+});
+
+export function OSForm({
+  propriedade, setPropriedade,
+  codigoArea, setCodigoArea,
+  dataOS, setDataOS,
+  responsavelTecnico, setResponsavelTecnico,
+  aplicador, setAplicador,
+  talhoes, setTalhoes,
+  onGenerate,
+}: OSFormProps) {
+  const [produtos, setProdutos] = useState<string[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from("registered_products")
+      .select("commercial_name")
+      .then(({ data }) => {
+        if (data) setProdutos(data.map((p) => p.commercial_name));
+      });
+  }, []);
+
+  const updateTalhao = (index: number, field: keyof TalhaoData, value: any) => {
+    const updated = [...talhoes];
+    updated[index] = { ...updated[index], [field]: value };
+    if (field === "testemunho" && value === true) {
+      updated[index].dose = "0";
+      updated[index].produto = "";
+    }
+    setTalhoes(updated);
+  };
+
+  const addTalhao = () => setTalhoes([...talhoes, emptyTalhao()]);
+
+  const removeTalhao = (i: number) => {
+    if (talhoes.length <= 1) return;
+    setTalhoes(talhoes.filter((_, idx) => idx !== i));
+  };
+
+  const replicarPrimeiro = () => {
+    if (talhoes.length <= 1) return;
+    const primeiro = talhoes[0];
+    setTalhoes(
+      talhoes.map((t, i) =>
+        i === 0
+          ? t
+          : { ...t, produto: primeiro.produto, dose: primeiro.dose }
+      )
+    );
+  };
+
+  const setQuantidadeTalhoes = (qty: number) => {
+    if (qty < 1) return;
+    if (qty > talhoes.length) {
+      const novos = Array.from({ length: qty - talhoes.length }, () => emptyTalhao());
+      setTalhoes([...talhoes, ...novos]);
+    } else {
+      setTalhoes(talhoes.slice(0, qty));
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Cabeçalho */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Dados da Propriedade</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <Label>Nome da Propriedade</Label>
+            <Input value={propriedade} onChange={(e) => setPropriedade(e.target.value)} placeholder="Fazenda..." />
+          </div>
+          <div>
+            <Label>Código da Área</Label>
+            <Input value={codigoArea} onChange={(e) => setCodigoArea(e.target.value)} placeholder="Ex: A-01" />
+          </div>
+          <div>
+            <Label>Data</Label>
+            <Input type="date" value={dataOS} onChange={(e) => setDataOS(e.target.value)} />
+          </div>
+          <div>
+            <Label>Responsável Técnico</Label>
+            <Input value={responsavelTecnico} onChange={(e) => setResponsavelTecnico(e.target.value)} />
+          </div>
+          <div className="sm:col-span-2">
+            <Label>Aplicador</Label>
+            <Input value={aplicador} onChange={(e) => setAplicador(e.target.value)} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Talhões */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg">Talhões</CardTitle>
+          <div className="flex items-center gap-2">
+            <Label className="text-sm whitespace-nowrap">Qtd:</Label>
+            <Input
+              type="number"
+              min={1}
+              className="w-20"
+              value={talhoes.length}
+              onChange={(e) => setQuantidadeTalhoes(parseInt(e.target.value) || 1)}
+            />
+            <Button type="button" variant="outline" size="sm" onClick={addTalhao}>
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {talhoes.length > 1 && (
+            <Button type="button" variant="secondary" size="sm" onClick={replicarPrimeiro}>
+              <Copy className="h-4 w-4 mr-2" />
+              Replicar dosagem do Talhão 1
+            </Button>
+          )}
+
+          {talhoes.map((t, i) => (
+            <Card key={i} className={`border ${t.testemunho ? "border-warning/50 bg-warning/5" : "border-border"}`}>
+              <CardContent className="pt-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-heading font-semibold text-sm">Talhão {i + 1}</span>
+                  {talhoes.length > 1 && (
+                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeTalhao(i)}>
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div>
+                    <Label className="text-xs">Nome/Número</Label>
+                    <Input value={t.nome} onChange={(e) => updateTalhao(i, "nome", e.target.value)} placeholder="T-01" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Área (ha)</Label>
+                    <Input type="number" step="0.01" value={t.area} onChange={(e) => updateTalhao(i, "area", e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Produto</Label>
+                    <Input
+                      list={`produtos-list-${i}`}
+                      value={t.produto}
+                      onChange={(e) => updateTalhao(i, "produto", e.target.value)}
+                      disabled={t.testemunho}
+                      placeholder="Selecione..."
+                    />
+                    <datalist id={`produtos-list-${i}`}>
+                      {produtos.map((p) => (
+                        <option key={p} value={p} />
+                      ))}
+                    </datalist>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Dose (L/ha)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={t.dose}
+                      onChange={(e) => updateTalhao(i, "dose", e.target.value)}
+                      disabled={t.testemunho}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-4">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id={`testemunho-${i}`}
+                      checked={t.testemunho}
+                      onCheckedChange={(v) => updateTalhao(i, "testemunho", !!v)}
+                    />
+                    <Label htmlFor={`testemunho-${i}`} className="text-xs cursor-pointer">Testemunho (sem aplicação)</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id={`teste-${i}`}
+                      checked={t.testeProduto}
+                      onCheckedChange={(v) => updateTalhao(i, "testeProduto", !!v)}
+                    />
+                    <Label htmlFor={`teste-${i}`} className="text-xs cursor-pointer">Teste de Produto</Label>
+                  </div>
+                </div>
+
+                {t.testeProduto && (
+                  <div>
+                    <Label className="text-xs">Produto em Teste</Label>
+                    <Input value={t.produtoTeste} onChange={(e) => updateTalhao(i, "produtoTeste", e.target.value)} placeholder="Nome do produto em teste" />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Button onClick={onGenerate} size="lg" className="w-full">
+        Gerar Ordem de Serviço
+      </Button>
+    </div>
+  );
+}
