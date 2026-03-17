@@ -1,10 +1,14 @@
 import { get, set, keys, values } from "idb-keyval";
 
+export interface ProdutoDose {
+  produto: string;
+  dose: string;
+}
+
 export interface TalhaoData {
   nome: string;
   area: string;
-  produto: string;
-  dose: string;
+  produtos: ProdutoDose[];
   testemunho: boolean;
   testeProduto: boolean;
   produtoTeste: string;
