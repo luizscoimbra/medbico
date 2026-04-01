@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, useMemo } from "react";
 import type { OrdemServico } from "@/lib/osStorage";
 import { Droplets } from "lucide-react";
 
@@ -6,8 +6,51 @@ interface OSPreviewProps {
   os: OrdemServico;
 }
 
+interface InsumoResumo {
+  produto: string;
+  totalNecessario: number;
+  unit: string;
+  packageSize: number;
+  qtdEmbalagens: number;
+}
+
 export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref) => {
   const areaTotal = os.talhoes.reduce((sum, t) => sum + (parseFloat(t.area) || 0), 0);
+
+  const resumoInsumos = useMemo(() => {
+    const map = new Map<string, { total: number; unit: string; packageSize: number }>();
+    os.talhoes.forEach((t) => {
+      if (t.testemunho) return;
+      const area = parseFloat(t.area) || 0;
+      t.produtos.forEach((p) => {
+        if (!p.produto || !p.dose) return;
+        const dose = parseFloat(p.dose) || 0;
+        const key = p.produto;
+        const existing = map.get(key);
+        if (existing) {
+          existing.total += dose * area;
+        } else {
+          map.set(key, {
+            total: dose * area,
+            unit: p.unit || "L",
+            packageSize: p.packageSize || 0,
+          });
+        }
+      });
+    });
+
+    const result: InsumoResumo[] = [];
+    map.forEach((v, k) => {
+      result.push({
+        produto: k,
+        totalNecessario: v.total,
+        unit: v.unit,
+        packageSize: v.packageSize,
+        qtdEmbalagens: v.packageSize > 0 ? Math.ceil(v.total / v.packageSize) : 0,
+      });
+    });
+    return result;
+  }, [os]);
 
   return (
     <div ref={ref} className="bg-white text-black p-8 max-w-[210mm] mx-auto print-area" id="os-print">
@@ -46,6 +89,12 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
           <p className="text-xs text-gray-500 uppercase font-semibold">Aplicador</p>
           <p className="font-medium">{os.aplicador}</p>
         </div>
+        {os.volumeCaldaHa && (
+          <div className="border border-gray-300 rounded p-3 col-span-2">
+            <p className="text-xs text-gray-500 uppercase font-semibold">Volume de Calda</p>
+            <p className="font-medium">{os.volumeCaldaHa} L/ha</p>
+          </div>
+        )}
       </div>
 
       {/* Tabela de Talhões */}
@@ -106,6 +155,39 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
           </tfoot>
         </table>
       </div>
+
+      {/* Resumo de Insumos */}
+      {resumoInsumos.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-sm font-bold uppercase mb-2 text-gray-700">Resumo de Insumos</h2>
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="bg-green-50">
+                <th className="border border-gray-300 px-3 py-2 text-left">Produto</th>
+                <th className="border border-gray-300 px-3 py-2 text-right">Total Necessário</th>
+                <th className="border border-gray-300 px-3 py-2 text-center">Unidade</th>
+                <th className="border border-gray-300 px-3 py-2 text-right">Embalagem</th>
+                <th className="border border-gray-300 px-3 py-2 text-right">Qtd Embalagens</th>
+              </tr>
+            </thead>
+            <tbody>
+              {resumoInsumos.map((item, idx) => (
+                <tr key={idx}>
+                  <td className="border border-gray-300 px-3 py-2">{item.produto}</td>
+                  <td className="border border-gray-300 px-3 py-2 text-right">{item.totalNecessario.toFixed(2)}</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">{item.unit}</td>
+                  <td className="border border-gray-300 px-3 py-2 text-right">
+                    {item.packageSize > 0 ? `${item.packageSize} ${item.unit}` : "—"}
+                  </td>
+                  <td className="border border-gray-300 px-3 py-2 text-right font-semibold">
+                    {item.qtdEmbalagens > 0 ? item.qtdEmbalagens : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Assinaturas */}
       <div className="grid grid-cols-2 gap-12 mt-16">

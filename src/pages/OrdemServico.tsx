@@ -1,22 +1,25 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { OSForm } from "@/components/os/OSForm";
 import { OSPreview } from "@/components/os/OSPreview";
+import { OSApontamento } from "@/components/os/OSApontamento";
+import { OSApontamentoPreview } from "@/components/os/OSApontamentoPreview";
 import { generateOSId, saveOS, getAllOS, type OrdemServico as OSType, type TalhaoData } from "@/lib/osStorage";
-import { Printer, FileDown, Share2, ArrowLeft, History } from "lucide-react";
+import { Printer, FileDown, Share2, ArrowLeft, History, ClipboardCheck } from "lucide-react";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { Link } from "react-router-dom";
 
-type View = "form" | "preview" | "history";
+type View = "form" | "preview" | "history" | "apontamento" | "apontamento-preview";
 
 export default function OrdemServico() {
   const [view, setView] = useState<View>("form");
   const [currentOS, setCurrentOS] = useState<OSType | null>(null);
   const [historico, setHistorico] = useState<OSType[]>([]);
   const printRef = useRef<HTMLDivElement>(null);
+  const apontamentoRef = useRef<HTMLDivElement>(null);
 
   // Form state
   const [propriedade, setPropriedade] = useState("");
@@ -24,6 +27,7 @@ export default function OrdemServico() {
   const [dataOS, setDataOS] = useState(new Date().toISOString().slice(0, 10));
   const [responsavelTecnico, setResponsavelTecnico] = useState("");
   const [aplicador, setAplicador] = useState("");
+  const [volumeCaldaHa, setVolumeCaldaHa] = useState("");
   const [talhoes, setTalhoes] = useState<TalhaoData[]>([
     { nome: "", area: "", produtos: [{ produto: "", dose: "" }], testemunho: false, testeProduto: false, produtoTeste: "" },
   ]);
@@ -43,6 +47,8 @@ export default function OrdemServico() {
       aplicador,
       talhoes,
       createdAt: new Date().toISOString(),
+      volumeCaldaHa: volumeCaldaHa || undefined,
+      status: "aberta",
     };
     await saveOS(os);
     setCurrentOS(os);
@@ -52,32 +58,43 @@ export default function OrdemServico() {
 
   const handlePrint = () => window.print();
 
-  const handlePDF = async () => {
-    if (!printRef.current) return;
+  const handlePDF = async (targetRef: React.RefObject<HTMLDivElement>, filename: string) => {
+    if (!targetRef.current) return;
     toast.info("Gerando PDF...");
-    const canvas = await html2canvas(printRef.current, { scale: 2, useCORS: true });
+    const canvas = await html2canvas(targetRef.current, { scale: 2, useCORS: true });
     const imgData = canvas.toDataURL("image/png");
     const pdf = new jsPDF("p", "mm", "a4");
     const pdfW = pdf.internal.pageSize.getWidth();
     const pdfH = (canvas.height * pdfW) / canvas.width;
-    pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
-    pdf.save(`OS-${currentOS?.id || "export"}.pdf`);
+
+    // Handle multi-page if content is taller than A4
+    const pageH = pdf.internal.pageSize.getHeight();
+    if (pdfH <= pageH) {
+      pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
+    } else {
+      let position = 0;
+      let remaining = pdfH;
+      while (remaining > 0) {
+        if (position > 0) pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, -position, pdfW, pdfH);
+        position += pageH;
+        remaining -= pageH;
+      }
+    }
+
+    pdf.save(filename);
     toast.success("PDF salvo!");
   };
 
-  const handleShare = async () => {
-    if (!printRef.current) return;
+  const handleShare = async (targetRef: React.RefObject<HTMLDivElement>, title: string) => {
+    if (!targetRef.current) return;
     try {
-      const canvas = await html2canvas(printRef.current, { scale: 2, useCORS: true });
+      const canvas = await html2canvas(targetRef.current, { scale: 2, useCORS: true });
       const blob = await new Promise<Blob>((res) => canvas.toBlob((b) => res(b!), "image/png"));
-      const file = new File([blob], `OS-${currentOS?.id}.png`, { type: "image/png" });
+      const file = new File([blob], `${title}.png`, { type: "image/png" });
 
       if (navigator.share) {
-        await navigator.share({
-          title: `Ordem de Serviço ${currentOS?.id}`,
-          text: `OS ${currentOS?.id} - ${currentOS?.propriedade}`,
-          files: [file],
-        });
+        await navigator.share({ title, files: [file] });
       } else {
         toast.error("Compartilhamento não suportado neste navegador");
       }
@@ -103,10 +120,25 @@ export default function OrdemServico() {
     setDataOS(new Date().toISOString().slice(0, 10));
     setResponsavelTecnico("");
     setAplicador("");
+    setVolumeCaldaHa("");
     setTalhoes([{ nome: "", area: "", produtos: [{ produto: "", dose: "" }], testemunho: false, testeProduto: false, produtoTeste: "" }]);
     setCurrentOS(null);
     setView("form");
   };
+
+  const ExportButtons = ({ targetRef, filename }: { targetRef: React.RefObject<HTMLDivElement>; filename: string }) => (
+    <div className="flex flex-wrap gap-2 mb-4 no-print">
+      <Button onClick={handlePrint} variant="outline" size="sm">
+        <Printer className="h-4 w-4 mr-1" /> Imprimir
+      </Button>
+      <Button onClick={() => handlePDF(targetRef, `${filename}.pdf`)} variant="outline" size="sm">
+        <FileDown className="h-4 w-4 mr-1" /> Exportar PDF
+      </Button>
+      <Button onClick={() => handleShare(targetRef, filename)} variant="outline" size="sm">
+        <Share2 className="h-4 w-4 mr-1" /> Compartilhar
+      </Button>
+    </div>
+  );
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-4xl">
@@ -137,6 +169,7 @@ export default function OrdemServico() {
           responsavelTecnico={responsavelTecnico} setResponsavelTecnico={setResponsavelTecnico}
           aplicador={aplicador} setAplicador={setAplicador}
           talhoes={talhoes} setTalhoes={setTalhoes}
+          volumeCaldaHa={volumeCaldaHa} setVolumeCaldaHa={setVolumeCaldaHa}
           onGenerate={handleGenerate}
         />
       )}
@@ -144,18 +177,39 @@ export default function OrdemServico() {
       {/* Preview View */}
       {view === "preview" && currentOS && (
         <div>
-          <div className="flex flex-wrap gap-2 mb-4 no-print">
-            <Button onClick={handlePrint} variant="outline" size="sm">
-              <Printer className="h-4 w-4 mr-1" /> Imprimir
-            </Button>
-            <Button onClick={handlePDF} variant="outline" size="sm">
-              <FileDown className="h-4 w-4 mr-1" /> Exportar PDF
-            </Button>
-            <Button onClick={handleShare} variant="outline" size="sm">
-              <Share2 className="h-4 w-4 mr-1" /> Compartilhar
+          <ExportButtons targetRef={printRef} filename={`OS-${currentOS.id}`} />
+          <div className="flex gap-2 mb-4 no-print">
+            <Button
+              onClick={() => setView("apontamento")}
+              variant="default"
+              size="sm"
+            >
+              <ClipboardCheck className="h-4 w-4 mr-1" /> Apontamento
             </Button>
           </div>
           <OSPreview ref={printRef} os={currentOS} />
+        </div>
+      )}
+
+      {/* Apontamento View */}
+      {view === "apontamento" && currentOS && (
+        <OSApontamento
+          os={currentOS}
+          onSaved={(updated) => setCurrentOS(updated)}
+          onViewReport={() => setView("apontamento-preview")}
+        />
+      )}
+
+      {/* Apontamento Preview View */}
+      {view === "apontamento-preview" && currentOS && (
+        <div>
+          <ExportButtons targetRef={apontamentoRef} filename={`Apontamento-OS-${currentOS.id}`} />
+          <div className="flex gap-2 mb-4 no-print">
+            <Button variant="outline" size="sm" onClick={() => setView("apontamento")}>
+              <ArrowLeft className="h-4 w-4 mr-1" /> Voltar ao Apontamento
+            </Button>
+          </div>
+          <OSApontamentoPreview ref={apontamentoRef} os={currentOS} />
         </div>
       )}
 
@@ -182,9 +236,18 @@ export default function OrdemServico() {
                       {os.propriedade} — {os.talhoes.length} talhões
                     </p>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {new Date(os.data).toLocaleDateString("pt-BR")}
-                  </p>
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(os.data).toLocaleDateString("pt-BR")}
+                    </p>
+                    {os.status && os.status !== "aberta" && (
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                        os.status === "concluida" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                      }`}>
+                        {os.status === "concluida" ? "Concluída" : "Em andamento"}
+                      </span>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ))
