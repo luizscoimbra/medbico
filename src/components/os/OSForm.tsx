@@ -21,7 +21,15 @@ interface OSFormProps {
   setAplicador: (v: string) => void;
   talhoes: TalhaoData[];
   setTalhoes: (t: TalhaoData[]) => void;
+  volumeCaldaHa: string;
+  setVolumeCaldaHa: (v: string) => void;
   onGenerate: () => void;
+}
+
+interface ProdutoDB {
+  commercial_name: string;
+  unit: string;
+  package_size: number;
 }
 
 const emptyProduto = (): ProdutoDose => ({ produto: "", dose: "" });
@@ -42,16 +50,17 @@ export function OSForm({
   responsavelTecnico, setResponsavelTecnico,
   aplicador, setAplicador,
   talhoes, setTalhoes,
+  volumeCaldaHa, setVolumeCaldaHa,
   onGenerate,
 }: OSFormProps) {
-  const [produtosDB, setProdutosDB] = useState<string[]>([]);
+  const [produtosDB, setProdutosDB] = useState<ProdutoDB[]>([]);
 
   useEffect(() => {
     supabase
       .from("registered_products")
-      .select("commercial_name")
+      .select("commercial_name, unit, package_size")
       .then(({ data }) => {
-        if (data) setProdutosDB(data.map((p) => p.commercial_name));
+        if (data) setProdutosDB(data as ProdutoDB[]);
       });
   }, []);
 
@@ -68,6 +77,16 @@ export function OSForm({
     const updated = [...talhoes];
     const prods = [...updated[talhaoIdx].produtos];
     prods[prodIdx] = { ...prods[prodIdx], [field]: value };
+
+    // Enrich with DB data when selecting a product
+    if (field === "produto") {
+      const found = produtosDB.find((p) => p.commercial_name === value);
+      if (found) {
+        prods[prodIdx].unit = found.unit;
+        prods[prodIdx].packageSize = found.package_size;
+      }
+    }
+
     updated[talhaoIdx] = { ...updated[talhaoIdx], produtos: prods };
     setTalhoes(updated);
   };
@@ -141,9 +160,19 @@ export function OSForm({
             <Label>Responsável Técnico</Label>
             <Input value={responsavelTecnico} onChange={(e) => setResponsavelTecnico(e.target.value)} />
           </div>
-          <div className="sm:col-span-2">
+          <div>
             <Label>Aplicador</Label>
             <Input value={aplicador} onChange={(e) => setAplicador(e.target.value)} />
+          </div>
+          <div>
+            <Label>Volume de Calda (L/ha)</Label>
+            <Input
+              type="number"
+              step="1"
+              value={volumeCaldaHa}
+              onChange={(e) => setVolumeCaldaHa(e.target.value)}
+              placeholder="Ex: 150"
+            />
           </div>
         </CardContent>
       </Card>
@@ -217,8 +246,8 @@ export function OSForm({
                             placeholder="Selecione..."
                           />
                           <datalist id={`produtos-list-${i}-${j}`}>
-                            {produtosDB.map((name) => (
-                              <option key={name} value={name} />
+                            {produtosDB.map((prod) => (
+                              <option key={prod.commercial_name} value={prod.commercial_name} />
                             ))}
                           </datalist>
                         </div>
