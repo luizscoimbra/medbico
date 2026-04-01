@@ -3,6 +3,8 @@ import { get, set, keys, values } from "idb-keyval";
 export interface ProdutoDose {
   produto: string;
   dose: string;
+  unit?: string;        // "L" ou "KG"
+  packageSize?: number;  // tamanho da embalagem
 }
 
 export interface TalhaoData {
@@ -14,6 +16,14 @@ export interface TalhaoData {
   produtoTeste: string;
 }
 
+export interface ApontamentoTalhao {
+  talhaoIndex: number;
+  areaAplicada: string;
+  caldaRestante: string;
+  dataApontamento: string;
+  observacoes: string;
+}
+
 export interface OrdemServico {
   id: string;
   data: string;
@@ -23,6 +33,9 @@ export interface OrdemServico {
   aplicador: string;
   talhoes: TalhaoData[];
   createdAt: string;
+  volumeCaldaHa?: string;
+  apontamentos?: ApontamentoTalhao[];
+  status?: "aberta" | "em_andamento" | "concluida";
 }
 
 function getTodayPrefix(): string {
