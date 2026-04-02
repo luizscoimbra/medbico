@@ -12,8 +12,10 @@ export interface TalhaoData {
   area: string;
   produtos: ProdutoDose[];
   testemunho: boolean;
+  testemunhoArea: string;
   testeProduto: boolean;
   produtoTeste: string;
+  produtoTesteQtd: string;
 }
 
 export interface ApontamentoTalhao {
