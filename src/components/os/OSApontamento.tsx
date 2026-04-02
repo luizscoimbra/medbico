@@ -56,24 +56,6 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
     const areaFaltante = Math.max(0, areaPlanejada - areaAplicada);
     return { areaPlanejada, areaAplicada, areaFaltante };
   });
-    const caldaRestante = parseFloat(ap?.caldaRestante || "0") || 0;
-    const areaFaltante = Math.max(0, areaPlanejada - areaAplicada);
-
-    const produtosCalc = t.testemunho
-      ? []
-      : t.produtos.map((p) => {
-          const dose = parseFloat(p.dose) || 0;
-          const concentracao = volumeCaldaHa > 0 ? dose / volumeCaldaHa : 0;
-          const produtoRestante = caldaRestante * concentracao;
-          const produtoParaFinalizar = dose * areaFaltante;
-          return {
-            produto: p.produto,
-            dose,
-            unit: p.unit || "L",
-            produtoRestante,
-            produtoParaFinalizar,
-          };
-        });
 
   const totalAreaPlanejada = calculosTotais.reduce((s, c) => s + c.areaPlanejada, 0);
   const totalAreaAplicada = calculosTotais.reduce((s, c) => s + c.areaAplicada, 0);
