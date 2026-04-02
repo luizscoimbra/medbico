@@ -26,10 +26,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Settings, FlaskConical, Plus, Trash2, Tractor, Hash, Truck } from "lucide-react";
+import { Settings, FlaskConical, Plus, Trash2, Tractor, Hash, Truck, Map, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { saveArea, getAllAreas, deleteArea, AreaCadastro, AreaTalhao } from "@/lib/areaStorage";
 
 interface Equipment {
   id: string;
@@ -101,6 +102,15 @@ export default function Cadastros() {
   const [newFormulation, setNewFormulation] = useState({ value: "", label: "" });
   const [formDialogOpen, setFormDialogOpen] = useState(false);
 
+  // Áreas state
+  const [areas, setAreas] = useState<AreaCadastro[]>([]);
+  const [areaForm, setAreaForm] = useState({
+    nome: "",
+    coordenadas: "",
+    quantidadeTalhoes: "",
+  });
+  const [talhoesForm, setTalhoesForm] = useState<AreaTalhao[]>([]);
+
   const allFormulations = [...defaultFormulations, ...customFormulations];
 
   const handleAddFormulation = () => {
@@ -140,7 +150,13 @@ export default function Cadastros() {
     if (!userId) return;
     fetchEquipments();
     fetchProducts();
+    fetchAreasList();
   }, [userId]);
+
+  const fetchAreasList = async () => {
+    const list = await getAllAreas();
+    setAreas(list);
+  };
 
   const fetchEquipments = async () => {
     const { data } = await supabase
@@ -244,6 +260,56 @@ export default function Cadastros() {
     toast.success("Caminhão Pipa removido");
   };
 
+  // Handle Areas
+  const handleQuantidadeTalhoesChange = (val: string) => {
+    setAreaForm((p) => ({ ...p, quantidadeTalhoes: val }));
+    const qty = parseInt(val) || 0;
+    
+    if (qty > talhoesForm.length) {
+      const novos = Array.from({ length: qty - talhoesForm.length }, (_, i) => ({
+        id: crypto.randomUUID(),
+        numero: `${talhoesForm.length + i + 1}`,
+        tamanhoHectares: 0,
+      }));
+      setTalhoesForm([...talhoesForm, ...novos]);
+    } else if (qty < talhoesForm.length) {
+      setTalhoesForm(talhoesForm.slice(0, qty));
+    }
+  };
+
+  const updateTalhaoForm = (idx: number, field: keyof AreaTalhao, value: any) => {
+    const updated = [...talhoesForm];
+    updated[idx] = { ...updated[idx], [field]: value };
+    setTalhoesForm(updated);
+  };
+
+  const handleAddArea = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!areaForm.nome.trim() || talhoesForm.length === 0) {
+      toast.error("Preencha o nome da área e adicione pelo menos 1 talhão.");
+      return;
+    }
+    const newArea: AreaCadastro = {
+      id: crypto.randomUUID(),
+      nome: areaForm.nome.trim(),
+      coordenadas: areaForm.coordenadas.trim(),
+      quantidadeTalhoes: talhoesForm.length,
+      talhoes: talhoesForm,
+      createdAt: new Date().toISOString()
+    };
+    await saveArea(newArea);
+    toast.success("Área cadastrada!");
+    setAreaForm({ nome: "", coordenadas: "", quantidadeTalhoes: "" });
+    setTalhoesForm([]);
+    fetchAreasList();
+  };
+
+  const handleDeleteArea = async (id: string) => {
+    await deleteArea(id);
+    toast.success("Área removida");
+    fetchAreasList();
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="mb-8 animate-fade-in">
@@ -254,7 +320,7 @@ export default function Cadastros() {
       </div>
 
       <Tabs defaultValue="equipamentos" className="animate-slide-up">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="equipamentos" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
             Equipamentos
@@ -266,6 +332,10 @@ export default function Cadastros() {
           <TabsTrigger value="produtos" className="flex items-center gap-2">
             <FlaskConical className="h-4 w-4" />
             Produtos
+          </TabsTrigger>
+          <TabsTrigger value="areas" className="flex items-center gap-2">
+            <Map className="h-4 w-4" />
+            Áreas
           </TabsTrigger>
         </TabsList>
 
@@ -630,6 +700,149 @@ export default function Cadastros() {
                           </TableCell>
                         </TableRow>
                       ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* ÁREAS TAB */}
+        <TabsContent value="areas">
+          <Card className="shadow-lg mb-6">
+            <CardHeader className="border-b border-border">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Map className="h-5 w-5 text-primary" />
+                Cadastrar Área
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <form onSubmit={handleAddArea} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="area_nome">Nome da Área *</Label>
+                    <Input
+                      id="area_nome"
+                      placeholder="Ex: Fazenda Boa Vista"
+                      value={areaForm.nome}
+                      onChange={(e) => setAreaForm((p) => ({ ...p, nome: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="area_coord">Coordenadas (Lat, Long)</Label>
+                    <Input
+                      id="area_coord"
+                      placeholder="-23.550520, -46.633308"
+                      value={areaForm.coordenadas}
+                      onChange={(e) => setAreaForm((p) => ({ ...p, coordenadas: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="area_talhoes">Total de Talhões *</Label>
+                    <Input
+                      id="area_talhoes"
+                      type="number"
+                      min="1"
+                      placeholder="Ex: 5"
+                      value={areaForm.quantidadeTalhoes}
+                      onChange={(e) => handleQuantidadeTalhoesChange(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {talhoesForm.length > 0 && (
+                  <div className="mt-4 p-4 border rounded-lg bg-muted/20">
+                    <h4 className="text-sm font-semibold mb-3">Configuração dos Talhões</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                      {talhoesForm.map((t, idx) => (
+                        <div key={t.id} className="p-3 border rounded bg-background flex flex-col gap-2">
+                          <Label className="text-xs font-semibold">Talhão {idx + 1}</Label>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Número/Nome</Label>
+                            <Input
+                              value={t.numero}
+                              onChange={(e) => updateTalhaoForm(idx, "numero", e.target.value)}
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Tamanho (ha)</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={t.tamanhoHectares}
+                              onChange={(e) => updateTalhaoForm(idx, "tamanhoHectares", parseFloat(e.target.value) || 0)}
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end">
+                  <Button type="submit">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Cadastrar
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          {areas.length > 0 && (
+            <Card className="shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-lg">Áreas Cadastradas ({areas.length})</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Talhões (Qtd)</TableHead>
+                        <TableHead>Área Total (ha)</TableHead>
+                        <TableHead>Localização</TableHead>
+                        <TableHead className="w-12"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {areas.map((a) => {
+                        const totalArea = a.talhoes.reduce((acc, curr) => acc + (curr.tamanhoHectares || 0), 0);
+                        return (
+                          <TableRow key={a.id}>
+                            <TableCell className="font-medium">{a.nome}</TableCell>
+                            <TableCell>{a.quantidadeTalhoes}</TableCell>
+                            <TableCell>{totalArea.toFixed(2)}</TableCell>
+                            <TableCell>
+                              {a.coordenadas ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-primary hover:text-primary/80"
+                                  onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(a.coordenadas)}`, "_blank")}
+                                >
+                                  <MapPin className="h-4 w-4 mr-1" /> Ver Rota
+                                </Button>
+                              ) : "—"}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteArea(a.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>

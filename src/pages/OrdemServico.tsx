@@ -27,6 +27,7 @@ export default function OrdemServico() {
   const [dataOS, setDataOS] = useState(new Date().toISOString().slice(0, 10));
   const [responsavelTecnico, setResponsavelTecnico] = useState("");
   const [volumeCaldaHa, setVolumeCaldaHa] = useState("");
+  const [coordenadas, setCoordenadas] = useState("");
   const [talhoes, setTalhoes] = useState<TalhaoData[]>([
     { nome: "", area: "", produtos: [{ produto: "", dose: "" }], testemunho: false, testemunhoArea: "", testeProduto: false, produtoTeste: "", produtoTesteQtd: "" },
   ]);
@@ -47,6 +48,7 @@ export default function OrdemServico() {
       talhoes,
       createdAt: new Date().toISOString(),
       volumeCaldaHa: volumeCaldaHa || undefined,
+      coordenadas,
       status: "aberta",
     };
     await saveOS(os);
@@ -119,6 +121,7 @@ export default function OrdemServico() {
     setDataOS(new Date().toISOString().slice(0, 10));
     setResponsavelTecnico("");
     setVolumeCaldaHa("");
+    setCoordenadas("");
     setTalhoes([{ nome: "", area: "", produtos: [{ produto: "", dose: "" }], testemunho: false, testemunhoArea: "", testeProduto: false, produtoTeste: "", produtoTesteQtd: "" }]);
     setCurrentOS(null);
     setView("form");
@@ -167,6 +170,7 @@ export default function OrdemServico() {
           responsavelTecnico={responsavelTecnico} setResponsavelTecnico={setResponsavelTecnico}
           talhoes={talhoes} setTalhoes={setTalhoes}
           volumeCaldaHa={volumeCaldaHa} setVolumeCaldaHa={setVolumeCaldaHa}
+          coordenadas={coordenadas} setCoordenadas={setCoordenadas}
           onGenerate={handleGenerate}
         />
       )}

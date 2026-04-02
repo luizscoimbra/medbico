@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Copy, Plus, Minus, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { TalhaoData, ProdutoDose } from "@/lib/osStorage";
+import { getAllAreas, AreaCadastro } from "@/lib/areaStorage";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface OSFormProps {
   propriedade: string;
@@ -21,6 +23,8 @@ interface OSFormProps {
   setTalhoes: (t: TalhaoData[]) => void;
   volumeCaldaHa: string;
   setVolumeCaldaHa: (v: string) => void;
+  coordenadas?: string;
+  setCoordenadas?: (v: string) => void;
   onGenerate: () => void;
 }
 
@@ -50,9 +54,11 @@ export function OSForm({
   responsavelTecnico, setResponsavelTecnico,
   talhoes, setTalhoes,
   volumeCaldaHa, setVolumeCaldaHa,
+  coordenadas, setCoordenadas,
   onGenerate,
 }: OSFormProps) {
   const [produtosDB, setProdutosDB] = useState<ProdutoDB[]>([]);
+  const [areasDB, setAreasDB] = useState<AreaCadastro[]>([]);
 
   useEffect(() => {
     supabase
@@ -61,6 +67,8 @@ export function OSForm({
       .then(({ data }) => {
         if (data) setProdutosDB(data as ProdutoDB[]);
       });
+
+    getAllAreas().then(setAreasDB);
   }, []);
 
   const updateTalhao = (index: number, field: keyof TalhaoData, value: any) => {
@@ -143,11 +151,37 @@ export function OSForm({
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <Label>Nome da Propriedade</Label>
-            <Input value={propriedade} onChange={(e) => setPropriedade(e.target.value)} placeholder="Fazenda..." />
+            <Label>Área / Propriedade</Label>
+            <Select 
+              value={codigoArea} 
+              onValueChange={(val) => {
+                setCodigoArea(val);
+                setPropriedade(val); // Sincroniza propriedade e área
+                const area = areasDB.find(a => a.nome === val);
+                if (area) {
+                  if (setCoordenadas && area.coordenadas) {
+                    setCoordenadas(area.coordenadas);
+                  }
+                  const novos = area.talhoes.map(t => ({
+                    ...emptyTalhao(),
+                    nome: t.numero,
+                    area: t.tamanhoHectares.toString()
+                  }));
+                  setTalhoes(novos.length > 0 ? novos : [emptyTalhao()]);
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a área..." />
+              </SelectTrigger>
+              <SelectContent>
+                {areasDB.length === 0 && <SelectItem value="nenhuma" disabled>Nenhuma área cadastrada</SelectItem>}
+                {areasDB.map(a => <SelectItem key={a.id} value={a.nome}>{a.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
           <div>
-            <Label>Código da Área</Label>
+            <Label>Código da Área (Opcional)</Label>
             <Input value={codigoArea} onChange={(e) => setCodigoArea(e.target.value)} placeholder="Ex: A-01" />
           </div>
           <div>

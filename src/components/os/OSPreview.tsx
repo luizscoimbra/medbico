@@ -1,6 +1,6 @@
 import { forwardRef, useMemo } from "react";
 import type { OrdemServico } from "@/lib/osStorage";
-import { Droplets } from "lucide-react";
+import { Droplets, MapPin } from "lucide-react";
 
 interface OSPreviewProps {
   os: OrdemServico;
@@ -96,9 +96,25 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
           <p className="font-medium">{os.responsavelTecnico}</p>
         </div>
         {os.volumeCaldaHa && (
-          <div className="border border-gray-300 rounded p-3 col-span-2">
+          <div className={`border border-gray-300 rounded p-3 ${os.coordenadas ? "" : "col-span-2"}`}>
             <p className="text-xs text-gray-500 uppercase font-semibold">Volume de Calda</p>
             <p className="font-medium">{os.volumeCaldaHa} L/ha</p>
+          </div>
+        )}
+        {os.coordenadas && (
+          <div className={`border border-gray-300 rounded p-3 ${!os.volumeCaldaHa ? "col-span-2" : ""}`}>
+            <p className="text-xs text-gray-500 uppercase font-semibold">Coordenadas</p>
+            <div className="flex items-center justify-between">
+              <p className="font-medium text-sm truncate mr-2" title={os.coordenadas}>{os.coordenadas}</p>
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(os.coordenadas)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center px-2 py-1 bg-green-600 text-white font-semibold text-xs rounded hover:bg-green-700 transition-colors no-print shrink-0"
+              >
+                <MapPin className="h-3 w-3 mr-1" /> Ver Rota
+              </a>
+            </div>
           </div>
         )}
       </div>

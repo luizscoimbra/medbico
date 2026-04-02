@@ -39,6 +39,7 @@ export interface OrdemServico {
   talhoes: TalhaoData[];
   createdAt: string;
   volumeCaldaHa?: string;
+  coordenadas?: string;
   apontamentos?: ApontamentoTalhao[];
   status?: "aberta" | "em_andamento" | "concluida";
 }
