@@ -26,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Settings, FlaskConical, Plus, Trash2, Tractor, Hash } from "lucide-react";
+import { Settings, FlaskConical, Plus, Trash2, Tractor, Hash, Truck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -45,6 +45,12 @@ interface RegisteredProduct {
   formulation: string;
   unit: string;
   package_size: number;
+}
+
+interface WaterTruck {
+  id: string;
+  fleet_number: string;
+  driver: string;
 }
 
 export default function Cadastros() {
@@ -67,6 +73,16 @@ export default function Cadastros() {
     formulation: "SL",
     unit: "L",
     package_size: "",
+  });
+
+  // Water Trucks state
+  const [waterTrucks, setWaterTrucks] = useState<WaterTruck[]>(() => {
+    const saved = localStorage.getItem("waterTrucks");
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [wtForm, setWtForm] = useState({
+    fleet_number: "",
+    driver: "",
   });
 
   // Custom formulations
@@ -203,6 +219,31 @@ export default function Cadastros() {
     fetchProducts();
   };
 
+  const handleAddWaterTruck = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!wtForm.fleet_number.trim() || !wtForm.driver.trim()) {
+      toast.error("Preencha os campos obrigatórios");
+      return;
+    }
+    const newTruck = {
+      id: crypto.randomUUID(),
+      fleet_number: wtForm.fleet_number.trim(),
+      driver: wtForm.driver.trim(),
+    };
+    const updated = [...waterTrucks, newTruck];
+    setWaterTrucks(updated);
+    localStorage.setItem("waterTrucks", JSON.stringify(updated));
+    toast.success("Caminhão Pipa cadastrado!");
+    setWtForm({ fleet_number: "", driver: "" });
+  };
+
+  const handleDeleteWaterTruck = (id: string) => {
+    const updated = waterTrucks.filter((t) => t.id !== id);
+    setWaterTrucks(updated);
+    localStorage.setItem("waterTrucks", JSON.stringify(updated));
+    toast.success("Caminhão Pipa removido");
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="mb-8 animate-fade-in">
@@ -213,10 +254,14 @@ export default function Cadastros() {
       </div>
 
       <Tabs defaultValue="equipamentos" className="animate-slide-up">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="equipamentos" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
             Equipamentos
+          </TabsTrigger>
+          <TabsTrigger value="caminhoes_pipa" className="flex items-center gap-2">
+            <Truck className="h-4 w-4" />
+            Caminhão Pipa
           </TabsTrigger>
           <TabsTrigger value="produtos" className="flex items-center gap-2">
             <FlaskConical className="h-4 w-4" />
@@ -327,6 +372,94 @@ export default function Cadastros() {
                               variant="ghost"
                               size="icon"
                               onClick={() => handleDeleteEquipment(eq.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* CAMINHÕES PIPA TAB */}
+        <TabsContent value="caminhoes_pipa">
+          <Card className="shadow-lg">
+            <CardHeader className="border-b border-border">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Plus className="h-5 w-5 text-primary" />
+                Cadastrar Caminhão Pipa
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <form onSubmit={handleAddWaterTruck} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="wt_fleet" className="flex items-center gap-2">
+                      <Hash className="h-4 w-4 text-muted-foreground" />
+                      Frota *
+                    </Label>
+                    <Input
+                      id="wt_fleet"
+                      placeholder="Ex: CP-01"
+                      value={wtForm.fleet_number}
+                      onChange={(e) => setWtForm((p) => ({ ...p, fleet_number: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="wt_driver" className="flex items-center gap-2">
+                      <Truck className="h-4 w-4 text-muted-foreground" />
+                      Motorista *
+                    </Label>
+                    <Input
+                      id="wt_driver"
+                      placeholder="Ex: João da Silva"
+                      value={wtForm.driver}
+                      onChange={(e) => setWtForm((p) => ({ ...p, driver: e.target.value }))}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <Button type="submit">
+                    <Plus className="h-4 w-4" />
+                    Cadastrar
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          {waterTrucks.length > 0 && (
+            <Card className="mt-6 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-lg">Caminhões Pipa Cadastrados ({waterTrucks.length})</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Frota</TableHead>
+                        <TableHead>Motorista</TableHead>
+                        <TableHead className="w-12"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {waterTrucks.map((t) => (
+                        <TableRow key={t.id}>
+                          <TableCell className="font-medium">{t.fleet_number}</TableCell>
+                          <TableCell>{t.driver}</TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteWaterTruck(t.id)}
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
