@@ -39,8 +39,10 @@ const emptyTalhao = (): TalhaoData => ({
   area: "",
   produtos: [emptyProduto()],
   testemunho: false,
+  testemunhoArea: "",
   testeProduto: false,
   produtoTeste: "",
+  produtoTesteQtd: "",
 });
 
 export function OSForm({
@@ -67,9 +69,8 @@ export function OSForm({
   const updateTalhao = (index: number, field: keyof TalhaoData, value: any) => {
     const updated = [...talhoes];
     updated[index] = { ...updated[index], [field]: value };
-    if (field === "testemunho" && value === true) {
-      updated[index].produtos = [];
-    }
+    // Se o testemunho total zera a área, mantemos os produtos caso o usuário queira.
+    // Antes apagava a lista, agora vamos manter para permitir área de testemunho parcial.
     setTalhoes(updated);
   };
 
@@ -226,49 +227,47 @@ export function OSForm({
                   </div>
                 </div>
 
-                {/* Produtos */}
-                {!t.testemunho && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs font-semibold">Produtos e Doses</Label>
-                      <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => addProduto(i)}>
-                        <Plus className="h-3 w-3 mr-1" /> Produto
-                      </Button>
-                    </div>
-                    {t.produtos.map((p, j) => (
-                      <div key={j} className="flex items-end gap-2">
-                        <div className="flex-1">
-                          {j === 0 && <Label className="text-xs">Produto</Label>}
-                          <Input
-                            list={`produtos-list-${i}-${j}`}
-                            value={p.produto}
-                            onChange={(e) => updateProduto(i, j, "produto", e.target.value)}
-                            placeholder="Selecione..."
-                          />
-                          <datalist id={`produtos-list-${i}-${j}`}>
-                            {produtosDB.map((prod) => (
-                              <option key={prod.commercial_name} value={prod.commercial_name} />
-                            ))}
-                          </datalist>
-                        </div>
-                        <div className="w-28">
-                          {j === 0 && <Label className="text-xs">Dose (L/ha)</Label>}
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={p.dose}
-                            onChange={(e) => updateProduto(i, j, "dose", e.target.value)}
-                          />
-                        </div>
-                        {t.produtos.length > 1 && (
-                          <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => removeProduto(i, j)}>
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    ))}
+                {/* Produtos - Agora sempre visível para aplicar na área restante */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold">Produtos e Doses (Área tratada)</Label>
+                    <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => addProduto(i)}>
+                      <Plus className="h-3 w-3 mr-1" /> Produto
+                    </Button>
                   </div>
-                )}
+                  {t.produtos.map((p, j) => (
+                    <div key={j} className="flex items-end gap-2">
+                      <div className="flex-1">
+                        {j === 0 && <Label className="text-xs">Produto</Label>}
+                        <Input
+                          list={`produtos-list-${i}-${j}`}
+                          value={p.produto}
+                          onChange={(e) => updateProduto(i, j, "produto", e.target.value)}
+                          placeholder="Selecione..."
+                        />
+                        <datalist id={`produtos-list-${i}-${j}`}>
+                          {produtosDB.map((prod) => (
+                            <option key={prod.commercial_name} value={prod.commercial_name} />
+                          ))}
+                        </datalist>
+                      </div>
+                      <div className="w-28">
+                        {j === 0 && <Label className="text-xs">Dose (L/ha)</Label>}
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={p.dose}
+                          onChange={(e) => updateProduto(i, j, "dose", e.target.value)}
+                        />
+                      </div>
+                      {t.produtos.length > 1 && (
+                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => removeProduto(i, j)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
 
                 <div className="flex flex-wrap gap-4">
                   <div className="flex items-center gap-2">
@@ -289,10 +288,40 @@ export function OSForm({
                   </div>
                 </div>
 
+                {t.testemunho && (
+                  <div className="pl-6 border-l-2 border-warning/50 space-y-2 mt-2">
+                    <Label className="text-xs text-warning-foreground">Tamanho da Área de Testemunho (m²)</Label>
+                    <div className="flex gap-4 items-center">
+                      <Input
+                        type="number"
+                        placeholder="Ex: 500"
+                        value={t.testemunhoArea}
+                        onChange={(e) => updateTalhao(i, "testemunhoArea", e.target.value)}
+                        className="w-40"
+                      />
+                      <div className="text-xs text-muted-foreground">
+                        Área para aplicação:{" "}
+                        <span className="font-semibold text-foreground">
+                          {t.area && t.testemunhoArea
+                            ? Math.max(0, parseFloat(t.area) - (parseFloat(t.testemunhoArea) / 10000)).toFixed(4)
+                            : t.area}
+                        </span>{" "}
+                        ha
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {t.testeProduto && (
-                  <div>
-                    <Label className="text-xs">Produto em Teste</Label>
-                    <Input value={t.produtoTeste} onChange={(e) => updateTalhao(i, "produtoTeste", e.target.value)} placeholder="Nome do produto em teste" />
+                  <div className="grid grid-cols-2 gap-3 pl-6 border-l-2 border-primary/50 mt-2">
+                    <div>
+                      <Label className="text-xs">Produto em Teste</Label>
+                      <Input value={t.produtoTeste} onChange={(e) => updateTalhao(i, "produtoTeste", e.target.value)} placeholder="Nome do produto" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Quantidade/Dose</Label>
+                      <Input value={t.produtoTesteQtd} onChange={(e) => updateTalhao(i, "produtoTesteQtd", e.target.value)} placeholder="Ex: 2 Litros" />
+                    </div>
                   </div>
                 )}
               </CardContent>

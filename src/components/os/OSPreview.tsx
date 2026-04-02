@@ -20,18 +20,28 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
   const resumoInsumos = useMemo(() => {
     const map = new Map<string, { total: number; unit: string; packageSize: number }>();
     os.talhoes.forEach((t) => {
-      if (t.testemunho) return;
-      const area = parseFloat(t.area) || 0;
+      const totalArea = parseFloat(t.area) || 0;
+      let appliedArea = totalArea;
+      if (t.testemunho) {
+        if (t.testemunhoArea) {
+          appliedArea = Math.max(0, totalArea - (parseFloat(t.testemunhoArea) / 10000));
+        } else {
+          appliedArea = 0; // se marcou mas deixou vazio, assume testemunho total
+        }
+      }
+
+      if (appliedArea <= 0) return;
+
       t.produtos.forEach((p) => {
         if (!p.produto || !p.dose) return;
         const dose = parseFloat(p.dose) || 0;
         const key = p.produto;
         const existing = map.get(key);
         if (existing) {
-          existing.total += dose * area;
+          existing.total += dose * appliedArea;
         } else {
           map.set(key, {
-            total: dose * area,
+            total: dose * appliedArea,
             unit: p.unit || "L",
             packageSize: p.packageSize || 0,
           });
@@ -112,18 +122,30 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
           </thead>
           <tbody>
             {os.talhoes.map((t, i) => {
-              const rowSpan = t.testemunho ? 1 : Math.max(t.produtos.length, 1);
-              return t.testemunho ? (
+              const rowSpan = Math.max(t.produtos.length, 1);
+              
+              let observacao = [];
+              if (t.testemunho) {
+                observacao.push(t.testemunhoArea ? `Testemunho: ${t.testemunhoArea}m² s/ aplic.` : "Testemunho Total");
+              }
+              if (t.testeProduto) {
+                observacao.push(`Teste: ${t.produtoTeste} (${t.produtoTesteQtd || "—"})`);
+              }
+              const obsText = observacao.length > 0 ? observacao.join(" | ") : "—";
+              
+              const isTestemunhoTotal = t.testemunho && (!t.testemunhoArea || parseFloat(t.testemunhoArea) / 10000 >= (parseFloat(t.area) || 0));
+
+              return isTestemunhoTotal && (!t.produtos || t.produtos.length === 0 || !t.produtos[0].produto) ? (
                 <tr key={i} className="bg-yellow-50">
                   <td className="border border-gray-300 px-3 py-2">{t.nome || `T-${i + 1}`}</td>
                   <td className="border border-gray-300 px-3 py-2 text-right">{t.area || "—"}</td>
                   <td className="border border-gray-300 px-3 py-2">—</td>
                   <td className="border border-gray-300 px-3 py-2 text-right">0</td>
-                  <td className="border border-gray-300 px-3 py-2 text-xs">Testemunho</td>
+                  <td className="border border-gray-300 px-3 py-2 text-xs">{obsText}</td>
                 </tr>
               ) : (
                 t.produtos.map((p, j) => (
-                  <tr key={`${i}-${j}`}>
+                  <tr key={`${i}-${j}`} className={t.testemunho ? "bg-yellow-50/30" : ""}>
                     {j === 0 && (
                       <>
                         <td className="border border-gray-300 px-3 py-2" rowSpan={rowSpan}>
@@ -138,7 +160,7 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
                     <td className="border border-gray-300 px-3 py-2 text-right">{p.dose || "—"}</td>
                     {j === 0 && (
                       <td className="border border-gray-300 px-3 py-2 text-xs" rowSpan={rowSpan}>
-                        {t.testeProduto ? `Teste: ${t.produtoTeste}` : "—"}
+                        {obsText}
                       </td>
                     )}
                   </tr>
