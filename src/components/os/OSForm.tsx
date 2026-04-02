@@ -17,8 +17,6 @@ interface OSFormProps {
   setDataOS: (v: string) => void;
   responsavelTecnico: string;
   setResponsavelTecnico: (v: string) => void;
-  aplicador: string;
-  setAplicador: (v: string) => void;
   talhoes: TalhaoData[];
   setTalhoes: (t: TalhaoData[]) => void;
   volumeCaldaHa: string;
@@ -50,7 +48,6 @@ export function OSForm({
   codigoArea, setCodigoArea,
   dataOS, setDataOS,
   responsavelTecnico, setResponsavelTecnico,
-  aplicador, setAplicador,
   talhoes, setTalhoes,
   volumeCaldaHa, setVolumeCaldaHa,
   onGenerate,
@@ -160,10 +157,6 @@ export function OSForm({
           <div>
             <Label>Responsável Técnico</Label>
             <Input value={responsavelTecnico} onChange={(e) => setResponsavelTecnico(e.target.value)} />
-          </div>
-          <div>
-            <Label>Aplicador</Label>
-            <Input value={aplicador} onChange={(e) => setAplicador(e.target.value)} />
           </div>
           <div>
             <Label>Volume de Calda (L/ha)</Label>

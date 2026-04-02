@@ -45,32 +45,35 @@ export const OSApontamentoPreview = forwardRef<HTMLDivElement, Props>(({ os }, r
       dataApontamento: ap?.dataApontamento || "",
       produtosCalc,
       testemunho: t.testemunho,
+      tratorFrota: ap?.tratorFrota || "Não Informado",
+      aplicador: ap?.aplicador || "Não Informado",
+      bombasCheias: parseInt(ap?.bombasCheias || "0", 10) || 0,
     };
   });
 
-  const totalAreaPlanejada = calculos.reduce((s, c) => s + c.areaPlanejada, 0);
-  const totalAreaAplicada = calculos.reduce((s, c) => s + c.areaAplicada, 0);
-  const totalAreaFaltante = calculos.reduce((s, c) => s + c.areaFaltante, 0);
-
-  // Aggregate products
-  const produtoMap = new Map<string, { unit: string; totalPlanejado: number; restante: number; paraFinalizar: number }>();
-  calculos.forEach((c) => {
-    c.produtosCalc.forEach((pc) => {
-      const existing = produtoMap.get(pc.produto);
-      if (existing) {
-        existing.totalPlanejado += pc.totalPlanejado;
-        existing.restante += pc.produtoRestante;
-        existing.paraFinalizar += pc.produtoParaFinalizar;
-      } else {
-        produtoMap.set(pc.produto, {
-          unit: pc.unit,
-          totalPlanejado: pc.totalPlanejado,
-          restante: pc.produtoRestante,
-          paraFinalizar: pc.produtoParaFinalizar,
-        });
-      }
-    });
-  });
+  // Agrupar apontamentos por trator
+  const agrupadoPorTrator = Array.from(
+    calculos.reduce((acc, c) => {
+      const key = c.tratorFrota;
+      if (!acc.has(key)) acc.set(key, { aplicador: c.aplicador, talhoes: [], bombasCheias: 0, caldaRestante: 0, produtoMap: new Map() });
+      const group = acc.get(key)!;
+      group.talhoes.push(c);
+      group.bombasCheias += c.bombasCheias;
+      group.caldaRestante += c.caldaRestante;
+      if (c.aplicador !== "Não Informado" && group.aplicador === "Não Informado") group.aplicador = c.aplicador;
+      
+      c.produtosCalc.forEach((pc) => {
+        const pMap = group.produtoMap;
+        const existing = pMap.get(pc.produto);
+        if (existing) {
+          existing.totalAplicado += (pc.dose * c.areaAplicada);
+        } else {
+          pMap.set(pc.produto, { unit: pc.unit, totalAplicado: (pc.dose * c.areaAplicada) });
+        }
+      });
+      return acc;
+    }, new Map<string, { aplicador: string; talhoes: typeof calculos; bombasCheias: number; caldaRestante: number; produtoMap: Map<string, { unit: string; totalAplicado: number }> }>())
+  );
 
   const statusLabel = os.status === "concluida" ? "CONCLUÍDA" : os.status === "em_andamento" ? "EM ANDAMENTO" : "ABERTA";
   const statusColor = os.status === "concluida" ? "bg-green-100 text-green-800" : os.status === "em_andamento" ? "bg-yellow-100 text-yellow-800" : "bg-gray-100 text-gray-800";
@@ -104,100 +107,88 @@ export const OSApontamentoPreview = forwardRef<HTMLDivElement, Props>(({ os }, r
           <p className="text-xs text-gray-500 uppercase font-semibold">Código da Área</p>
           <p className="font-medium">{os.codigoArea}</p>
         </div>
-        <div className="border border-gray-300 rounded p-3">
+        <div className="border border-gray-300 rounded p-3 col-span-2">
           <p className="text-xs text-gray-500 uppercase font-semibold">Responsável Técnico</p>
           <p className="font-medium">{os.responsavelTecnico}</p>
         </div>
-        <div className="border border-gray-300 rounded p-3">
-          <p className="text-xs text-gray-500 uppercase font-semibold">Aplicador</p>
-          <p className="font-medium">{os.aplicador}</p>
-        </div>
       </div>
 
-      {/* Tabela de Apontamento por Talhão */}
-      <div className="mb-6" style={{ breakInside: "avoid" }}>
-        <h2 className="text-sm font-bold uppercase mb-2 text-gray-700">Apontamento por Talhão</h2>
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="border border-gray-300 px-2 py-2 text-left">Talhão</th>
-              <th className="border border-gray-300 px-2 py-2 text-right">Planejada (ha)</th>
-              <th className="border border-gray-300 px-2 py-2 text-right">Aplicada (ha)</th>
-              <th className="border border-gray-300 px-2 py-2 text-right">Faltante (ha)</th>
-              <th className="border border-gray-300 px-2 py-2 text-right">Calda Rest. (L)</th>
-              <th className="border border-gray-300 px-2 py-2 text-left">Obs.</th>
-            </tr>
-          </thead>
-          <tbody>
-            {calculos.map((c, i) => (
-              <tr key={i} className={c.testemunho ? "bg-yellow-50" : ""}>
-                <td className="border border-gray-300 px-2 py-2">{c.nome}</td>
-                <td className="border border-gray-300 px-2 py-2 text-right">{c.areaPlanejada.toFixed(2)}</td>
-                <td className="border border-gray-300 px-2 py-2 text-right">{c.testemunho ? "—" : c.areaAplicada.toFixed(2)}</td>
-                <td className="border border-gray-300 px-2 py-2 text-right">{c.testemunho ? "—" : c.areaFaltante.toFixed(2)}</td>
-                <td className="border border-gray-300 px-2 py-2 text-right">{c.testemunho ? "—" : c.caldaRestante.toFixed(1)}</td>
-                <td className="border border-gray-300 px-2 py-2 text-xs">{c.testemunho ? "Testemunho" : c.observacoes || "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="font-semibold bg-gray-50">
-              <td className="border border-gray-300 px-2 py-2">TOTAL</td>
-              <td className="border border-gray-300 px-2 py-2 text-right">{totalAreaPlanejada.toFixed(2)}</td>
-              <td className="border border-gray-300 px-2 py-2 text-right">{totalAreaAplicada.toFixed(2)}</td>
-              <td className="border border-gray-300 px-2 py-2 text-right">{totalAreaFaltante.toFixed(2)}</td>
-              <td colSpan={2} className="border border-gray-300 px-2 py-2"></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+      {/* Relatório Agrupado por Trator */}
+      {agrupadoPorTrator.map(([trator, dados], idx) => {
+        const areaAplicadaTrator = dados.talhoes.reduce((sum, t) => sum + t.areaAplicada, 0);
 
-      {/* Tabela de Produtos */}
-      {produtoMap.size > 0 && (
-        <div className="mb-6" style={{ breakInside: "avoid" }}>
-          <h2 className="text-sm font-bold uppercase mb-2 text-gray-700">Balanço de Produtos</h2>
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="bg-green-50">
-                <th className="border border-gray-300 px-2 py-2 text-left">Produto</th>
-                <th className="border border-gray-300 px-2 py-2 text-right">Total Planejado</th>
-                <th className="border border-gray-300 px-2 py-2 text-right">Restante na Bomba</th>
-                <th className="border border-gray-300 px-2 py-2 text-right">Necessário p/ Finalizar</th>
-                <th className="border border-gray-300 px-2 py-2 text-center">Unidade</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Array.from(produtoMap.entries()).map(([nome, v], idx) => (
-                <tr key={idx}>
-                  <td className="border border-gray-300 px-2 py-2">{nome}</td>
-                  <td className="border border-gray-300 px-2 py-2 text-right">{v.totalPlanejado.toFixed(2)}</td>
-                  <td className="border border-gray-300 px-2 py-2 text-right">{v.restante.toFixed(2)}</td>
-                  <td className="border border-gray-300 px-2 py-2 text-right font-semibold">{v.paraFinalizar.toFixed(2)}</td>
-                  <td className="border border-gray-300 px-2 py-2 text-center">{v.unit}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+        return (
+          <div key={idx} className="mb-8 border border-gray-300 rounded overflow-hidden" style={{ breakInside: "avoid" }}>
+            <div className="bg-gray-100 p-3 border-b border-gray-300 flex justify-between items-center">
+              <div>
+                <h2 className="text-sm font-bold uppercase text-gray-800">Trator/Frota: {trator}</h2>
+                <p className="text-xs text-gray-600">Operador: <span className="font-semibold">{dados.aplicador}</span></p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-gray-600">Área Aplicada Total</p>
+                <p className="text-sm font-bold text-green-700">{areaAplicadaTrator.toFixed(2)} ha</p>
+              </div>
+            </div>
+
+            <div className="p-0">
+              <table className="w-full border-collapse text-sm mb-4">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs text-gray-500">Talhão</th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-right text-xs text-gray-500">Área Aplicada</th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-right text-xs text-gray-500">Bombas Cheias</th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-right text-xs text-gray-500">Sobra (L)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dados.talhoes.map((t, i) => (
+                    <tr key={i} className={t.testemunho ? "bg-yellow-50/50 text-gray-400" : ""}>
+                      <td className="border-b border-gray-100 px-3 py-2">{t.nome}</td>
+                      <td className="border-b border-gray-100 px-3 py-2 text-right">{t.testemunho ? "—" : t.areaAplicada.toFixed(2)} ha</td>
+                      <td className="border-b border-gray-100 px-3 py-2 text-right">{t.testemunho ? "—" : t.bombasCheias}</td>
+                      <td className="border-b border-gray-100 px-3 py-2 text-right">{t.testemunho ? "—" : t.caldaRestante.toFixed(1)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-gray-50 font-semibold border-t border-gray-300">
+                    <td className="px-3 py-2 text-right text-xs text-gray-600">TOTAIS DESTE TRATOR:</td>
+                    <td className="px-3 py-2 text-right text-green-700">{areaAplicadaTrator.toFixed(2)} ha</td>
+                    <td className="px-3 py-2 text-right">{dados.bombasCheias}</td>
+                    <td className="px-3 py-2 text-right">{dados.caldaRestante.toFixed(1)} L</td>
+                  </tr>
+                </tfoot>
+              </table>
+
+              {dados.produtoMap.size > 0 && (
+                <div className="px-3 pb-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Produtos Utilizados</p>
+                  <div className="grid grid-cols-2 gap-2 text-sm border border-gray-200 rounded p-2 bg-gray-50">
+                    {Array.from(dados.produtoMap.entries()).map(([nome, val], pIdx) => (
+                      <div key={pIdx} className="flex justify-between border-b border-gray-200 pb-1 last:border-0 last:pb-0">
+                        <span>{nome}</span>
+                        <span className="font-semibold text-gray-800">{val.totalAplicado.toFixed(2)} {val.unit}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
 
       {/* Assinaturas */}
-      <div className="grid grid-cols-2 gap-12 mt-16">
+      <div className="grid grid-cols-1 gap-12 mt-16 max-w-sm mx-auto">
         <div className="text-center">
           <div className="border-t border-black pt-2">
             <p className="text-sm font-medium">Responsável Técnico</p>
             <p className="text-xs text-gray-500">{os.responsavelTecnico}</p>
           </div>
         </div>
-        <div className="text-center">
-          <div className="border-t border-black pt-2">
-            <p className="text-sm font-medium">Aplicador</p>
-            <p className="text-xs text-gray-500">{os.aplicador}</p>
-          </div>
-        </div>
       </div>
 
-      <p className="text-center text-[10px] text-gray-400 mt-8">
+      <p className="text-center text-[10px] text-gray-400 mt-8 mb-4">
         Relatório de Apontamento gerado por SprayCheck em {new Date().toLocaleDateString("pt-BR")}
       </p>
     </div>

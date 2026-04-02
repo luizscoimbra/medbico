@@ -17,28 +17,45 @@ interface OSApontamentoProps {
 
 export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps) {
   const [apontamentos, setApontamentos] = useState<ApontamentoTalhao[]>(
-    os.apontamentos ??
-      os.talhoes.map((_, i) => ({
-        talhaoIndex: i,
-        areaAplicada: "",
-        caldaRestante: "",
-        dataApontamento: new Date().toISOString().slice(0, 10),
-        observacoes: "",
-      }))
+    os.apontamentos?.length ? os.apontamentos : os.talhoes.map((_, i) => createEmptyApontamento(i))
   );
+
+  function createEmptyApontamento(i: number): ApontamentoTalhao {
+    return {
+      talhaoIndex: i,
+      areaAplicada: "",
+      caldaRestante: "",
+      bombasCheias: "",
+      aplicador: "",
+      tratorFrota: "",
+      dataApontamento: new Date().toISOString().slice(0, 10),
+      observacoes: "",
+    };
+  }
 
   const volumeCaldaHa = parseFloat(os.volumeCaldaHa || "0") || 0;
 
-  const updateApontamento = (idx: number, field: keyof ApontamentoTalhao, value: string) => {
+  const updateApontamentoByIndex = (globalIdx: number, field: keyof ApontamentoTalhao, value: string) => {
     const updated = [...apontamentos];
-    updated[idx] = { ...updated[idx], [field]: value };
+    updated[globalIdx] = { ...updated[globalIdx], [field]: value };
     setApontamentos(updated);
   };
 
-  const calculos = os.talhoes.map((t, i) => {
-    const ap = apontamentos[i];
+  const addTrator = (talhaoIndex: number) => {
+    setApontamentos([...apontamentos, createEmptyApontamento(talhaoIndex)]);
+  };
+
+  const removeTrator = (globalIdx: number) => {
+    setApontamentos(apontamentos.filter((_, idx) => idx !== globalIdx));
+  };
+
+  const calculosTotais = os.talhoes.map((t, i) => {
+    const aps = apontamentos.filter(a => a.talhaoIndex === i);
     const areaPlanejada = parseFloat(t.area) || 0;
-    const areaAplicada = parseFloat(ap?.areaAplicada || "0") || 0;
+    const areaAplicada = aps.reduce((sum, ap) => sum + (parseFloat(ap.areaAplicada || "0") || 0), 0);
+    const areaFaltante = Math.max(0, areaPlanejada - areaAplicada);
+    return { areaPlanejada, areaAplicada, areaFaltante };
+  });
     const caldaRestante = parseFloat(ap?.caldaRestante || "0") || 0;
     const areaFaltante = Math.max(0, areaPlanejada - areaAplicada);
 
@@ -58,12 +75,9 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
           };
         });
 
-    return { areaPlanejada, areaAplicada, areaFaltante, caldaRestante, produtosCalc };
-  });
-
-  const totalAreaPlanejada = calculos.reduce((s, c) => s + c.areaPlanejada, 0);
-  const totalAreaAplicada = calculos.reduce((s, c) => s + c.areaAplicada, 0);
-  const totalAreaFaltante = calculos.reduce((s, c) => s + c.areaFaltante, 0);
+  const totalAreaPlanejada = calculosTotais.reduce((s, c) => s + c.areaPlanejada, 0);
+  const totalAreaAplicada = calculosTotais.reduce((s, c) => s + c.areaAplicada, 0);
+  const totalAreaFaltante = calculosTotais.reduce((s, c) => s + c.areaFaltante, 0);
 
   const handleSave = async () => {
     const updatedOS: OrdemServico = {
@@ -89,71 +103,105 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
 
       {os.talhoes.map((t, i) => {
         if (t.testemunho) return null;
-        const calc = calculos[i];
-        const ap = apontamentos[i];
+        const aps = apontamentos.map((ap, globalIdx) => ({ ...ap, globalIdx })).filter(a => a.talhaoIndex === i);
+        const calcTalhao = calculosTotais[i];
 
         return (
           <Card key={i} className="border-border">
             <CardContent className="pt-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="font-heading font-semibold text-sm">
-                  {t.nome || `Talhão ${i + 1}`} — {t.area} ha
+               <div className="flex items-center justify-between">
+                <span className="font-heading font-semibold text-base text-primary">
+                  {t.nome || `Talhão ${i + 1}`} — Planejado: {t.area} ha
                 </span>
+                <Button variant="outline" size="sm" onClick={() => addTrator(i)}>
+                  + Trator/Aplicação
+                </Button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <Label className="text-xs">Área Aplicada (ha)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={ap.areaAplicada}
-                    onChange={(e) => updateApontamento(i, "areaAplicada", e.target.value)}
-                    placeholder={t.area}
-                  />
+              {aps.map((ap, localIdx) => (
+                <div key={ap.globalIdx} className="border border-input rounded-md p-4 space-y-4 relative bg-card/50">
+                  <div className="font-semibold text-xs text-muted-foreground mb-2 flex justify-between">
+                    <span>Registro #{localIdx + 1}</span>
+                    {aps.length > 1 && (
+                      <Button variant="ghost" size="sm" className="h-6 text-destructive px-2" onClick={() => removeTrator(ap.globalIdx)}>
+                        Remover
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-xs">Aplicador</Label>
+                      <Input
+                        value={ap.aplicador || ""}
+                        onChange={(e) => updateApontamentoByIndex(ap.globalIdx, "aplicador", e.target.value)}
+                        placeholder="Nome do aplicador"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Código Frota Trator</Label>
+                      <Input
+                        value={ap.tratorFrota || ""}
+                        onChange={(e) => updateApontamentoByIndex(ap.globalIdx, "tratorFrota", e.target.value)}
+                        placeholder="Ex: TR-01"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Data</Label>
+                      <Input
+                        type="date"
+                        value={ap.dataApontamento}
+                        onChange={(e) => updateApontamentoByIndex(ap.globalIdx, "dataApontamento", e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Área Aplicada (ha)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={ap.areaAplicada}
+                        onChange={(e) => updateApontamentoByIndex(ap.globalIdx, "areaAplicada", e.target.value)}
+                        placeholder={t.area}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Bombas Cheias</Label>
+                      <Input
+                        type="number"
+                        step="1"
+                        value={ap.bombasCheias || ""}
+                        onChange={(e) => updateApontamentoByIndex(ap.globalIdx, "bombasCheias", e.target.value)}
+                        placeholder="Ex: 5"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Sobra de Calda (L)</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={ap.caldaRestante}
+                        onChange={(e) => updateApontamentoByIndex(ap.globalIdx, "caldaRestante", e.target.value)}
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Observações</Label>
+                    <Textarea
+                      value={ap.observacoes}
+                      onChange={(e) => updateApontamentoByIndex(ap.globalIdx, "observacoes", e.target.value)}
+                      rows={2}
+                      placeholder="Condições climáticas, problemas..."
+                    />
+                  </div>
                 </div>
-                <div>
-                  <Label className="text-xs">Calda Restante (L)</Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={ap.caldaRestante}
-                    onChange={(e) => updateApontamento(i, "caldaRestante", e.target.value)}
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Data</Label>
-                  <Input
-                    type="date"
-                    value={ap.dataApontamento}
-                    onChange={(e) => updateApontamento(i, "dataApontamento", e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-xs">Observações</Label>
-                <Textarea
-                  value={ap.observacoes}
-                  onChange={(e) => updateApontamento(i, "observacoes", e.target.value)}
-                  rows={2}
-                  placeholder="Condições climáticas, problemas..."
-                />
-              </div>
+              ))}
 
               {/* Resultados calculados */}
-              {calc.areaAplicada > 0 && (
-                <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
-                  <p className="font-semibold text-xs uppercase text-muted-foreground mb-2">Resultados</p>
-                  <p>Área faltante: <strong>{calc.areaFaltante.toFixed(2)} ha</strong></p>
-                  {calc.produtosCalc.map((pc, j) => (
-                    <div key={j} className="ml-2 border-l-2 border-primary/30 pl-2">
-                      <p className="font-medium">{pc.produto}</p>
-                      <p>Restante na bomba: {pc.produtoRestante.toFixed(2)} {pc.unit}</p>
-                      <p>Necessário para finalizar: {pc.produtoParaFinalizar.toFixed(2)} {pc.unit}</p>
-                    </div>
-                  ))}
+              {calcTalhao.areaAplicada > 0 && (
+                <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1 mt-4">
+                  <p className="font-semibold text-xs uppercase text-muted-foreground mb-2">Resumo do Talhão</p>
+                  <p>Área Faltante: <strong>{calcTalhao.areaFaltante.toFixed(2)} ha</strong></p>
+                  <p>Área Total Aplicada: <strong>{calcTalhao.areaAplicada.toFixed(2)} ha</strong></p>
                 </div>
               )}
             </CardContent>

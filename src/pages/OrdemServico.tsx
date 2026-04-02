@@ -26,10 +26,9 @@ export default function OrdemServico() {
   const [codigoArea, setCodigoArea] = useState("");
   const [dataOS, setDataOS] = useState(new Date().toISOString().slice(0, 10));
   const [responsavelTecnico, setResponsavelTecnico] = useState("");
-  const [aplicador, setAplicador] = useState("");
   const [volumeCaldaHa, setVolumeCaldaHa] = useState("");
   const [talhoes, setTalhoes] = useState<TalhaoData[]>([
-    { nome: "", area: "", produtos: [{ produto: "", dose: "" }], testemunho: false, testeProduto: false, produtoTeste: "" },
+    { nome: "", area: "", produtos: [{ produto: "", dose: "" }], testemunho: false, testemunhoArea: "", testeProduto: false, produtoTeste: "", produtoTesteQtd: "" },
   ]);
 
   const handleGenerate = async () => {
@@ -44,7 +43,7 @@ export default function OrdemServico() {
       propriedade,
       codigoArea,
       responsavelTecnico,
-      aplicador,
+      aplicador: "", // Mantendo para retrocompatibilidade do storage
       talhoes,
       createdAt: new Date().toISOString(),
       volumeCaldaHa: volumeCaldaHa || undefined,
@@ -119,9 +118,8 @@ export default function OrdemServico() {
     setCodigoArea("");
     setDataOS(new Date().toISOString().slice(0, 10));
     setResponsavelTecnico("");
-    setAplicador("");
     setVolumeCaldaHa("");
-    setTalhoes([{ nome: "", area: "", produtos: [{ produto: "", dose: "" }], testemunho: false, testeProduto: false, produtoTeste: "" }]);
+    setTalhoes([{ nome: "", area: "", produtos: [{ produto: "", dose: "" }], testemunho: false, testemunhoArea: "", testeProduto: false, produtoTeste: "", produtoTesteQtd: "" }]);
     setCurrentOS(null);
     setView("form");
   };
@@ -167,7 +165,6 @@ export default function OrdemServico() {
           codigoArea={codigoArea} setCodigoArea={setCodigoArea}
           dataOS={dataOS} setDataOS={setDataOS}
           responsavelTecnico={responsavelTecnico} setResponsavelTecnico={setResponsavelTecnico}
-          aplicador={aplicador} setAplicador={setAplicador}
           talhoes={talhoes} setTalhoes={setTalhoes}
           volumeCaldaHa={volumeCaldaHa} setVolumeCaldaHa={setVolumeCaldaHa}
           onGenerate={handleGenerate}

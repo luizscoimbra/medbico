@@ -95,10 +95,6 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
           <p className="text-xs text-gray-500 uppercase font-semibold">Responsável Técnico</p>
           <p className="font-medium">{os.responsavelTecnico}</p>
         </div>
-        <div className="border border-gray-300 rounded p-3">
-          <p className="text-xs text-gray-500 uppercase font-semibold">Aplicador</p>
-          <p className="font-medium">{os.aplicador}</p>
-        </div>
         {os.volumeCaldaHa && (
           <div className="border border-gray-300 rounded p-3 col-span-2">
             <p className="text-xs text-gray-500 uppercase font-semibold">Volume de Calda</p>
@@ -212,17 +208,11 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
       )}
 
       {/* Assinaturas */}
-      <div className="grid grid-cols-2 gap-12 mt-16">
+      <div className="grid grid-cols-1 gap-12 mt-16 max-w-sm mx-auto">
         <div className="text-center">
           <div className="border-t border-black pt-2">
             <p className="text-sm font-medium">Responsável Técnico</p>
             <p className="text-xs text-gray-500">{os.responsavelTecnico}</p>
-          </div>
-        </div>
-        <div className="text-center">
-          <div className="border-t border-black pt-2">
-            <p className="text-sm font-medium">Aplicador</p>
-            <p className="text-xs text-gray-500">{os.aplicador}</p>
           </div>
         </div>
       </div>
