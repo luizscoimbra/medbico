@@ -68,7 +68,6 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
     
     // Check for leftover from previous talhões on same equipment
     if (field === "tratorFrota" && value) {
-      // Find previous apontamentos with LEFT OVER for this specific equipment
       const previousWithSobra = apontamentos
         .map((ap, idx) => ({ ...ap, originalIdx: idx }))
         .filter((ap, idx) => 
@@ -93,16 +92,18 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
     
     if (isAutoTriggerField) {
       const equipment = equipamentos.find(e => e.fleet_number === newAp.tratorFrota);
-      if (equipment && volumeCaldaHa > 0 && newAp.areaAplicada) {
-        const area = parseFloat(newAp.areaAplicada) || 0;
-        const pumps = parseInt(newAp.bombasCheias || "0") || 0;
-        const usedSobra = parseFloat(newAp.sobraUtilizada || "0") || 0;
-        
+      const area = parseFloat(newAp.areaAplicada) || 0;
+      const pumps = parseInt(newAp.bombasCheias || "0") || 0;
+      const usedSobra = parseFloat(newAp.sobraUtilizada || "0") || 0;
+      const tankCapacity = equipment?.tank_capacity || 0;
+
+      if (volumeCaldaHa > 0) {
         const appliedVolume = area * volumeCaldaHa;
-        const supplyVolume = (pumps * (equipment.tank_capacity || 0)) + usedSobra;
+        const supplyVolume = (pumps * tankCapacity) + usedSobra;
         const leftover = supplyVolume - appliedVolume;
         
-        if (area > 0 || pumps > 0 || usedSobra > 0) {
+        // Only update if there is some basis for calculation
+        if (newAp.areaAplicada || newAp.bombasCheias || newAp.sobraUtilizada) {
           newAp.caldaRestante = Math.max(0, leftover).toFixed(1);
         }
       }
@@ -281,13 +282,23 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Sobra Calda Gerada (L)</Label>
+                      <Label className="text-xs">Volume Total Bomba (L)</Label>
+                      <Input
+                        type="number"
+                        readOnly
+                        value={((parseInt(ap.bombasCheias || "0") || 0) * (equipamentos.find(e => e.fleet_number === ap.tratorFrota)?.tank_capacity || 0)) + (parseFloat(ap.sobraUtilizada || "0") || 0)}
+                        className="bg-muted font-semibold"
+                      />
+                    </div>
+                    <div className="lg:col-span-1">
+                      <Label className="text-xs font-semibold text-primary">Sobra Calda Gerada (L)</Label>
                       <Input
                         type="number"
                         step="0.1"
                         value={ap.caldaRestante}
                         onChange={(e) => updateApontamentoByIndex(ap.globalIdx, "caldaRestante", e.target.value)}
-                        placeholder="0"
+                        placeholder="0.0"
+                        className={parseFloat(ap.caldaRestante || "0") > 0 ? "border-primary bg-primary/5 font-bold text-primary" : ""}
                       />
                     </div>
                   </div>
