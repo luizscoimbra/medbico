@@ -5,8 +5,8 @@ import { OSForm } from "@/components/os/OSForm";
 import { OSPreview } from "@/components/os/OSPreview";
 import { OSApontamento } from "@/components/os/OSApontamento";
 import { OSApontamentoPreview } from "@/components/os/OSApontamentoPreview";
-import { generateOSId, saveOS, getAllOS, type OrdemServico as OSType, type TalhaoData } from "@/lib/osStorage";
-import { Printer, FileDown, Share2, ArrowLeft, History, ClipboardCheck } from "lucide-react";
+import { generateOSId, saveOS, getAllOS, deleteOS, type OrdemServico as OSType, type TalhaoData } from "@/lib/osStorage";
+import { Printer, FileDown, Share2, ArrowLeft, History, ClipboardCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -113,6 +113,16 @@ export default function OrdemServico() {
   const viewOS = (os: OSType) => {
     setCurrentOS(os);
     setView("preview");
+  };
+
+  const handleDeleteOS = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (confirm(`Tem certeza que deseja excluir a OS ${id}?`)) {
+      await deleteOS(id);
+      const all = await getAllOS();
+      setHistorico(all);
+      toast.success(`OS ${id} excluída com sucesso!`);
+    }
   };
 
   const resetForm = () => {
@@ -237,17 +247,27 @@ export default function OrdemServico() {
                       {os.propriedade} — {os.talhoes.length} talhões
                     </p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(os.data).toLocaleDateString("pt-BR")}
-                    </p>
-                    {os.status && os.status !== "aberta" && (
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
-                        os.status === "concluida" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
-                      }`}>
-                        {os.status === "concluida" ? "Concluída" : "Em andamento"}
-                      </span>
-                    )}
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(os.data).toLocaleDateString("pt-BR")}
+                      </p>
+                      {os.status && os.status !== "aberta" && (
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                          os.status === "concluida" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                        }`}>
+                          {os.status === "concluida" ? "Concluída" : "Em andamento"}
+                        </span>
+                      )}
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="text-destructive hover:bg-destructive/10"
+                      onClick={(e) => handleDeleteOS(e, os.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

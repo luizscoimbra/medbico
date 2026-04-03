@@ -1,4 +1,4 @@
-import { get, set, keys, values } from "idb-keyval";
+import { get, set, keys, del } from "idb-keyval";
 
 export interface ProdutoDose {
   produto: string;
@@ -77,4 +77,8 @@ export async function getAllOS(): Promise<OrdemServico[]> {
     if (val) results.push(val);
   }
   return results.sort((a, b) => b.id.localeCompare(a.id));
+}
+
+export async function deleteOS(id: string): Promise<void> {
+  await del(`os-${id}`);
 }
