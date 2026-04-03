@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,18 @@ import { Save, Eye } from "lucide-react";
 import type { OrdemServico, ApontamentoTalhao } from "@/lib/osStorage";
 import { saveOS } from "@/lib/osStorage";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getAllOperadores, Operador } from "@/lib/operatorStorage";
+import { getAllEquipments, Equipment } from "@/lib/equipmentStorage";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface OSApontamentoProps {
   os: OrdemServico;
@@ -19,12 +31,27 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
   const [apontamentos, setApontamentos] = useState<ApontamentoTalhao[]>(
     os.apontamentos?.length ? os.apontamentos : os.talhoes.map((_, i) => createEmptyApontamento(i))
   );
+  const [operadores, setOperadores] = useState<Operador[]>([]);
+  const [equipamentos, setEquipamentos] = useState<Equipment[]>([]);
+  const [sobraPrompt, setSobraPrompt] = useState<{
+    globalIdx: number;
+    amount: number;
+    fromTalhao: string;
+    fromPlotIndex: number;
+    fromGlobalIdx: number;
+  } | null>(null);
+
+  useEffect(() => {
+    getAllOperadores().then(setOperadores);
+    getAllEquipments().then(setEquipamentos);
+  }, []);
 
   function createEmptyApontamento(i: number): ApontamentoTalhao {
     return {
       talhaoIndex: i,
       areaAplicada: "",
       caldaRestante: "",
+      sobraUtilizada: "",
       bombasCheias: "",
       aplicador: "",
       tratorFrota: "",
@@ -37,8 +64,75 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
 
   const updateApontamentoByIndex = (globalIdx: number, field: keyof ApontamentoTalhao, value: string) => {
     const updated = [...apontamentos];
-    updated[globalIdx] = { ...updated[globalIdx], [field]: value };
+    let newAp = { ...updated[globalIdx], [field]: value };
+    
+    // Check for leftover from previous talhões on same equipment
+    if (field === "tratorFrota" && value) {
+      // Find previous apontamentos with LEFT OVER for this specific equipment
+      const previousWithSobra = apontamentos
+        .map((ap, idx) => ({ ...ap, originalIdx: idx }))
+        .filter((ap, idx) => 
+          idx < globalIdx && ap.tratorFrota === value && (parseFloat(ap.caldaRestante) || 0) > 0
+        );
+      
+      if (previousWithSobra.length > 0) {
+        const lastAp = previousWithSobra[previousWithSobra.length - 1];
+        setSobraPrompt({
+          globalIdx,
+          amount: parseFloat(lastAp.caldaRestante),
+          fromTalhao: os.talhoes[lastAp.talhaoIndex].nome || `Talhão ${lastAp.talhaoIndex + 1}`,
+          fromPlotIndex: lastAp.talhaoIndex,
+          fromGlobalIdx: lastAp.originalIdx
+        });
+      }
+    }
+
+    // Auto-calculate leftover mixture (sobra de calda)
+    // Formula: ((Pumps * Capacity) + SobraUtilizada) - (Area * Rate)
+    const isAutoTriggerField = ["areaAplicada", "bombasCheias", "tratorFrota", "sobraUtilizada"].includes(field);
+    
+    if (isAutoTriggerField) {
+      const equipment = equipamentos.find(e => e.fleet_number === newAp.tratorFrota);
+      if (equipment && volumeCaldaHa > 0 && newAp.areaAplicada) {
+        const area = parseFloat(newAp.areaAplicada) || 0;
+        const pumps = parseInt(newAp.bombasCheias || "0") || 0;
+        const usedSobra = parseFloat(newAp.sobraUtilizada || "0") || 0;
+        
+        const appliedVolume = area * volumeCaldaHa;
+        const supplyVolume = (pumps * (equipment.tank_capacity || 0)) + usedSobra;
+        const leftover = supplyVolume - appliedVolume;
+        
+        if (area > 0 || pumps > 0 || usedSobra > 0) {
+          newAp.caldaRestante = Math.max(0, leftover).toFixed(1);
+        }
+      }
+    }
+    
+    updated[globalIdx] = newAp;
     setApontamentos(updated);
+  };
+
+  const handleConfirmSobra = () => {
+    if (!sobraPrompt) return;
+    const { globalIdx, amount, fromGlobalIdx } = sobraPrompt;
+    const targetTalhaoName = os.talhoes[apontamentos[globalIdx].talhaoIndex].nome || `Talhão ${apontamentos[globalIdx].talhaoIndex + 1}`;
+    
+    // Update target reused sobra
+    updateApontamentoByIndex(globalIdx, "sobraUtilizada", amount.toString());
+    
+    // Calculate area coverage from this sobra: Area = Amount / Rate
+    if (volumeCaldaHa > 0) {
+      const areaFromSobra = amount / volumeCaldaHa;
+      updateApontamentoByIndex(globalIdx, "areaAplicada", areaFromSobra.toFixed(2));
+    }
+    
+    // Update source with note
+    const note = `Sobra de ${amount}L enviada para o talhão ${targetTalhaoName}.`;
+    const oldNotes = apontamentos[fromGlobalIdx].observacoes || "";
+    const newNotes = oldNotes ? `${oldNotes}\n${note}` : note;
+    updateApontamentoByIndex(fromGlobalIdx, "observacoes", newNotes);
+    
+    setSobraPrompt(null);
   };
 
   const addTrator = (talhaoIndex: number) => {
@@ -56,6 +150,8 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
     const areaFaltante = Math.max(0, areaPlanejada - areaAplicada);
     return { areaPlanejada, areaAplicada, areaFaltante };
   });
+
+
   const totalAreaPlanejada = calculosTotais.reduce((s, c) => s + c.areaPlanejada, 0);
   const totalAreaAplicada = calculosTotais.reduce((s, c) => s + c.areaAplicada, 0);
   const totalAreaFaltante = calculosTotais.reduce((s, c) => s + c.areaFaltante, 0);
@@ -90,7 +186,7 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
         return (
           <Card key={i} className="border-border">
             <CardContent className="pt-4 space-y-4">
-               <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between">
                 <span className="font-heading font-semibold text-base text-primary">
                   {t.nome || `Talhão ${i + 1}`} — Planejado: {t.area} ha
                 </span>
@@ -112,19 +208,39 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     <div>
                       <Label className="text-xs">Aplicador</Label>
-                      <Input
+                      <Select
                         value={ap.aplicador || ""}
-                        onChange={(e) => updateApontamentoByIndex(ap.globalIdx, "aplicador", e.target.value)}
-                        placeholder="Nome do aplicador"
-                      />
+                        onValueChange={(val) => updateApontamentoByIndex(ap.globalIdx, "aplicador", val)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o operador..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {operadores.map((o) => (
+                            <SelectItem key={o.id} value={o.nome}>
+                              {o.nome} {o.cracha ? `(${o.cracha})` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <Label className="text-xs">Código Frota Trator</Label>
-                      <Input
+                      <Select
                         value={ap.tratorFrota || ""}
-                        onChange={(e) => updateApontamentoByIndex(ap.globalIdx, "tratorFrota", e.target.value)}
-                        placeholder="Ex: TR-01"
-                      />
+                        onValueChange={(val) => updateApontamentoByIndex(ap.globalIdx, "tratorFrota", val)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o trator..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {equipamentos.map((eq) => (
+                            <SelectItem key={eq.id} value={eq.fleet_number}>
+                              {eq.fleet_number} - {eq.equipment_model}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <Label className="text-xs">Data</Label>
@@ -132,6 +248,16 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                         type="date"
                         value={ap.dataApontamento}
                         onChange={(e) => updateApontamentoByIndex(ap.globalIdx, "dataApontamento", e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Sobra Utilizada (L)</Label>
+                      <Input
+                        type="number"
+                        value={ap.sobraUtilizada || ""}
+                        onChange={(e) => updateApontamentoByIndex(ap.globalIdx, "sobraUtilizada", e.target.value)}
+                        placeholder="Ex: 250"
+                        className={ap.sobraUtilizada && parseFloat(ap.sobraUtilizada) > 0 ? "border-green-500 bg-green-50" : ""}
                       />
                     </div>
                     <div>
@@ -155,7 +281,7 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Sobra de Calda (L)</Label>
+                      <Label className="text-xs">Sobra Calda Gerada (L)</Label>
                       <Input
                         type="number"
                         step="0.1"
@@ -221,6 +347,22 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
           <Eye className="h-4 w-4 mr-2" /> Relatório
         </Button>
       </div>
+
+      <Dialog open={!!sobraPrompt} onOpenChange={(open) => !open && setSobraPrompt(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Utilizar Sobra de Calda?</DialogTitle>
+            <DialogDescription>
+              Identificamos uma sobra de <strong>{sobraPrompt?.amount} Litros</strong> no <strong>{sobraPrompt?.fromTalhao}</strong> para este equipamento. 
+              Deseja aplicar esta sobra no talhão atual?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={() => setSobraPrompt(null)}>Não, descartar</Button>
+            <Button onClick={handleConfirmSobra}>Sim, utilizar sobra</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

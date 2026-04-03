@@ -153,12 +153,12 @@ export function OSForm({
           <div>
             <Label>Área / Propriedade</Label>
             <Select 
-              value={codigoArea} 
+              value={propriedade} 
               onValueChange={(val) => {
-                setCodigoArea(val);
-                setPropriedade(val); // Sincroniza propriedade e área
+                setPropriedade(val);
                 const area = areasDB.find(a => a.nome === val);
                 if (area) {
+                  setCodigoArea(area.codigo || "");
                   if (setCoordenadas && area.coordenadas) {
                     setCoordenadas(area.coordenadas);
                   }

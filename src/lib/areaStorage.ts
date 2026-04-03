@@ -9,9 +9,12 @@ export interface AreaTalhao {
 export interface AreaCadastro {
   id: string;
   nome: string;
+  codigo?: string;
   coordenadas: string;
   quantidadeTalhoes: number;
   talhoes: AreaTalhao[];
+  areaCarreador?: number;
+  municipio: string;
   createdAt: string;
 }
 

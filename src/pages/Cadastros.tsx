@@ -26,19 +26,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Settings, FlaskConical, Plus, Trash2, Tractor, Hash, Truck, Map, MapPin } from "lucide-react";
+import { Settings, FlaskConical, Plus, Trash2, Tractor, Hash, Truck, Map, MapPin, Activity, Pencil, RefreshCcw, Users } from "lucide-react";
+import { saveTipoAplicacao, getAllTiposAplicacao, deleteTipoAplicacao, TipoAplicacao } from "@/lib/applicationTypeStorage";
+import { saveEquipment, getAllEquipments, deleteEquipment, Equipment } from "@/lib/equipmentStorage";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { saveArea, getAllAreas, deleteArea, AreaCadastro, AreaTalhao } from "@/lib/areaStorage";
+import { saveOperador, getAllOperadores, deleteOperador, Operador } from "@/lib/operatorStorage";
 
-interface Equipment {
-  id: string;
-  equipment_model: string;
-  tractor_model: string;
-  fleet_number: string;
-  total_nozzles: number;
-}
+
 
 interface RegisteredProduct {
   id: string;
@@ -51,7 +48,8 @@ interface RegisteredProduct {
 interface WaterTruck {
   id: string;
   fleet_number: string;
-  driver: string;
+  model: string;
+  capacity: number;
 }
 
 export default function Cadastros() {
@@ -65,6 +63,7 @@ export default function Cadastros() {
     tractor_model: "",
     fleet_number: "",
     total_nozzles: "",
+    tank_capacity: "",
   });
 
   // Products state
@@ -83,8 +82,10 @@ export default function Cadastros() {
   });
   const [wtForm, setWtForm] = useState({
     fleet_number: "",
-    driver: "",
+    model: "",
+    capacity: "",
   });
+  const [editingWaterTruckId, setEditingWaterTruckId] = useState<string | null>(null);
 
   // Custom formulations
   const defaultFormulations = [
@@ -106,10 +107,32 @@ export default function Cadastros() {
   const [areas, setAreas] = useState<AreaCadastro[]>([]);
   const [areaForm, setAreaForm] = useState({
     nome: "",
+    codigo: "",
+    municipio: "",
     coordenadas: "",
     quantidadeTalhoes: "",
+    areaCarreador: 0,
   });
   const [talhoesForm, setTalhoesForm] = useState<AreaTalhao[]>([]);
+  const [editingAreaId, setEditingAreaId] = useState<string | null>(null);
+
+  // Tipos de Aplicação state
+  const [tiposAplicacao, setTiposAplicacao] = useState<TipoAplicacao[]>([]);
+  const [tipoForm, setTipoForm] = useState({
+    nome: "",
+    codigo: "",
+  });
+  const [editingTipoId, setEditingTipoId] = useState<string | null>(null);
+
+  // Operadores state
+  const [operadores, setOperadores] = useState<Operador[]>([]);
+  const [operadorForm, setOperadorForm] = useState<Omit<Operador, "id" | "createdAt">>({
+    nome: "",
+    cracha: "",
+    funcao: "Operador",
+    setor: "",
+  });
+  const [editingOperadorId, setEditingOperadorId] = useState<string | null>(null);
 
   const allFormulations = [...defaultFormulations, ...customFormulations];
 
@@ -133,11 +156,50 @@ export default function Cadastros() {
     toast.success("Formulação adicionada!");
   };
 
+  const [editingEquipmentId, setEditingEquipmentId] = useState<string | null>(null);
+
+  const handleEditEquipment = (eq: Equipment) => {
+    setEditingEquipmentId(eq.id);
+    setEqForm({
+      equipment_model: eq.equipment_model,
+      tractor_model: eq.tractor_model || "",
+      fleet_number: eq.fleet_number,
+      total_nozzles: eq.total_nozzles.toString(),
+      tank_capacity: (eq.tank_capacity || 0).toString(),
+    });
+    const el = document.getElementById("form-equipamento");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleCancelEditEquipment = () => {
+    setEditingEquipmentId(null);
+    setEqForm({ equipment_model: "", tractor_model: "", fleet_number: "", total_nozzles: "", tank_capacity: "" });
+  };
+
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+
+  const handleEditProduct = (prod: RegisteredProduct) => {
+    setEditingProductId(prod.id);
+    setProdForm({
+      commercial_name: prod.commercial_name,
+      formulation: prod.formulation,
+      unit: prod.unit,
+      package_size: prod.package_size.toString(),
+    });
+    const el = document.getElementById("form-produto");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleCancelEditProduct = () => {
+    setEditingProductId(null);
+    setProdForm({ commercial_name: "", formulation: "SL", unit: "L", package_size: "" });
+  };
+
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-      toast.error("Faça login para acessar os cadastros");
+        toast.error("Faça login para acessar os cadastros");
         navigate("/auth");
         return;
       }
@@ -151,7 +213,19 @@ export default function Cadastros() {
     fetchEquipments();
     fetchProducts();
     fetchAreasList();
+    fetchTiposAplicacaoList();
+    fetchOperadoresList();
   }, [userId]);
+
+  const fetchOperadoresList = async () => {
+    const list = await getAllOperadores();
+    setOperadores(list);
+  };
+
+  const fetchTiposAplicacaoList = async () => {
+    const list = await getAllTiposAplicacao();
+    setTiposAplicacao(list);
+  };
 
   const fetchAreasList = async () => {
     const list = await getAllAreas();
@@ -159,11 +233,8 @@ export default function Cadastros() {
   };
 
   const fetchEquipments = async () => {
-    const { data } = await supabase
-      .from("equipment")
-      .select("*")
-      .order("fleet_number");
-    if (data) setEquipments(data as Equipment[]);
+    const list = await getAllEquipments();
+    setEquipments(list);
   };
 
   const fetchProducts = async () => {
@@ -178,29 +249,34 @@ export default function Cadastros() {
     e.preventDefault();
     if (!userId) return;
     const nozzles = parseInt(eqForm.total_nozzles);
+    const capacity = parseFloat(eqForm.tank_capacity) || 0;
     if (!eqForm.equipment_model.trim() || !eqForm.fleet_number.trim() || isNaN(nozzles) || nozzles < 1) {
       toast.error("Preencha os campos obrigatórios");
       return;
     }
-    const { error } = await supabase.from("equipment").insert({
-      user_id: userId,
+    
+    const newEq: Equipment = {
+      id: editingEquipmentId || crypto.randomUUID(),
       equipment_model: eqForm.equipment_model.trim(),
       tractor_model: eqForm.tractor_model.trim(),
       fleet_number: eqForm.fleet_number.trim(),
       total_nozzles: nozzles,
-    });
-    if (error) {
-      if (error.code === "23505") toast.error("Número da frota já cadastrado");
-      else toast.error("Erro ao cadastrar equipamento");
-      return;
-    }
-    toast.success("Equipamento cadastrado!");
-    setEqForm({ equipment_model: "", tractor_model: "", fleet_number: "", total_nozzles: "" });
+      tank_capacity: capacity,
+      createdAt: editingEquipmentId 
+        ? equipments.find(e => e.id === editingEquipmentId)?.createdAt || new Date().toISOString()
+        : new Date().toISOString()
+    };
+
+    await saveEquipment(newEq);
+    toast.success(editingEquipmentId ? "Equipamento atualizado!" : "Equipamento cadastrado!");
+    
+    setEditingEquipmentId(null);
+    setEqForm({ equipment_model: "", tractor_model: "", fleet_number: "", total_nozzles: "", tank_capacity: "" });
     fetchEquipments();
   };
 
   const handleDeleteEquipment = async (id: string) => {
-    await supabase.from("equipment").delete().eq("id", id);
+    await deleteEquipment(id);
     toast.success("Equipamento removido");
     fetchEquipments();
   };
@@ -213,18 +289,36 @@ export default function Cadastros() {
       toast.error("Preencha os campos obrigatórios");
       return;
     }
-    const { error } = await supabase.from("registered_products").insert({
+    
+    const prodData = {
       user_id: userId,
       commercial_name: prodForm.commercial_name.trim(),
       formulation: prodForm.formulation,
       unit: prodForm.unit,
       package_size: size,
-    });
-    if (error) {
-      toast.error("Erro ao cadastrar produto");
-      return;
+    };
+
+    if (editingProductId) {
+      const { error } = await supabase
+        .from("registered_products")
+        .update(prodData)
+        .eq("id", editingProductId);
+      
+      if (error) {
+        toast.error("Erro ao atualizar produto");
+        return;
+      }
+      toast.success("Produto atualizado!");
+    } else {
+      const { error } = await supabase.from("registered_products").insert(prodData);
+      if (error) {
+        toast.error("Erro ao cadastrar produto");
+        return;
+      }
+      toast.success("Produto cadastrado!");
     }
-    toast.success("Produto cadastrado!");
+    
+    setEditingProductId(null);
     setProdForm({ commercial_name: "", formulation: "SL", unit: "L", package_size: "" });
     fetchProducts();
   };
@@ -235,36 +329,72 @@ export default function Cadastros() {
     fetchProducts();
   };
 
+  const handleEditWaterTruck = (wt: WaterTruck) => {
+    setEditingWaterTruckId(wt.id);
+    setWtForm({
+      fleet_number: wt.fleet_number,
+      model: wt.model,
+      capacity: wt.capacity.toString(),
+    });
+    const el = document.getElementById("form-caminhao");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleCancelEditWaterTruck = () => {
+    setEditingWaterTruckId(null);
+    setWtForm({ fleet_number: "", model: "", capacity: "" });
+  };
+
   const handleAddWaterTruck = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!wtForm.fleet_number.trim() || !wtForm.driver.trim()) {
+    if (!wtForm.fleet_number.trim() || !wtForm.model.trim() || !wtForm.capacity.trim()) {
       toast.error("Preencha os campos obrigatórios");
       return;
     }
-    const newTruck = {
-      id: crypto.randomUUID(),
-      fleet_number: wtForm.fleet_number.trim(),
-      driver: wtForm.driver.trim(),
-    };
-    const updated = [...waterTrucks, newTruck];
-    setWaterTrucks(updated);
-    localStorage.setItem("waterTrucks", JSON.stringify(updated));
-    toast.success("Caminhão Pipa cadastrado!");
-    setWtForm({ fleet_number: "", driver: "" });
+    
+    if (editingWaterTruckId) {
+      const updated = waterTrucks.map(wt => 
+        wt.id === editingWaterTruckId 
+          ? { 
+              ...wt, 
+              fleet_number: wtForm.fleet_number.trim(),
+              model: wtForm.model.trim(),
+              capacity: parseFloat(wtForm.capacity) || 0
+            } 
+          : wt
+      );
+      setWaterTrucks(updated);
+      localStorage.setItem("waterTrucks", JSON.stringify(updated));
+      toast.success("Caminhão pipa atualizado!");
+      setEditingWaterTruckId(null);
+    } else {
+      const newTruck = {
+        id: crypto.randomUUID(),
+        fleet_number: wtForm.fleet_number.trim(),
+        model: wtForm.model.trim(),
+        capacity: parseFloat(wtForm.capacity) || 0
+      };
+      const updated = [...waterTrucks, newTruck];
+      setWaterTrucks(updated);
+      localStorage.setItem("waterTrucks", JSON.stringify(updated));
+      toast.success("Caminhão pipa cadastrado!");
+    }
+    
+    setWtForm({ fleet_number: "", model: "", capacity: "" });
   };
 
   const handleDeleteWaterTruck = (id: string) => {
     const updated = waterTrucks.filter((t) => t.id !== id);
     setWaterTrucks(updated);
     localStorage.setItem("waterTrucks", JSON.stringify(updated));
-    toast.success("Caminhão Pipa removido");
+    toast.success("Caminhão pipa removido");
   };
 
   // Handle Areas
   const handleQuantidadeTalhoesChange = (val: string) => {
     setAreaForm((p) => ({ ...p, quantidadeTalhoes: val }));
     const qty = parseInt(val) || 0;
-    
+
     if (qty > talhoesForm.length) {
       const novos = Array.from({ length: qty - talhoesForm.length }, (_, i) => ({
         id: crypto.randomUUID(),
@@ -283,6 +413,94 @@ export default function Cadastros() {
     setTalhoesForm(updated);
   };
 
+  const handleEditArea = (area: AreaCadastro) => {
+    setEditingAreaId(area.id);
+    setAreaForm({
+      nome: area.nome,
+      codigo: area.codigo || "",
+      municipio: area.municipio || "",
+      coordenadas: area.coordenadas || "",
+      quantidadeTalhoes: area.quantidadeTalhoes.toString(),
+      areaCarreador: area.areaCarreador || 0,
+    });
+    setTalhoesForm(area.talhoes);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleCancelEditArea = () => {
+    setEditingAreaId(null);
+    setAreaForm({
+      nome: "",
+      codigo: "",
+      municipio: "",
+      coordenadas: "",
+      quantidadeTalhoes: "",
+      areaCarreador: 0,
+    });
+    setTalhoesForm([]);
+  };
+
+  const handleEditTipoAplicacao = (tipo: TipoAplicacao) => {
+    setEditingTipoId(tipo.id);
+    setTipoForm({
+      nome: tipo.nome,
+      codigo: tipo.codigo,
+    });
+    const el = document.getElementById("form-tipo-aplicacao");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleCancelEditTipoAplicacao = () => {
+    setEditingTipoId(null);
+    setTipoForm({ nome: "", codigo: "" });
+  };
+
+  const handleEditOperador = (op: Operador) => {
+    setEditingOperadorId(op.id);
+    setOperadorForm({
+      nome: op.nome,
+      cracha: op.cracha,
+      funcao: op.funcao,
+      setor: op.setor,
+    });
+    const el = document.getElementById("form-operador");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleCancelEditOperador = () => {
+    setEditingOperadorId(null);
+    setOperadorForm({ nome: "", cracha: "", funcao: "Operador", setor: "" });
+  };
+
+  const handleAddOperador = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!operadorForm.nome.trim() || !operadorForm.cracha.trim()) {
+      toast.error("Preencha o nome e o crachá.");
+      return;
+    }
+    const newOp: Operador = {
+      id: editingOperadorId || crypto.randomUUID(),
+      nome: operadorForm.nome.trim(),
+      cracha: operadorForm.cracha.trim(),
+      funcao: operadorForm.funcao,
+      setor: operadorForm.setor.trim(),
+      createdAt: editingOperadorId 
+        ? operadores.find(o => o.id === editingOperadorId)?.createdAt || new Date().toISOString()
+        : new Date().toISOString()
+    };
+    await saveOperador(newOp);
+    toast.success(editingOperadorId ? "Operador atualizado!" : "Operador cadastrado!");
+    setEditingOperadorId(null);
+    setOperadorForm({ nome: "", cracha: "", funcao: "Operador", setor: "" });
+    fetchOperadoresList();
+  };
+
+  const handleDeleteOperador = async (id: string) => {
+    await deleteOperador(id);
+    toast.success("Operador removido");
+    fetchOperadoresList();
+  };
+
   const handleAddArea = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!areaForm.nome.trim() || talhoesForm.length === 0) {
@@ -290,16 +508,29 @@ export default function Cadastros() {
       return;
     }
     const newArea: AreaCadastro = {
-      id: crypto.randomUUID(),
+      id: editingAreaId || crypto.randomUUID(),
       nome: areaForm.nome.trim(),
+      codigo: areaForm.codigo.trim(),
+      municipio: areaForm.municipio.trim(),
       coordenadas: areaForm.coordenadas.trim(),
       quantidadeTalhoes: talhoesForm.length,
       talhoes: talhoesForm,
-      createdAt: new Date().toISOString()
+      areaCarreador: parseFloat(areaForm.areaCarreador.toString()) || 0,
+      createdAt: editingAreaId 
+        ? areas.find(a => a.id === editingAreaId)?.createdAt || new Date().toISOString()
+        : new Date().toISOString()
     };
     await saveArea(newArea);
-    toast.success("Área cadastrada!");
-    setAreaForm({ nome: "", coordenadas: "", quantidadeTalhoes: "" });
+    toast.success(editingAreaId ? "Área atualizada!" : "Área cadastrada!");
+    setEditingAreaId(null);
+    setAreaForm({
+      nome: "",
+      codigo: "",
+      municipio: "",
+      coordenadas: "",
+      quantidadeTalhoes: "",
+      areaCarreador: 0,
+    });
     setTalhoesForm([]);
     fetchAreasList();
   };
@@ -308,6 +539,33 @@ export default function Cadastros() {
     await deleteArea(id);
     toast.success("Área removida");
     fetchAreasList();
+  };
+
+  const handleAddTipoAplicacao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tipoForm.nome.trim() || !tipoForm.codigo.trim()) {
+      toast.error("Preencha o nome do tipo de aplicação e o código.");
+      return;
+    }
+    const newTipo: TipoAplicacao = {
+      id: editingTipoId || crypto.randomUUID(),
+      nome: tipoForm.nome.trim(),
+      codigo: tipoForm.codigo.trim(),
+      createdAt: editingTipoId 
+        ? tiposAplicacao.find(t => t.id === editingTipoId)?.createdAt || new Date().toISOString()
+        : new Date().toISOString()
+    };
+    await saveTipoAplicacao(newTipo);
+    toast.success(editingTipoId ? "Tipo de aplicação atualizado!" : "Tipo de aplicação cadastrado!");
+    setEditingTipoId(null);
+    setTipoForm({ nome: "", codigo: "" });
+    fetchTiposAplicacaoList();
+  };
+
+  const handleDeleteTipoAplicacao = async (id: string) => {
+    await deleteTipoAplicacao(id);
+    toast.success("Tipo de aplicação removido");
+    fetchTiposAplicacaoList();
   };
 
   return (
@@ -320,32 +578,52 @@ export default function Cadastros() {
       </div>
 
       <Tabs defaultValue="equipamentos" className="animate-slide-up">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="equipamentos" className="flex items-center gap-2">
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto">
+          <TabsTrigger value="equipamentos" className="flex items-center gap-2 py-3 h-full whitespace-nowrap">
             <Settings className="h-4 w-4" />
             Equipamentos
           </TabsTrigger>
-          <TabsTrigger value="caminhoes_pipa" className="flex items-center gap-2">
+          <TabsTrigger value="caminhoes_pipa" className="flex items-center gap-2 py-3 h-full whitespace-nowrap">
             <Truck className="h-4 w-4" />
             Caminhão Pipa
           </TabsTrigger>
-          <TabsTrigger value="produtos" className="flex items-center gap-2">
+          <TabsTrigger value="produtos" className="flex items-center gap-2 py-3 h-full whitespace-nowrap">
             <FlaskConical className="h-4 w-4" />
             Produtos
           </TabsTrigger>
-          <TabsTrigger value="areas" className="flex items-center gap-2">
+          <TabsTrigger value="areas" className="flex items-center gap-2 py-3 h-full whitespace-nowrap">
             <Map className="h-4 w-4" />
             Áreas
+          </TabsTrigger>
+          <TabsTrigger value="tipos_aplicacao" className="flex items-center gap-2 py-3 h-full whitespace-nowrap">
+            <Activity className="h-4 w-4" />
+            Tipos Aplic.
+          </TabsTrigger>
+          <TabsTrigger value="operadores" className="flex items-center gap-2 py-3 h-full whitespace-nowrap">
+            <Users className="h-4 w-4" />
+            Operadores
           </TabsTrigger>
         </TabsList>
 
         {/* EQUIPAMENTOS TAB */}
         <TabsContent value="equipamentos">
           <Card className="shadow-lg">
-            <CardHeader className="border-b border-border">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Plus className="h-5 w-5 text-primary" />
-                Cadastrar Equipamento
+            <CardHeader className="border-b border-border" id="form-equipamento">
+              <CardTitle className="text-lg flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Plus className="h-5 w-5 text-primary" />
+                  {editingEquipmentId ? "Editar Equipamento" : "Cadastrar Equipamento"}
+                </div>
+                {editingEquipmentId && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleCancelEditEquipment}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    Cancelar Edição
+                  </Button>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
@@ -390,7 +668,10 @@ export default function Cadastros() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="eq_nozzles">Quantidade de Bicos *</Label>
+                    <Label htmlFor="eq_nozzles" className="flex items-center gap-2">
+                      <Hash className="h-4 w-4 text-muted-foreground" />
+                      Quantidade de Bicos *
+                    </Label>
                     <Input
                       id="eq_nozzles"
                       type="number"
@@ -402,11 +683,39 @@ export default function Cadastros() {
                       required
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="eq_capacity" className="flex items-center gap-2">
+                      <FlaskConical className="h-4 w-4 text-muted-foreground" />
+                      Capacidade do Tanque (L) *
+                    </Label>
+                    <Input
+                      id="eq_capacity"
+                      type="number"
+                      placeholder="Ex: 3000"
+                      value={eqForm.tank_capacity}
+                      onChange={(e) => setEqForm((p) => ({ ...p, tank_capacity: e.target.value }))}
+                      required
+                    />
+                  </div>
                 </div>
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-2">
+                  {editingEquipmentId && (
+                    <Button type="button" variant="outline" onClick={handleCancelEditEquipment}>
+                      Cancelar
+                    </Button>
+                  )}
                   <Button type="submit">
-                    <Plus className="h-4 w-4" />
-                    Cadastrar
+                    {editingEquipmentId ? (
+                      <>
+                        <RefreshCcw className="h-4 w-4 mr-2" />
+                        Atualizar
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Cadastrar
+                      </>
+                    )}
                   </Button>
                 </div>
               </form>
@@ -427,6 +736,7 @@ export default function Cadastros() {
                         <TableHead>Pulverizador</TableHead>
                         <TableHead>Trator</TableHead>
                         <TableHead>Bicos</TableHead>
+                        <TableHead>Tanque</TableHead>
                         <TableHead className="w-12"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -437,14 +747,26 @@ export default function Cadastros() {
                           <TableCell>{eq.equipment_model}</TableCell>
                           <TableCell>{eq.tractor_model || "—"}</TableCell>
                           <TableCell>{eq.total_nozzles}</TableCell>
+                          <TableCell>{eq.tank_capacity || 0} L</TableCell>
                           <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteEquipment(eq.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-primary"
+                                onClick={() => handleEditEquipment(eq)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive"
+                                onClick={() => handleDeleteEquipment(eq.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -482,23 +804,51 @@ export default function Cadastros() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="wt_driver" className="flex items-center gap-2">
+                    <Label htmlFor="wt_model" className="flex items-center gap-2">
                       <Truck className="h-4 w-4 text-muted-foreground" />
-                      Motorista *
+                      Modelo do Caminhão *
                     </Label>
                     <Input
-                      id="wt_driver"
-                      placeholder="Ex: João da Silva"
-                      value={wtForm.driver}
-                      onChange={(e) => setWtForm((p) => ({ ...p, driver: e.target.value }))}
+                      id="wt_model"
+                      placeholder="Ex: Mercedes-Benz Atego"
+                      value={wtForm.model}
+                      onChange={(e) => setWtForm((p) => ({ ...p, model: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="wt_capacity" className="flex items-center gap-2">
+                      <FlaskConical className="h-4 w-4 text-muted-foreground" />
+                      Capacidade do Tanque (L) *
+                    </Label>
+                    <Input
+                      id="wt_capacity"
+                      type="number"
+                      placeholder="Ex: 15000"
+                      value={wtForm.capacity}
+                      onChange={(e) => setWtForm((p) => ({ ...p, capacity: e.target.value }))}
                       required
                     />
                   </div>
                 </div>
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-2">
+                  {editingWaterTruckId && (
+                    <Button type="button" variant="outline" onClick={handleCancelEditWaterTruck}>
+                      Cancelar
+                    </Button>
+                  )}
                   <Button type="submit">
-                    <Plus className="h-4 w-4" />
-                    Cadastrar
+                    {editingWaterTruckId ? (
+                      <>
+                        <RefreshCcw className="h-4 w-4 mr-2" />
+                        Atualizar
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Cadastrar
+                      </>
+                    )}
                   </Button>
                 </div>
               </form>
@@ -516,7 +866,8 @@ export default function Cadastros() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Frota</TableHead>
-                        <TableHead>Motorista</TableHead>
+                        <TableHead>Modelo</TableHead>
+                        <TableHead>Capacidade (L)</TableHead>
                         <TableHead className="w-12"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -524,15 +875,27 @@ export default function Cadastros() {
                       {waterTrucks.map((t) => (
                         <TableRow key={t.id}>
                           <TableCell className="font-medium">{t.fleet_number}</TableCell>
-                          <TableCell>{t.driver}</TableCell>
+                          <TableCell>{t.model}</TableCell>
+                          <TableCell>{t.capacity} L</TableCell>
                           <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteWaterTruck(t.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-primary"
+                                onClick={() => handleEditWaterTruck(t)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive"
+                                onClick={() => handleDeleteWaterTruck(t.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -547,10 +910,22 @@ export default function Cadastros() {
         {/* PRODUTOS TAB */}
         <TabsContent value="produtos">
           <Card className="shadow-lg">
-            <CardHeader className="border-b border-border">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Plus className="h-5 w-5 text-primary" />
-                Cadastrar Produto
+            <CardHeader className="border-b border-border" id="form-produto">
+              <CardTitle className="text-lg flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FlaskConical className="h-5 w-5 text-primary" />
+                  {editingProductId ? "Editar Produto" : "Cadastrar Produto"}
+                </div>
+                {editingProductId && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleCancelEditProduct}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    Cancelar Edição
+                  </Button>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
@@ -655,10 +1030,24 @@ export default function Cadastros() {
                     </p>
                   </div>
                 </div>
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-2">
+                  {editingProductId && (
+                    <Button type="button" variant="outline" onClick={handleCancelEditProduct}>
+                      Cancelar
+                    </Button>
+                  )}
                   <Button type="submit">
-                    <Plus className="h-4 w-4" />
-                    Cadastrar
+                    {editingProductId ? (
+                      <>
+                        <RefreshCcw className="h-4 w-4 mr-2" />
+                        Atualizar
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Cadastrar
+                      </>
+                    )}
                   </Button>
                 </div>
               </form>
@@ -690,13 +1079,24 @@ export default function Cadastros() {
                           <TableCell>{p.unit}</TableCell>
                           <TableCell>{p.package_size} {p.unit}</TableCell>
                           <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteProduct(p.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-primary"
+                                onClick={() => handleEditProduct(p)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive"
+                                onClick={() => handleDeleteProduct(p.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -712,14 +1112,26 @@ export default function Cadastros() {
         <TabsContent value="areas">
           <Card className="shadow-lg mb-6">
             <CardHeader className="border-b border-border">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Map className="h-5 w-5 text-primary" />
-                Cadastrar Área
+              <CardTitle className="text-lg flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Map className="h-5 w-5 text-primary" />
+                  {editingAreaId ? "Editar Área" : "Cadastrar Área"}
+                </div>
+                {editingAreaId && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleCancelEditArea}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    Cancelar Edição
+                  </Button>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
               <form onSubmit={handleAddArea} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="area_nome">Nome da Área *</Label>
                     <Input
@@ -727,6 +1139,25 @@ export default function Cadastros() {
                       placeholder="Ex: Fazenda Boa Vista"
                       value={areaForm.nome}
                       onChange={(e) => setAreaForm((p) => ({ ...p, nome: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="area_codigo">Código da Área</Label>
+                    <Input
+                      id="area_codigo"
+                      placeholder="Ex: F-01"
+                      value={areaForm.codigo}
+                      onChange={(e) => setAreaForm((p) => ({ ...p, codigo: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="area_municipio">Município *</Label>
+                    <Input
+                      id="area_municipio"
+                      placeholder="Ex: Ribeirão Preto - SP"
+                      value={areaForm.municipio}
+                      onChange={(e) => setAreaForm((p) => ({ ...p, municipio: e.target.value }))}
                       required
                     />
                   </div>
@@ -773,21 +1204,66 @@ export default function Cadastros() {
                             <Input
                               type="number"
                               step="0.01"
-                              value={t.tamanhoHectares}
-                              onChange={(e) => updateTalhaoForm(idx, "tamanhoHectares", parseFloat(e.target.value) || 0)}
+                              value={t.tamanhoHectares || ""}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 0;
+                                updateTalhaoForm(idx, "tamanhoHectares", val);
+
+                                // Calcular a nova área total e o carreador
+                                const updatedTalhoes = [...talhoesForm];
+                                updatedTalhoes[idx] = { ...updatedTalhoes[idx], tamanhoHectares: val };
+                                const totalHa = updatedTalhoes.reduce((s, curr) => s + (curr.tamanhoHectares || 0), 0);
+                                setAreaForm(p => ({ ...p, areaCarreador: Number((totalHa * 0.1).toFixed(2)) }));
+                              }}
                               className="h-8 text-sm"
                             />
                           </div>
                         </div>
                       ))}
                     </div>
+
+                    <div className="mt-4 pt-4 border-t border-border grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="area_carreador" className="text-sm font-semibold text-primary">
+                          Área de Carreador (10% da área total)
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            id="area_carreador"
+                            type="number"
+                            step="0.01"
+                            value={areaForm.areaCarreador}
+                            onChange={(e) => setAreaForm(p => ({ ...p, areaCarreador: parseFloat(e.target.value) || 0 }))}
+                            className="bg-primary/5 border-primary/20 font-bold"
+                          />
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">ha</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground italic">
+                          Calculado automaticamente: {(talhoesForm.reduce((s, t) => s + (t.tamanhoHectares || 0), 0) * 0.1).toFixed(2)} ha
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
 
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-2">
+                  {editingAreaId && (
+                    <Button type="button" variant="outline" onClick={handleCancelEditArea}>
+                      Cancelar
+                    </Button>
+                  )}
                   <Button type="submit">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Cadastrar
+                    {editingAreaId ? (
+                      <>
+                        <RefreshCcw className="h-4 w-4 mr-2" />
+                        Atualizar
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Cadastrar
+                      </>
+                    )}
                   </Button>
                 </div>
               </form>
@@ -805,8 +1281,11 @@ export default function Cadastros() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Nome</TableHead>
+                        <TableHead>Código</TableHead>
+                        <TableHead>Município</TableHead>
                         <TableHead>Talhões (Qtd)</TableHead>
                         <TableHead>Área Total (ha)</TableHead>
+                        <TableHead>Carreador (ha)</TableHead>
                         <TableHead>Localização</TableHead>
                         <TableHead className="w-12"></TableHead>
                       </TableRow>
@@ -816,33 +1295,317 @@ export default function Cadastros() {
                         const totalArea = a.talhoes.reduce((acc, curr) => acc + (curr.tamanhoHectares || 0), 0);
                         return (
                           <TableRow key={a.id}>
-                            <TableCell className="font-medium">{a.nome}</TableCell>
-                            <TableCell>{a.quantidadeTalhoes}</TableCell>
-                            <TableCell>{totalArea.toFixed(2)}</TableCell>
+                            <TableCell className="font-medium text-xs sm:text-sm">{a.nome}</TableCell>
+                            <TableCell className="text-xs sm:text-sm">{a.codigo || "—"}</TableCell>
+                            <TableCell className="text-xs sm:text-sm">{a.municipio || "—"}</TableCell>
+                            <TableCell className="text-xs sm:text-sm">{a.quantidadeTalhoes}</TableCell>
+                            <TableCell className="text-xs sm:text-sm font-semibold">{totalArea.toFixed(2)}</TableCell>
+                            <TableCell className="text-xs sm:text-sm">
+                              {a.areaCarreador ? (
+                                <span className="text-primary font-medium">{a.areaCarreador.toFixed(2)} ha</span>
+                              ) : "—"}
+                            </TableCell>
                             <TableCell>
                               {a.coordenadas ? (
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="text-primary hover:text-primary/80"
+                                  className="text-primary hover:text-primary/80 h-7 text-[10px] sm:text-xs"
                                   onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(a.coordenadas)}`, "_blank")}
                                 >
-                                  <MapPin className="h-4 w-4 mr-1" /> Ver Rota
+                                  <MapPin className="h-3 w-3 sm:h-4 sm:w-4 mr-1" /> Rota
                                 </Button>
                               ) : "—"}
                             </TableCell>
                             <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDeleteArea(a.id)}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-primary"
+                                  onClick={() => handleEditArea(a)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive"
+                                  onClick={() => handleDeleteArea(a.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
                       })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+        
+        {/* TIPOS DE APLICAÇÃO TAB */}
+        <TabsContent value="tipos_aplicacao">
+          <Card className="shadow-lg">
+            <CardHeader className="border-b border-border" id="form-tipo-aplicacao">
+              <CardTitle className="text-lg flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-primary" />
+                  {editingTipoId ? "Editar Tipo de Aplicação" : "Cadastrar Tipo de Aplicação"}
+                </div>
+                {editingTipoId && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleCancelEditTipoAplicacao}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    Cancelar Edição
+                  </Button>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <form onSubmit={handleAddTipoAplicacao} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="tipo_nome">Tipo de Aplicação *</Label>
+                    <Input
+                      id="tipo_nome"
+                      placeholder="Ex: Pulverização Terrestre"
+                      value={tipoForm.nome}
+                      onChange={(e) => setTipoForm((p) => ({ ...p, nome: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="tipo_codigo">Código da Aplicação *</Label>
+                    <Input
+                      id="tipo_codigo"
+                      placeholder="Ex: T-01"
+                      value={tipoForm.codigo}
+                      onChange={(e) => setTipoForm((p) => ({ ...p, codigo: e.target.value }))}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  {editingTipoId && (
+                    <Button type="button" variant="outline" onClick={handleCancelEditTipoAplicacao}>
+                      Cancelar
+                    </Button>
+                  )}
+                  <Button type="submit">
+                    {editingTipoId ? (
+                      <>
+                        <RefreshCcw className="h-4 w-4 mr-2" />
+                        Atualizar
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Cadastrar
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          {tiposAplicacao.length > 0 && (
+            <Card className="mt-6 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-lg">Tipos de Aplicação Cadastrados ({tiposAplicacao.length})</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tipo de Aplicação</TableHead>
+                        <TableHead>Código</TableHead>
+                        <TableHead className="w-12"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {tiposAplicacao.map((t) => (
+                        <TableRow key={t.id}>
+                          <TableCell className="font-medium">{t.nome}</TableCell>
+                          <TableCell>{t.codigo}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-primary"
+                                onClick={() => handleEditTipoAplicacao(t)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive"
+                                onClick={() => handleDeleteTipoAplicacao(t.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* OPERADORES TAB */}
+        <TabsContent value="operadores">
+          <Card className="shadow-lg">
+            <CardHeader className="border-b border-border" id="form-operador">
+              <CardTitle className="text-lg flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  {editingOperadorId ? "Editar Operador" : "Cadastrar Operador"}
+                </div>
+                {editingOperadorId && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleCancelEditOperador}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    Cancelar Edição
+                  </Button>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <form onSubmit={handleAddOperador} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="op_nome">Nome do Operador *</Label>
+                    <Input
+                      id="op_nome"
+                      placeholder="Ex: João da Silva"
+                      value={operadorForm.nome}
+                      onChange={(e) => setOperadorForm((p) => ({ ...p, nome: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="op_cracha">Crachá *</Label>
+                    <Input
+                      id="op_cracha"
+                      placeholder="Ex: 123456"
+                      value={operadorForm.cracha}
+                      onChange={(e) => setOperadorForm((p) => ({ ...p, cracha: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="op_funcao">Função *</Label>
+                    <Select
+                      value={operadorForm.funcao}
+                      onValueChange={(v: 'Operador' | 'Motorista') => setOperadorForm((p) => ({ ...p, funcao: v }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Operador">Operador</SelectItem>
+                        <SelectItem value="Motorista">Motorista</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="op_setor">Setor</Label>
+                    <Input
+                      id="op_setor"
+                      placeholder="Ex: Agrícola"
+                      value={operadorForm.setor}
+                      onChange={(e) => setOperadorForm((p) => ({ ...p, setor: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  {editingOperadorId && (
+                    <Button type="button" variant="outline" onClick={handleCancelEditOperador}>
+                      Cancelar
+                    </Button>
+                  )}
+                  <Button type="submit">
+                    {editingOperadorId ? (
+                      <>
+                        <RefreshCcw className="h-4 w-4 mr-2" />
+                        Atualizar
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Cadastrar
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          {operadores.length > 0 && (
+            <Card className="mt-6 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-lg">Operadores Cadastrados ({operadores.length})</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Crachá</TableHead>
+                        <TableHead>Função</TableHead>
+                        <TableHead>Setor</TableHead>
+                        <TableHead className="w-12"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {operadores.map((o) => (
+                        <TableRow key={o.id}>
+                          <TableCell className="font-medium">{o.nome}</TableCell>
+                          <TableCell>{o.cracha}</TableCell>
+                          <TableCell>{o.funcao}</TableCell>
+                          <TableCell>{o.setor || "—"}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-primary"
+                                onClick={() => handleEditOperador(o)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive"
+                                onClick={() => handleDeleteOperador(o.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                     </TableBody>
                   </Table>
                 </div>

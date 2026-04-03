@@ -22,6 +22,7 @@ export interface ApontamentoTalhao {
   talhaoIndex: number;
   areaAplicada: string;
   caldaRestante: string;
+  sobraUtilizada?: string; // Calda utilizada de um talhão anterior
   bombasCheias?: string;
   aplicador?: string;
   tratorFrota?: string;
