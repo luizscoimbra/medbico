@@ -1,25 +1,8 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Droplets, Plus, History, BookOpen, ArrowRight, Gauge, Shield, Zap, FlaskConical, Activity, ClipboardList, FileText } from "lucide-react";
+import { Droplets, Plus, History, BookOpen, ArrowRight, FlaskConical, Activity, ClipboardList, FileText } from "lucide-react";
 
-const features = [
-  {
-    icon: Gauge,
-    title: "Medição Precisa",
-    description: "Avaliação baseada nos padrões ISO com tolerância de ±10%",
-  },
-  {
-    icon: Shield,
-    title: "Diagnóstico Automático",
-    description: "Identificação automática de bicos que precisam de manutenção",
-  },
-  {
-    icon: Zap,
-    title: "Resultados Rápidos",
-    description: "Relatórios instantâneos com recomendações de ação",
-  },
-];
 
 const actionCards = [
   {
@@ -80,66 +63,60 @@ export default function Index() {
       <section className="relative overflow-hidden py-16 md:py-24">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/20" />
         <div className="container mx-auto px-4 relative">
-          <div className="max-w-3xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6 animate-fade-in">
-              <Droplets className="h-4 w-4" />
-              Sistema de Avaliação Agrícola
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center max-w-6xl mx-auto">
+
+            {/* LEFT — Logo Card */}
+            <div className="flex justify-center animate-fade-in order-2 lg:order-1">
+              <Card className="w-full max-w-sm border border-primary/20 shadow-xl bg-card/80 backdrop-blur-sm overflow-hidden group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+                <CardContent className="p-0 flex flex-col items-center">
+                  <div className="w-full bg-gradient-to-br from-primary/10 via-card to-secondary/10 flex items-center justify-center py-4 px-6">
+                    <img
+                      src="/herbilog_3d.png"
+                      alt="HerbiLog"
+                      className="w-full max-w-[280px] h-auto object-contain drop-shadow-xl group-hover:scale-105 transition-transform duration-500"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-            
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-heading text-foreground mb-6 animate-slide-up">
-              Avaliação de{" "}
-              <span className="text-gradient">Bicos Pulverizadores</span>
-            </h1>
-            
-            <p className="text-lg md:text-xl text-muted-foreground mb-8 animate-slide-up" style={{ animationDelay: "0.1s" }}>
-              Meça, avalie e diagnostique a condição dos bicos do seu pulverizador 
-              com precisão baseada nos padrões ISO de cores e vazões.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center animate-slide-up" style={{ animationDelay: "0.2s" }}>
-              <Button asChild variant="hero" size="xl">
-                <Link to="/nova-medicao">
-                  <Plus className="h-5 w-5" />
-                  Iniciar Medição
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="xl">
-                <Link to="/tabela-referencia">
-                  <BookOpen className="h-5 w-5" />
-                  Ver Tabela ISO
-                </Link>
-              </Button>
+
+            {/* RIGHT — Text Content */}
+            <div className="text-center lg:text-left order-1 lg:order-2">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6 animate-fade-in">
+                <Droplets className="h-4 w-4" />
+                Sistema de Avaliação Agrícola
+              </div>
+
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-heading text-foreground mb-6 animate-slide-up">
+                Avaliação de{" "}
+                <span className="text-gradient">Bicos Pulverizadores</span>
+              </h1>
+
+              <p className="text-lg md:text-xl text-muted-foreground mb-8 animate-slide-up" style={{ animationDelay: "0.1s" }}>
+                Meça, avalie e diagnostique a condição dos bicos do seu pulverizador
+                com precisão baseada nos padrões ISO de cores e vazões.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start animate-slide-up" style={{ animationDelay: "0.2s" }}>
+                <Button asChild variant="hero" size="xl">
+                  <Link to="/nova-medicao">
+                    <Plus className="h-5 w-5" />
+                    Iniciar Medição
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="xl">
+                  <Link to="/tabela-referencia">
+                    <BookOpen className="h-5 w-5" />
+                    Ver Tabela ISO
+                  </Link>
+                </Button>
+              </div>
             </div>
+
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-16 bg-card/50">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {features.map((feature, index) => (
-              <Card 
-                key={feature.title} 
-                className="border-0 shadow-md bg-background animate-slide-up"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <CardContent className="p-6">
-                  <div className="h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4">
-                    <feature.icon className="h-6 w-6" />
-                  </div>
-                  <h3 className="text-lg font-heading text-foreground mb-2">
-                    {feature.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {feature.description}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* Action Cards Section */}
       <section className="py-16">

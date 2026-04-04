@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Droplets, LogIn, UserPlus } from "lucide-react";
+import { LogIn, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -76,12 +76,10 @@ export default function Auth() {
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center space-y-2">
           <div className="flex justify-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-md">
-              <Droplets className="h-8 w-8" />
-            </div>
+            <img src="/herbilog_logo.png" alt="HerbiLog" className="h-16 w-auto object-contain" />
           </div>
           <CardTitle className="text-2xl font-heading">
-            {isLogin ? "Acessar SprayCheck" : "Criar Conta"}
+            {isLogin ? "Acessar HerbiLog" : "Criar Conta"}
           </CardTitle>
           <CardDescription>
             {isLogin

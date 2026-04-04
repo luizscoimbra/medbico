@@ -1,6 +1,6 @@
 import { forwardRef, useMemo } from "react";
 import type { OrdemServico } from "@/lib/osStorage";
-import { Droplets, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 
 interface OSPreviewProps {
   os: OrdemServico;
@@ -66,14 +66,8 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
     <div ref={ref} className="bg-white text-black p-8 max-w-[210mm] mx-auto print-area" id="os-print">
       {/* Header */}
       <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-green-700 text-white flex items-center justify-center">
-            <Droplets className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold">SprayCheck</h1>
-            <p className="text-xs text-gray-600">Ordem de Serviço</p>
-          </div>
+        <div className="flex items-center">
+          <img src="/herbilog_logo.png" alt="HerbiLog" className="h-12 w-auto object-contain" />
         </div>
         <div className="text-right">
           <p className="text-lg font-bold font-mono">OS nº {os.id}</p>
@@ -234,7 +228,7 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
       </div>
 
       <p className="text-center text-[10px] text-gray-400 mt-8">
-        Documento gerado por SprayCheck em {new Date().toLocaleDateString("pt-BR")}
+        Documento gerado por HerbiLog em {new Date().toLocaleDateString("pt-BR")}
       </p>
     </div>
   );
