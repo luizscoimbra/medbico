@@ -89,6 +89,18 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
           <p className="text-xs text-gray-500 uppercase font-semibold">Responsável Técnico</p>
           <p className="font-medium">{os.responsavelTecnico}</p>
         </div>
+        {os.tipoAplicacao && (
+          <div className="border border-gray-300 rounded p-3">
+            <p className="text-xs text-gray-500 uppercase font-semibold">Tipo de Aplicação</p>
+            <p className="font-medium">{os.tipoAplicacao}</p>
+          </div>
+        )}
+        {os.codigoAplicacao && (
+          <div className="border border-gray-300 rounded p-3">
+            <p className="text-xs text-gray-500 uppercase font-semibold">Código da Aplicação</p>
+            <p className="font-medium">{os.codigoAplicacao}</p>
+          </div>
+        )}
         {os.volumeCaldaHa && (
           <div className={`border border-gray-300 rounded p-3 ${os.coordenadas ? "" : "col-span-2"}`}>
             <p className="text-xs text-gray-500 uppercase font-semibold">Volume de Calda</p>

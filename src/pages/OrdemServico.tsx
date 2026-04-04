@@ -26,6 +26,8 @@ export default function OrdemServico() {
   const [codigoArea, setCodigoArea] = useState("");
   const [dataOS, setDataOS] = useState(new Date().toISOString().slice(0, 10));
   const [responsavelTecnico, setResponsavelTecnico] = useState("");
+  const [tipoAplicacao, setTipoAplicacao] = useState("");
+  const [codigoAplicacao, setCodigoAplicacao] = useState("");
   const [volumeCaldaHa, setVolumeCaldaHa] = useState("");
   const [coordenadas, setCoordenadas] = useState("");
   const [talhoes, setTalhoes] = useState<TalhaoData[]>([
@@ -44,7 +46,9 @@ export default function OrdemServico() {
       propriedade,
       codigoArea,
       responsavelTecnico,
-      aplicador: "", // Mantendo para retrocompatibilidade do storage
+      aplicador: "",
+      tipoAplicacao: tipoAplicacao || undefined,
+      codigoAplicacao: codigoAplicacao || undefined,
       talhoes,
       createdAt: new Date().toISOString(),
       volumeCaldaHa: volumeCaldaHa || undefined,
@@ -130,6 +134,8 @@ export default function OrdemServico() {
     setCodigoArea("");
     setDataOS(new Date().toISOString().slice(0, 10));
     setResponsavelTecnico("");
+    setTipoAplicacao("");
+    setCodigoAplicacao("");
     setVolumeCaldaHa("");
     setCoordenadas("");
     setTalhoes([{ nome: "", area: "", produtos: [{ produto: "", dose: "" }], testemunho: false, testemunhoArea: "", testeProduto: false, produtoTeste: "", produtoTesteQtd: "" }]);
@@ -178,6 +184,8 @@ export default function OrdemServico() {
           codigoArea={codigoArea} setCodigoArea={setCodigoArea}
           dataOS={dataOS} setDataOS={setDataOS}
           responsavelTecnico={responsavelTecnico} setResponsavelTecnico={setResponsavelTecnico}
+          tipoAplicacao={tipoAplicacao} setTipoAplicacao={setTipoAplicacao}
+          codigoAplicacao={codigoAplicacao} setCodigoAplicacao={setCodigoAplicacao}
           talhoes={talhoes} setTalhoes={setTalhoes}
           volumeCaldaHa={volumeCaldaHa} setVolumeCaldaHa={setVolumeCaldaHa}
           coordenadas={coordenadas} setCoordenadas={setCoordenadas}

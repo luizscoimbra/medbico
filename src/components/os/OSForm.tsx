@@ -8,6 +8,7 @@ import { Copy, Plus, Minus, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { TalhaoData, ProdutoDose } from "@/lib/osStorage";
 import { getAllAreas, AreaCadastro } from "@/lib/areaStorage";
+import { getAllTiposAplicacao, TipoAplicacao } from "@/lib/applicationTypeStorage";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface OSFormProps {
@@ -19,6 +20,10 @@ interface OSFormProps {
   setDataOS: (v: string) => void;
   responsavelTecnico: string;
   setResponsavelTecnico: (v: string) => void;
+  tipoAplicacao: string;
+  setTipoAplicacao: (v: string) => void;
+  codigoAplicacao: string;
+  setCodigoAplicacao: (v: string) => void;
   talhoes: TalhaoData[];
   setTalhoes: (t: TalhaoData[]) => void;
   volumeCaldaHa: string;
@@ -52,6 +57,8 @@ export function OSForm({
   codigoArea, setCodigoArea,
   dataOS, setDataOS,
   responsavelTecnico, setResponsavelTecnico,
+  tipoAplicacao, setTipoAplicacao,
+  codigoAplicacao, setCodigoAplicacao,
   talhoes, setTalhoes,
   volumeCaldaHa, setVolumeCaldaHa,
   coordenadas, setCoordenadas,
@@ -59,6 +66,7 @@ export function OSForm({
 }: OSFormProps) {
   const [produtosDB, setProdutosDB] = useState<ProdutoDB[]>([]);
   const [areasDB, setAreasDB] = useState<AreaCadastro[]>([]);
+  const [tiposAplicacaoDB, setTiposAplicacaoDB] = useState<TipoAplicacao[]>([]);
 
   useEffect(() => {
     supabase
@@ -69,6 +77,7 @@ export function OSForm({
       });
 
     getAllAreas().then(setAreasDB);
+    getAllTiposAplicacao().then(setTiposAplicacaoDB);
   }, []);
 
   const updateTalhao = (index: number, field: keyof TalhaoData, value: any) => {
@@ -191,6 +200,31 @@ export function OSForm({
           <div>
             <Label>Responsável Técnico</Label>
             <Input value={responsavelTecnico} onChange={(e) => setResponsavelTecnico(e.target.value)} />
+          </div>
+          <div>
+            <Label>Tipo de Aplicação</Label>
+            <Select
+              value={tipoAplicacao}
+              onValueChange={(val) => {
+                setTipoAplicacao(val);
+                const tipo = tiposAplicacaoDB.find(t => t.nome === val);
+                if (tipo) setCodigoAplicacao(tipo.codigo);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o tipo..." />
+              </SelectTrigger>
+              <SelectContent>
+                {tiposAplicacaoDB.length === 0 && <SelectItem value="nenhum" disabled>Nenhum tipo cadastrado</SelectItem>}
+                {tiposAplicacaoDB.map(t => (
+                  <SelectItem key={t.id} value={t.nome}>{t.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Código da Aplicação</Label>
+            <Input value={codigoAplicacao} onChange={(e) => setCodigoAplicacao(e.target.value)} placeholder="Preenchido automaticamente" />
           </div>
           <div>
             <Label>Volume de Calda (L/ha)</Label>

@@ -41,6 +41,8 @@ export interface OrdemServico {
   createdAt: string;
   volumeCaldaHa?: string;
   coordenadas?: string;
+  tipoAplicacao?: string;
+  codigoAplicacao?: string;
   apontamentos?: ApontamentoTalhao[];
   status?: "aberta" | "em_andamento" | "concluida";
 }
