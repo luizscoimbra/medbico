@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   Droplets,
+  Truck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/context/SidebarContext";
@@ -32,6 +33,7 @@ const navItems: NavItem[] = [
   { path: "/calculadora-calda", label: "Calculadora de Calda", icon: FlaskConical, group: "Operações" },
   { path: "/aferir-vazao", label: "Aferir Vazão", icon: Activity, group: "Operações" },
   { path: "/ordem-servico", label: "Ordem de Serviço", icon: FileText, group: "Operações" },
+  { path: "/frotas", label: "Gestão de Frotas", icon: Truck, group: "Consultas" },
   { path: "/historico", label: "Histórico", icon: History, group: "Consultas" },
   { path: "/tabela-referencia", label: "Tabela ISO", icon: BookOpen, group: "Consultas" },
   { path: "/cadastros", label: "Cadastros", icon: ClipboardList, group: "Configurações" },

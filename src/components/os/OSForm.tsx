@@ -4,12 +4,14 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Copy, Plus, Minus, X } from "lucide-react";
+import { Copy, Plus, Minus, X, History as HistoryIcon, Clock, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import type { TalhaoData, ProdutoDose } from "@/lib/osStorage";
+import type { TalhaoData, ProdutoDose, OrdemServico } from "@/lib/osStorage";
+import { getAllOS, MOTIVO_PARADA_LABELS } from "@/lib/osStorage";
 import { getAllAreas, AreaCadastro } from "@/lib/areaStorage";
 import { getAllTiposAplicacao, TipoAplicacao } from "@/lib/applicationTypeStorage";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface OSFormProps {
   propriedade: string;
@@ -67,6 +69,8 @@ export function OSForm({
   const [produtosDB, setProdutosDB] = useState<ProdutoDB[]>([]);
   const [areasDB, setAreasDB] = useState<AreaCadastro[]>([]);
   const [tiposAplicacaoDB, setTiposAplicacaoDB] = useState<TipoAplicacao[]>([]);
+  const [allPastOS, setAllPastOS] = useState<OrdemServico[]>([]);
+  const [historyTalhaoIndex, setHistoryTalhaoIndex] = useState<number | null>(null);
 
   useEffect(() => {
     supabase
@@ -78,6 +82,7 @@ export function OSForm({
 
     getAllAreas().then(setAreasDB);
     getAllTiposAplicacao().then(setTiposAplicacaoDB);
+    getAllOS().then(setAllPastOS);
   }, []);
 
   const updateTalhao = (index: number, field: keyof TalhaoData, value: any) => {
@@ -270,11 +275,22 @@ export function OSForm({
               <CardContent className="pt-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="font-heading font-semibold text-sm">Talhão {i + 1}</span>
-                  {talhoes.length > 1 && (
-                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeTalhao(i)}>
-                      <Minus className="h-4 w-4" />
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => setHistoryTalhaoIndex(i)}
+                      className="h-8 text-xs text-muted-foreground hover:text-primary"
+                    >
+                      <HistoryIcon className="h-3.5 w-3.5 mr-1" /> Histórico
                     </Button>
-                  )}
+                    {talhoes.length > 1 && (
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeTalhao(i)}>
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -394,6 +410,108 @@ export function OSForm({
       <Button onClick={onGenerate} size="lg" className="w-full">
         Gerar Ordem de Serviço
       </Button>
+
+      <Dialog open={historyTalhaoIndex !== null} onOpenChange={(open) => !open && setHistoryTalhaoIndex(null)}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <HistoryIcon className="h-5 w-5" />
+              Histórico de Aplicação: {historyTalhaoIndex !== null && (talhoes[historyTalhaoIndex]?.nome || `Talhão ${historyTalhaoIndex + 1}`)}
+            </DialogTitle>
+            <DialogDescription>
+              Resumo histórico de aplicações anteriores para este talhão.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {historyTalhaoIndex !== null && (() => {
+              const currentTalhaoName = talhoes[historyTalhaoIndex]?.nome;
+              if (!currentTalhaoName) return <p className="text-center text-sm text-muted-foreground">Nome do talhão não definido.</p>;
+
+              // Filtrar todos os apontamentos de todas as OS passadas que batem com esse nome de talhão
+              const historyRecords = allPastOS.flatMap(oldOS => {
+                const oldTalhoes = oldOS.talhoes || [];
+                const oldAps = oldOS.apontamentos || [];
+                
+                return oldAps
+                  .filter(ap => {
+                    const t = oldTalhoes[ap.talhaoIndex];
+                    return t && t.nome === currentTalhaoName;
+                  })
+                  .map(ap => ({ ...ap, osId: oldOS.id, osData: oldOS.data, talhaoConfig: oldTalhoes[ap.talhaoIndex] }));
+              });
+
+              if (historyRecords.length === 0) {
+                return <div className="text-center py-8 text-muted-foreground italic text-sm">Nenhum histórico encontrado para o talhão "{currentTalhaoName}".</div>;
+              }
+
+              return historyRecords.sort((a, b) => b.osData.localeCompare(a.osData)).map((rec, idx) => (
+                <div key={idx} className="border border-border rounded-lg p-4 space-y-3 bg-muted/20">
+                  <div className="flex justify-between items-start border-b border-border pb-2">
+                    <div>
+                      <p className="text-sm font-bold text-primary">OS #{rec.osId}</p>
+                      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" /> {rec.osData} às {rec.horaRegistro || "N/I"}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold">{rec.tratorFrota || "Trator N/I"}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase">{rec.aplicador || "Operador N/I"}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                    <div className="bg-white p-2 rounded border border-border">
+                      <p className="text-[10px] text-muted-foreground uppercase">Área</p>
+                      <p className="font-bold">{rec.areaAplicada || "0.00"} ha</p>
+                    </div>
+                    <div className="bg-white p-2 rounded border border-border">
+                      <p className="text-[10px] text-muted-foreground uppercase">Sobra Utilizada</p>
+                      <p className="font-bold text-green-600">{rec.sobraUtilizada || "0"} L</p>
+                    </div>
+                    <div className="bg-white p-2 rounded border border-border">
+                      <p className="text-[10px] text-muted-foreground uppercase">Sobra Gerada</p>
+                      <p className="font-bold text-amber-600">{rec.caldaRestante || "0"} L</p>
+                    </div>
+                    <div className="bg-white p-2 rounded border border-border text-center">
+                      <p className="text-[10px] text-muted-foreground uppercase">Status</p>
+                      <p className={`font-bold text-[10px] ${rec.statusRegistro === "interrompido" ? "text-red-600" : "text-blue-600"}`}>
+                        {rec.statusRegistro === "interrompido" ? "INTERROMPIDO" : "CONCLUÍDO"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-gray-500 uppercase">Produtos Aplicados:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {rec.talhaoConfig.produtos.map((p, pIdx) => (
+                        <span key={pIdx} className="bg-blue-50 text-blue-800 text-[10px] px-2 py-0.5 rounded border border-blue-100">
+                          {p.produto}: <strong>{p.dose}{p.unit}/ha</strong>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {rec.observacoes && (
+                    <div className="text-[11px] text-gray-600 bg-gray-100 p-2 rounded italic">
+                      <strong>Notas:</strong> {rec.observacoes}
+                    </div>
+                  )}
+
+                  {rec.statusRegistro === "interrompido" && (
+                    <div className="text-[11px] bg-red-50 text-red-700 p-2 rounded border border-red-100 font-medium">
+                      ⚠ Interrupção: {rec.motivoParada && MOTIVO_PARADA_LABELS[rec.motivoParada]}
+                    </div>
+                  )}
+                </div>
+              ));
+            })()}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setHistoryTalhaoIndex(null)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -17,6 +17,7 @@ import Cadastros from "./pages/Cadastros";
 import CalculadoraCalda from "./pages/CalculadoraCalda";
 import AferirVazao from "./pages/AferirVazao";
 import OrdemServico from "./pages/OrdemServico";
+import Frotas from "./pages/Frotas";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -57,6 +58,7 @@ function AppLayout() {
             <Route path="/calculadora-calda" element={<CalculadoraCalda />} />
             <Route path="/aferir-vazao" element={<AferirVazao />} />
             <Route path="/ordem-servico" element={<OrdemServico />} />
+            <Route path="/frotas" element={<Frotas />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>

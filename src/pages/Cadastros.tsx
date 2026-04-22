@@ -1515,7 +1515,7 @@ export default function Cadastros() {
                     <Label htmlFor="op_funcao">Função *</Label>
                     <Select
                       value={operadorForm.funcao}
-                      onValueChange={(v: 'Operador' | 'Motorista') => setOperadorForm((p) => ({ ...p, funcao: v }))}
+                      onValueChange={(v: 'Operador' | 'Motorista' | 'Gestor') => setOperadorForm((p) => ({ ...p, funcao: v }))}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -1523,6 +1523,7 @@ export default function Cadastros() {
                       <SelectContent>
                         <SelectItem value="Operador">Operador</SelectItem>
                         <SelectItem value="Motorista">Motorista</SelectItem>
+                        <SelectItem value="Gestor">Gestor</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

@@ -18,16 +18,35 @@ export interface TalhaoData {
   produtoTesteQtd: string;
 }
 
+export type MotivoParada = "quebra_equipamento" | "condicoes_climaticas" | "fim_turno" | "outro";
+
+export const MOTIVO_PARADA_LABELS: Record<MotivoParada, string> = {
+  quebra_equipamento: "Quebra de Equipamento",
+  condicoes_climaticas: "Condições Climáticas Impróprias",
+  fim_turno: "Fim de Turno",
+  outro: "Outro Motivo",
+};
+
 export interface ApontamentoTalhao {
   talhaoIndex: number;
   areaAplicada: string;
   caldaRestante: string;
   sobraUtilizada?: string; // Calda utilizada de um talhão anterior
   bombasCheias?: string;
+  cargaParcial?: string;  // Volume parcial em litros (carga que não completa 1 bomba)
   aplicador?: string;
   tratorFrota?: string;
   dataApontamento: string;
+  horaRegistro?: string;  // Hora do registro (HH:MM)
   observacoes: string;
+  // Campos de parada/interrupção
+  statusRegistro?: "em_andamento" | "interrompido" | "concluido" | "reparado";
+  motivoParada?: MotivoParada;
+  motivoParadaDetalhe?: string; // Detalhamento livre do motivo
+  caldaTransferida?: string;   // Volume transferido para outro equipamento (quebra)
+  equipamentoOrigem?: string;  // Frota do equipamento de origem (continuação)
+  equipamentoDestino?: string; // Frota do equipamento que recebeu a calda (quebra)
+  registroAnteriorIdx?: number; // Índice do registro anterior (encadeamento)
 }
 
 export interface OrdemServico {

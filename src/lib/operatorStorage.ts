@@ -4,7 +4,7 @@ export interface Operador {
   id: string;
   nome: string;
   cracha: string;
-  funcao: 'Operador' | 'Motorista';
+  funcao: 'Operador' | 'Motorista' | 'Gestor';
   setor: string;
   createdAt: string;
 }
