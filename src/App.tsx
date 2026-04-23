@@ -50,18 +50,18 @@ function AppLayout() {
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-            <Route path="/nova-medicao" element={<ProtectedRoute allowedRoles={['master', 'gestor']}><NovaMedicao /></ProtectedRoute>} />
-            <Route path="/entrada-dados" element={<ProtectedRoute allowedRoles={['master', 'gestor']}><EntradaDados /></ProtectedRoute>} />
-            <Route path="/resultados" element={<ProtectedRoute allowedRoles={['master', 'gestor']}><Resultados /></ProtectedRoute>} />
-            <Route path="/historico" element={<ProtectedRoute allowedRoles={['master', 'gestor']}><Historico /></ProtectedRoute>} />
+            <Route path="/nova-medicao" element={<ProtectedRoute><NovaMedicao /></ProtectedRoute>} />
+            <Route path="/entrada-dados" element={<ProtectedRoute><EntradaDados /></ProtectedRoute>} />
+            <Route path="/resultados" element={<ProtectedRoute><Resultados /></ProtectedRoute>} />
+            <Route path="/historico" element={<ProtectedRoute><Historico /></ProtectedRoute>} />
             <Route path="/tabela-referencia" element={<ProtectedRoute><TabelaReferencia /></ProtectedRoute>} />
-            <Route path="/cadastro-produtos" element={<ProtectedRoute allowedRoles={['master', 'gestor']}><CadastroProdutos /></ProtectedRoute>} />
-            <Route path="/cadastros" element={<ProtectedRoute allowedRoles={['master', 'gestor']}><Cadastros /></ProtectedRoute>} />
-            <Route path="/calculadora-calda" element={<ProtectedRoute allowedRoles={['master', 'gestor']}><CalculadoraCalda /></ProtectedRoute>} />
-            <Route path="/aferir-vazao" element={<ProtectedRoute allowedRoles={['master', 'gestor']}><AferirVazao /></ProtectedRoute>} />
+            <Route path="/cadastro-produtos" element={<ProtectedRoute><CadastroProdutos /></ProtectedRoute>} />
+            <Route path="/cadastros" element={<ProtectedRoute><Cadastros /></ProtectedRoute>} />
+            <Route path="/calculadora-calda" element={<ProtectedRoute><CalculadoraCalda /></ProtectedRoute>} />
+            <Route path="/aferir-vazao" element={<ProtectedRoute><AferirVazao /></ProtectedRoute>} />
             <Route path="/ordem-servico" element={<ProtectedRoute><OrdemServico /></ProtectedRoute>} />
-            <Route path="/frotas" element={<ProtectedRoute allowedRoles={['master', 'gestor']}><Frotas /></ProtectedRoute>} />
-            <Route path="/acessos" element={<ProtectedRoute allowedRoles={['master']}><Acessos /></ProtectedRoute>} />
+            <Route path="/frotas" element={<ProtectedRoute><Frotas /></ProtectedRoute>} />
+            <Route path="/acessos" element={<ProtectedRoute><Acessos /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>

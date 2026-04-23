@@ -18,6 +18,8 @@ interface OSFormProps {
   setPropriedade: (v: string) => void;
   codigoArea: string;
   setCodigoArea: (v: string) => void;
+  osExterna: string;
+  setOsExterna: (v: string) => void;
   dataOS: string;
   setDataOS: (v: string) => void;
   responsavelTecnico: string;
@@ -56,6 +58,7 @@ const emptyTalhao = (): TalhaoData => ({
 
 export function OSForm({
   propriedade, setPropriedade,
+  osExterna, setOsExterna,
   codigoArea, setCodigoArea,
   dataOS, setDataOS,
   responsavelTecnico, setResponsavelTecnico,
@@ -197,6 +200,10 @@ export function OSForm({
           <div>
             <Label>Código da Área (Opcional)</Label>
             <Input value={codigoArea} onChange={(e) => setCodigoArea(e.target.value)} placeholder="Ex: A-01" />
+          </div>
+          <div>
+            <Label>Número OS externa (Opcional)</Label>
+            <Input value={osExterna} onChange={(e) => setOsExterna(e.target.value)} placeholder="Ex: 12345" />
           </div>
           <div>
             <Label>Data</Label>

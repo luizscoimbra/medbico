@@ -71,6 +71,7 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
         </div>
         <div className="text-right">
           <p className="text-lg font-bold font-mono">OS nº {os.id}</p>
+          {os.osExterna && <p className="text-sm font-semibold text-gray-700">OS Externa: {os.osExterna}</p>}
           <p className="text-sm text-gray-600">{new Date(os.data).toLocaleDateString("pt-BR")}</p>
         </div>
       </div>

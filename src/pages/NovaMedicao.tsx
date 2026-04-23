@@ -7,15 +7,8 @@ import { Label } from "@/components/ui/label";
 import { useMeasurement } from "@/context/MeasurementContext";
 import { ArrowRight, Tractor, Settings, Calendar, Hash, Search } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { getAllEquipments, Equipment as EquipmentOption } from "@/lib/equipmentStorage";
 
-interface EquipmentOption {
-  id: string;
-  equipment_model: string;
-  tractor_model: string;
-  fleet_number: string;
-  total_nozzles: number;
-}
 
 export default function NovaMedicao() {
   const navigate = useNavigate();
@@ -41,8 +34,8 @@ export default function NovaMedicao() {
 
   useEffect(() => {
     const fetchEquipments = async () => {
-      const { data } = await supabase.from("equipment").select("*").order("fleet_number");
-      if (data) setEquipments(data as EquipmentOption[]);
+      const data = await getAllEquipments();
+      setEquipments(data);
     };
     fetchEquipments();
   }, []);

@@ -55,14 +55,26 @@ export function Sidebar() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const p = await getUserProfile(user.id);
-        setProfile(p);
-      }
+    const fetchProfile = async (userId: string) => {
+      const p = await getUserProfile(userId);
+      setProfile(p);
     };
-    fetchProfile();
+
+    // Get initial user
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) fetchProfile(user.id);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      } else {
+        setProfile(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleLogout = async () => {
@@ -72,19 +84,8 @@ export function Sidebar() {
   };
 
   const filteredItems = navItems.filter(item => {
+    // Show all items if user is logged in (profile exists)
     if (!profile) return item.path === "/" || item.path === "/auth";
-    
-    // Operators/Drivers only see OS and ISO Table
-    if (profile.role === 'operador' || profile.role === 'motorista') {
-      return item.path === "/ordem-servico" || item.path === "/tabela-referencia" || item.path === "/";
-    }
-
-    // Gestor sees everything except Acessos
-    if (profile.role === 'gestor') {
-      return item.path !== "/acessos";
-    }
-
-    // Master sees everything
     return true;
   });
 

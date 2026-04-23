@@ -28,17 +28,15 @@ import {
   ArrowRight,
   RotateCcw,
   Search,
+  History,
 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { getAllEquipments, Equipment as EquipmentRecord } from "@/lib/equipmentStorage";
+import { getAllOperadores, Operador } from "@/lib/operatorStorage";
+import { saveAfericao, getAllAfericoes, deleteAfericao, AfericaoVazaoRecord } from "@/lib/vazaoStorage";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Trash2 as TrashIcon, Save } from "lucide-react";
 
-interface EquipmentRecord {
-  id: string;
-  fleet_number: string;
-  tractor_model: string | null;
-  equipment_model: string;
-  total_nozzles: number;
-}
 
 interface Measurement {
   nozzleNumber: number;
@@ -115,6 +113,8 @@ function getNozzleStatus(value: number, mediaReal: number) {
 
 export default function AferirVazao() {
   const [step, setStep] = useState<"config" | "coleta" | "resultado">("config");
+  const [historico, setHistorico] = useState<AfericaoVazaoRecord[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
   const [modeloTrator, setModeloTrator] = useState("");
@@ -132,20 +132,41 @@ export default function AferirVazao() {
   const [fleetNotFound, setFleetNotFound] = useState(false);
   const fleetInputRef = useRef<HTMLInputElement>(null);
   const fleetSuggestionsRef = useRef<HTMLDivElement>(null);
+  
+  // Operator search
+  const [operadoresList, setOperadoresList] = useState<Operador[]>([]);
+  const [showOperadorSuggestions, setShowOperadorSuggestions] = useState(false);
+  const operadorInputRef = useRef<HTMLInputElement>(null);
+  const operadorSuggestionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const fetchEquipments = async () => {
-      const { data } = await supabase.from("equipment").select("id, fleet_number, tractor_model, equipment_model, total_nozzles");
-      if (data) setEquipments(data as EquipmentRecord[]);
+    const fetchData = async () => {
+      const [eqs, ops, hist] = await Promise.all([
+        getAllEquipments(),
+        getAllOperadores(),
+        getAllAfericoes()
+      ]);
+      setEquipments(eqs);
+      setOperadoresList(ops);
+      setHistorico(hist);
     };
-    fetchEquipments();
+    fetchData();
   }, []);
+
+  const loadHistory = async () => {
+    const data = await getAllAfericoes();
+    setHistorico(data);
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (fleetSuggestionsRef.current && !fleetSuggestionsRef.current.contains(e.target as Node) &&
           fleetInputRef.current && !fleetInputRef.current.contains(e.target as Node)) {
         setShowFleetSuggestions(false);
+      }
+      if (operadorSuggestionsRef.current && !operadorSuggestionsRef.current.contains(e.target as Node) &&
+          operadorInputRef.current && !operadorInputRef.current.contains(e.target as Node)) {
+        setShowOperadorSuggestions(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -158,6 +179,13 @@ export default function AferirVazao() {
       eq.fleet_number.toLowerCase().includes(frota.toLowerCase())
     );
   }, [frota, equipments]);
+
+  const filteredOperadores = useMemo(() => {
+    if (!operador.trim()) return operadoresList;
+    return operadoresList.filter((op) =>
+      op.nome.toLowerCase().includes(operador.toLowerCase())
+    );
+  }, [operador, operadoresList]);
 
   const handleFrotaChange = (value: string) => {
     setFrota(value);
@@ -270,17 +298,128 @@ export default function AferirVazao() {
     toast.info("Formulário reiniciado");
   };
 
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+      const record: AfericaoVazaoRecord = {
+        id: crypto.randomUUID(),
+        dataHora: new Date().toISOString(),
+        modeloTrator,
+        frota,
+        tipoImplemento,
+        numeroBicos: nBicos,
+        localColeta,
+        operador,
+        turno,
+        taxaDesejada: T,
+        velocidade: V,
+        espacamento: E,
+        vazaoTeorica,
+        mediaReal,
+        desvioPercent,
+        statusGeral,
+        coletas: coletas.map(c => ({ nozzleNumber: c.nozzleNumber, value: c.value }))
+      };
+      
+      await saveAfericao(record);
+      toast.success("Aferição salva com sucesso!");
+      loadHistory();
+    } catch (error) {
+      toast.error("Erro ao salvar aferição");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteRecord = async (id: string) => {
+    if (!confirm("Deseja realmente excluir este registro?")) return;
+    await deleteAfericao(id);
+    toast.success("Registro excluído");
+    loadHistory();
+  };
+
   // Step 1: Configuration
   if (step === "config") {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-3xl mx-auto">
           <div className="mb-8 animate-fade-in">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-              <span className="px-2 py-1 rounded bg-primary/10 text-primary font-medium">
-                Etapa 1 de 3
-              </span>
-              <span>Configuração</span>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="px-2 py-1 rounded bg-primary/10 text-primary font-medium">
+                  Etapa 1 de 3
+                </span>
+                <span>Configuração</span>
+              </div>
+              
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <History className="h-4 w-4" />
+                    Histórico
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Histórico de Aferições</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    {historico.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8">Nenhum registro encontrado.</p>
+                    ) : (
+                      <div className="grid gap-4">
+                        {historico.map((rec) => (
+                          <Card key={rec.id} className="overflow-hidden">
+                            <CardContent className="p-4">
+                              <div className="flex justify-between items-start mb-2">
+                                <div>
+                                  <p className="font-bold text-lg">{rec.frota || "Sem Frota"}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {new Date(rec.dataHora).toLocaleString("pt-BR")}
+                                  </p>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="text-destructive hover:bg-destructive/10"
+                                    onClick={() => handleDeleteRecord(rec.id)}
+                                  >
+                                    <TrashIcon className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                <div>
+                                  <p className="text-muted-foreground">Trator</p>
+                                  <p className="font-medium">{rec.modeloTrator}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Desvio</p>
+                                  <p className={`font-bold ${
+                                    Math.abs(rec.desvioPercent) <= 5 ? "text-success" :
+                                    Math.abs(rec.desvioPercent) <= 10 ? "text-warning" : "text-destructive"
+                                  }`}>
+                                    {rec.desvioPercent.toFixed(2)}%
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Status</p>
+                                  <p className="font-medium uppercase">{rec.statusGeral}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Operador</p>
+                                  <p className="font-medium">{rec.operador || "-"}</p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
             <h1 className="text-3xl font-heading text-foreground mb-2">
               Aferir Vazão do Implemento
@@ -391,16 +530,47 @@ export default function AferirVazao() {
                       onChange={(e) => setLocalColeta(e.target.value)}
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 relative">
                     <Label className="flex items-center gap-2">
                       <User className="h-4 w-4 text-muted-foreground" />
                       Operador
                     </Label>
                     <Input
+                      ref={operadorInputRef}
                       placeholder="Nome do operador"
                       value={operador}
-                      onChange={(e) => setOperador(e.target.value)}
+                      onChange={(e) => {
+                        setOperador(e.target.value);
+                        setShowOperadorSuggestions(true);
+                      }}
+                      onFocus={() => {
+                        if (operadoresList.length > 0) {
+                          setShowOperadorSuggestions(true);
+                        }
+                      }}
+                      autoComplete="off"
                     />
+                    {showOperadorSuggestions && filteredOperadores.length > 0 && (
+                      <div
+                        ref={operadorSuggestionsRef}
+                        className="absolute z-50 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-md border border-border bg-popover shadow-md"
+                      >
+                        {filteredOperadores.map((op) => (
+                          <button
+                            key={op.id}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
+                            onClick={() => {
+                              setOperador(op.nome);
+                              setShowOperadorSuggestions(false);
+                            }}
+                          >
+                            <span className="font-medium">{op.nome}</span>
+                            <span className="text-xs text-muted-foreground">{op.funcao}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">
@@ -610,6 +780,10 @@ export default function AferirVazao() {
             </h1>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleSave} disabled={isSaving}>
+              <Save className="h-4 w-4" />
+              {isSaving ? "Salvando..." : "Salvar"}
+            </Button>
             <Button variant="outline" size="sm" onClick={handleReset}>
               <RotateCcw className="h-4 w-4" />
               Nova Aferição

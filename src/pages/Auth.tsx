@@ -55,8 +55,7 @@ export default function Auth() {
       }
       
       toast.success("Login realizado com sucesso!");
-      const target = profile?.role === 'operador' || profile?.role === 'motorista' ? "/ordem-servico" : "/cadastros";
-      navigate(target);
+      navigate("/cadastros");
     }
     setLoading(false);
   };

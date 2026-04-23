@@ -62,10 +62,6 @@ export default function Acessos() {
     } else {
       setProfiles(data as UserProfile[]);
     }
-    setLoading(true);
-    
-    // Also fetch emails from auth.users if possible (usually restricted, we might need a workaround or just rely on profiles)
-    // For now, let's assume we store email in profile for convenience or just show ID
     setLoading(false);
   };
 
@@ -128,31 +124,37 @@ export default function Acessos() {
   };
 
   const handleUpdateStatus = async (userId: string, status: UserStatus) => {
+    setLoading(true);
     const { error } = await supabase
       .from('profiles')
       .update({ status })
       .eq('id', userId);
 
     if (error) {
-      toast.error("Erro ao atualizar status");
+      console.error("Erro ao atualizar status:", error);
+      toast.error(`Erro ao atualizar status: ${error.message}`);
     } else {
       toast.success(status === 'active' ? "Usuário liberado!" : "Usuário bloqueado!");
-      fetchProfiles();
+      await fetchProfiles();
     }
+    setLoading(false);
   };
 
   const handleUpdateRole = async (userId: string, role: UserRole) => {
+    setLoading(true);
     const { error } = await supabase
       .from('profiles')
       .update({ role })
       .eq('id', userId);
 
     if (error) {
-      toast.error("Erro ao atualizar função");
+      console.error("Erro ao atualizar função:", error);
+      toast.error(`Erro ao atualizar função: ${error.message}`);
     } else {
       toast.success("Função atualizada!");
-      fetchProfiles();
+      await fetchProfiles();
     }
+    setLoading(false);
   };
 
   const handleDeleteUser = async (userId: string) => {
@@ -297,7 +299,7 @@ export default function Acessos() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Select defaultValue={p.role} onValueChange={(v: UserRole) => handleUpdateRole(p.id, v)}>
+                    <Select value={p.role} onValueChange={(v: UserRole) => handleUpdateRole(p.id, v)} disabled={loading}>
                       <SelectTrigger className="h-8 text-xs border-none bg-primary/5 hover:bg-primary/10 transition-colors">
                         <SelectValue />
                       </SelectTrigger>

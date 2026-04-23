@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { OSForm } from "@/components/os/OSForm";
@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { Link } from "react-router-dom";
+import { getAllEquipments, Equipment } from "@/lib/equipmentStorage";
 
 type View = "form" | "preview" | "history" | "apontamento" | "apontamento-preview";
 
@@ -20,9 +21,11 @@ export default function OrdemServico() {
   const [historico, setHistorico] = useState<OSType[]>([]);
   const printRef = useRef<HTMLDivElement>(null);
   const apontamentoRef = useRef<HTMLDivElement>(null);
+  const [equipments, setEquipments] = useState<Equipment[]>([]);
 
   // Form state
   const [propriedade, setPropriedade] = useState("");
+  const [osExterna, setOsExterna] = useState("");
   const [codigoArea, setCodigoArea] = useState("");
   const [dataOS, setDataOS] = useState(new Date().toISOString().slice(0, 10));
   const [responsavelTecnico, setResponsavelTecnico] = useState("");
@@ -34,6 +37,10 @@ export default function OrdemServico() {
     { nome: "", area: "", produtos: [{ produto: "", dose: "" }], testemunho: false, testemunhoArea: "", testeProduto: false, produtoTeste: "", produtoTesteQtd: "" },
   ]);
 
+  useEffect(() => {
+    getAllEquipments().then(setEquipments);
+  }, []);
+
   const handleGenerate = async () => {
     if (!propriedade.trim()) {
       toast.error("Informe o nome da propriedade");
@@ -42,6 +49,7 @@ export default function OrdemServico() {
     const id = await generateOSId();
     const os: OSType = {
       id,
+      osExterna: osExterna || undefined,
       data: dataOS,
       propriedade,
       codigoArea,
@@ -131,6 +139,7 @@ export default function OrdemServico() {
 
   const resetForm = () => {
     setPropriedade("");
+    setOsExterna("");
     setCodigoArea("");
     setDataOS(new Date().toISOString().slice(0, 10));
     setResponsavelTecnico("");
@@ -181,6 +190,7 @@ export default function OrdemServico() {
       {view === "form" && (
         <OSForm
           propriedade={propriedade} setPropriedade={setPropriedade}
+          osExterna={osExterna} setOsExterna={setOsExterna}
           codigoArea={codigoArea} setCodigoArea={setCodigoArea}
           dataOS={dataOS} setDataOS={setDataOS}
           responsavelTecnico={responsavelTecnico} setResponsavelTecnico={setResponsavelTecnico}
@@ -228,7 +238,7 @@ export default function OrdemServico() {
               <ArrowLeft className="h-4 w-4 mr-1" /> Voltar ao Apontamento
             </Button>
           </div>
-          <OSApontamentoPreview ref={apontamentoRef} os={currentOS} />
+          <OSApontamentoPreview ref={apontamentoRef} os={currentOS} equipments={equipments} />
         </div>
       )}
 

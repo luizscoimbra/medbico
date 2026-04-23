@@ -1,90 +1,114 @@
-import { forwardRef } from "react";
+import { forwardRef, useState, useEffect, useMemo } from "react";
 import type { OrdemServico } from "@/lib/osStorage";
 import { MOTIVO_PARADA_LABELS } from "@/lib/osStorage";
+import { getAllEquipments, Equipment } from "@/lib/equipmentStorage";
 
 interface Props {
   os: OrdemServico;
+  equipments?: Equipment[];
 }
 
-export const OSApontamentoPreview = forwardRef<HTMLDivElement, Props>(({ os }, ref) => {
+export const OSApontamentoPreview = forwardRef<HTMLDivElement, Props>(({ os, equipments: propsEquipments }, ref) => {
+  const [internalEquipments, setInternalEquipments] = useState<Equipment[]>([]);
   const volumeCaldaHa = parseFloat(os.volumeCaldaHa || "0") || 0;
   const apontamentos = os.apontamentos || [];
 
-  const enrichedApontamentos = apontamentos.map((ap, apIdx) => {
-    const t = os.talhoes[ap.talhaoIndex];
-    const areaPlanejada = parseFloat(t.area) || 0;
-    const areaAplicada = parseFloat(ap.areaAplicada || "0") || 0;
-    const caldaRestante = parseFloat(ap.caldaRestante || "0") || 0;
-    
-    const produtosCalc = t.testemunho
-      ? []
-      : t.produtos.map((p) => {
-          const dose = parseFloat(p.dose) || 0;
-          const concentracao = volumeCaldaHa > 0 ? dose / volumeCaldaHa : 0;
-          const produtoRestante = caldaRestante * concentracao;
-          const totalPlanejado = dose * areaPlanejada;
-          return {
-            produto: p.produto,
-            dose,
-            unit: p.unit || "L",
-            packageSize: p.packageSize || 0,
-            totalPlanejado,
-            produtoRestante,
-          };
-        });
+  useEffect(() => {
+    if (!propsEquipments) {
+      getAllEquipments().then(setInternalEquipments);
+    }
+  }, [propsEquipments]);
 
-    return {
-      nome: t.nome || `T-${ap.talhaoIndex + 1}`,
-      areaPlanejada,
-      areaAplicada,
-      caldaRestante,
-      observacoes: ap.observacoes || "",
-      dataApontamento: ap.dataApontamento || "",
-      horaRegistro: ap.horaRegistro || "",
-      produtosCalc,
-      testemunho: t.testemunho,
-      tratorFrota: ap.tratorFrota || "Não Informado",
-      aplicador: ap.aplicador || "Não Informado",
-      bombasCheias: parseInt(ap.bombasCheias || "0", 10) || 0,
-      cargaParcial: parseFloat(ap.cargaParcial || "0") || 0,
-      statusRegistro: ap.statusRegistro,
-      motivoParada: ap.motivoParada,
-      motivoParadaDetalhe: ap.motivoParadaDetalhe,
-      registroAnteriorIdx: ap.registroAnteriorIdx,
-      equipamentoOrigem: ap.equipamentoOrigem,
-    };
-  });
+  const equipments = propsEquipments || internalEquipments;
 
-  const calculos = enrichedApontamentos;
+  const enrichedApontamentos = useMemo(() => {
+    return apontamentos.map((ap) => {
+      const t = os.talhoes[ap.talhaoIndex];
+      const areaPlanejada = parseFloat(t.area) || 0;
+      const areaAplicada = parseFloat(ap.areaAplicada || "0") || 0;
+      const caldaRestante = parseFloat(ap.caldaRestante || "0") || 0;
+      
+      const produtosCalc = t.testemunho
+        ? []
+        : t.produtos.map((p) => {
+            const dose = parseFloat(p.dose) || 0;
+            const concentracao = volumeCaldaHa > 0 ? dose / volumeCaldaHa : 0;
+            const produtoRestante = caldaRestante * concentracao;
+            const totalPlanejado = dose * areaPlanejada;
+            return {
+              produto: p.produto,
+              dose,
+              unit: p.unit || "L",
+              packageSize: p.packageSize || 0,
+              totalPlanejado,
+              produtoRestante,
+            };
+          });
+
+      return {
+        nome: t.nome || `T-${ap.talhaoIndex + 1}`,
+        areaPlanejada,
+        areaAplicada,
+        caldaRestante,
+        observacoes: ap.observacoes || "",
+        dataApontamento: ap.dataApontamento || "",
+        horaRegistro: ap.horaRegistro || "",
+        produtosCalc,
+        testemunho: t.testemunho,
+        tratorFrota: ap.tratorFrota || "Não Informado",
+        aplicador: ap.aplicador || "Não Informado",
+        bombasCheias: parseInt(ap.bombasCheias || "0", 10) || 0,
+        cargaParcial: parseFloat(ap.cargaParcial || "0") || 0,
+        statusRegistro: ap.statusRegistro,
+        motivoParada: ap.motivoParada,
+        motivoParadaDetalhe: ap.motivoParadaDetalhe,
+        registroAnteriorIdx: ap.registroAnteriorIdx,
+        equipamentoOrigem: ap.equipamentoOrigem,
+      };
+    });
+  }, [apontamentos, os.talhoes, volumeCaldaHa]);
 
   // Agrupar apontamentos por trator
-  const agrupadoPorTrator = Array.from(
-    calculos.reduce((acc, c) => {
-      const key = c.tratorFrota;
-      if (!acc.has(key)) acc.set(key, { aplicador: c.aplicador, talhoes: [], bombasCheias: 0, cargaParcial: 0, caldaRestante: 0, produtoMap: new Map() });
-      const group = acc.get(key)!;
-      group.talhoes.push(c);
-      group.bombasCheias += c.bombasCheias;
-      group.cargaParcial += c.cargaParcial;
-      group.caldaRestante += c.caldaRestante;
-      if (c.aplicador !== "Não Informado" && group.aplicador === "Não Informado") group.aplicador = c.aplicador;
-      
-      c.produtosCalc.forEach((pc) => {
-        const pMap = group.produtoMap;
-        const existing = pMap.get(pc.produto);
-        if (existing) {
-          existing.totalAplicado += (pc.dose * c.areaAplicada);
-        } else {
-          pMap.set(pc.produto, { 
-            unit: pc.unit, 
-            packageSize: pc.packageSize,
-            totalAplicado: (pc.dose * c.areaAplicada) 
-          });
-        }
-      });
-      return acc;
-    }, new Map<string, { aplicador: string; talhoes: typeof calculos; bombasCheias: number; cargaParcial: number; caldaRestante: number; produtoMap: Map<string, { unit: string; packageSize: number; totalAplicado: number }> }>())
-  );
+  const agrupadoPorTrator = useMemo(() => {
+    return Array.from(
+      enrichedApontamentos.reduce((acc, c) => {
+        const key = c.tratorFrota;
+        if (!acc.has(key)) acc.set(key, { aplicador: c.aplicador, talhoes: [], bombasCheias: 0, cargaParcial: 0, caldaRestante: 0, produtoMap: new Map() });
+        const group = acc.get(key)!;
+        group.talhoes.push(c);
+        group.bombasCheias += c.bombasCheias;
+        group.cargaParcial += c.cargaParcial;
+        group.caldaRestante += c.caldaRestante;
+        if (c.aplicador !== "Não Informado" && group.aplicador === "Não Informado") group.aplicador = c.aplicador;
+        
+        // Novo cálculo baseado na mistura (bombas cheias + parcial)
+        const equipment = equipments.find(e => e.fleet_number === c.tratorFrota);
+        const tankCapacity = equipment?.tank_capacity || 0;
+        
+        // Hectares equivalentes ao volume NOVO misturado neste registro
+        const hectaresMixed = volumeCaldaHa > 0 
+          ? ((c.bombasCheias * tankCapacity) + c.cargaParcial) / volumeCaldaHa 
+          : 0;
+
+        c.produtosCalc.forEach((pc) => {
+          const pMap = group.produtoMap;
+          const existing = pMap.get(pc.produto);
+          const amountMixed = pc.dose * hectaresMixed;
+
+          if (existing) {
+            existing.totalAplicado += amountMixed;
+          } else {
+            pMap.set(pc.produto, { 
+              unit: pc.unit, 
+              packageSize: pc.packageSize,
+              totalAplicado: amountMixed 
+            });
+          }
+        });
+        return acc;
+      }, new Map<string, { aplicador: string; talhoes: typeof enrichedApontamentos; bombasCheias: number; cargaParcial: number; caldaRestante: number; produtoMap: Map<string, { unit: string; packageSize: number; totalAplicado: number }> }>())
+    );
+  }, [enrichedApontamentos, equipments, volumeCaldaHa]);
 
   const statusLabel = os.status === "concluida" ? "CONCLUÍDA" : os.status === "em_andamento" ? "EM ANDAMENTO" : "ABERTA";
   const statusColor = os.status === "concluida" ? "bg-green-100 text-green-800" : os.status === "em_andamento" ? "bg-yellow-100 text-yellow-800" : "bg-gray-100 text-gray-800";
@@ -92,12 +116,33 @@ export const OSApontamentoPreview = forwardRef<HTMLDivElement, Props>(({ os }, r
   return (
     <div ref={ref} className="bg-white text-black p-8 max-w-[210mm] mx-auto print-area" id="apontamento-print">
       {/* Header */}
+      <style>{`
+        @media print {
+          .print-area {
+            width: 100% !important;
+            max-width: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          .break-inside-avoid {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+          #apontamento-print {
+             max-width: none !important;
+             width: 100% !important;
+             padding: 5mm !important;
+          }
+        }
+      `}</style>
+
       <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
         <div className="flex items-center">
           <img src="/herbilog_logo.png" alt="HerbiLog" className="h-12 w-auto object-contain" />
         </div>
         <div className="text-right">
           <p className="text-lg font-bold font-mono">OS nº {os.id}</p>
+          {os.osExterna && <p className="text-sm font-semibold text-gray-700">OS Externa: {os.osExterna}</p>}
           <span className={`inline-block text-xs font-semibold px-2 py-1 rounded ${statusColor}`}>{statusLabel}</span>
         </div>
       </div>
@@ -124,7 +169,7 @@ export const OSApontamentoPreview = forwardRef<HTMLDivElement, Props>(({ os }, r
         const uniqueTalhoes = new Set(dados.talhoes.map(t => t.nome)).size;
 
         return (
-          <div key={idx} className="mb-8 border border-gray-300 rounded overflow-hidden" style={{ breakInside: "avoid" }}>
+          <div key={idx} className="mb-8 border border-gray-300 rounded overflow-hidden break-inside-avoid" style={{ breakInside: "avoid" }}>
             <div className="bg-gray-100 p-3 border-b border-gray-300 flex justify-between items-center">
               <div>
                 <h2 className="text-sm font-bold uppercase text-gray-800">Trator/Frota: {trator}</h2>
@@ -195,32 +240,64 @@ export const OSApontamentoPreview = forwardRef<HTMLDivElement, Props>(({ os }, r
 
               {dados.produtoMap.size > 0 && (
                 <div className="px-3 pb-3 border-t border-gray-100 pt-3">
-                  <p className="text-xs font-bold text-gray-700 uppercase mb-3 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 bg-primary rounded-full" />
-                    Resumo de Insumos (Trator {trator})
-                  </p>
-                  <div className="flex flex-col gap-2 bg-gray-50/80 rounded p-3 border border-gray-200">
-                    {Array.from(dados.produtoMap.entries()).map(([nome, val], pIdx) => {
-                      const packages = val.packageSize > 0 ? val.totalAplicado / val.packageSize : 0;
-                      const packageLabel = val.unit === "KG" ? "Pacotes" : "Galões";
-                      
-                      return (
-                        <div key={pIdx} className="grid grid-cols-2 gap-4 border-b border-gray-200/50 pb-2 last:border-0 last:pb-0">
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-gray-800">{nome}</span>
-                            <span className="text-[10px] text-gray-500 uppercase tracking-tight">Utilizado nesta aplicação</span>
+                  <div className="break-inside-avoid">
+                    <p className="text-xs font-bold text-gray-700 uppercase mb-3 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-primary rounded-full" />
+                      Resumo de Insumos (Trator {trator})
+                    </p>
+                    <div className="flex flex-col gap-2 bg-gray-50/80 rounded p-3 border border-gray-200 mb-4">
+                      {Array.from(dados.produtoMap.entries()).map(([nome, val], pIdx) => {
+                        const packages = val.packageSize > 0 ? val.totalAplicado / val.packageSize : 0;
+                        const packageLabel = val.unit === "KG" ? "Pacotes" : "Galões";
+                        
+                        return (
+                          <div key={pIdx} className="grid grid-cols-2 gap-4 border-b border-gray-200/50 pb-2 last:border-0 last:pb-0">
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-gray-800">{nome}</span>
+                              <span className="text-[10px] text-gray-500 uppercase tracking-tight">Utilizado nesta aplicação</span>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xl font-black text-primary">{val.totalAplicado.toFixed(1)} {val.unit}</div>
+                              {packages > 0 && (
+                                <div className="text-[11px] font-medium text-amber-700 flex items-center justify-end gap-1">
+                                  📦 {packages.toFixed(2)} {packageLabel} <span className="text-[9px] text-gray-400 font-normal">({val.packageSize}{val.unit}/un)</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-base font-bold text-primary">{val.totalAplicado.toFixed(2)} {val.unit}</div>
-                            {packages > 0 && (
-                              <div className="text-[11px] font-medium text-amber-700 flex items-center justify-end gap-1">
-                                📦 {packages.toFixed(2)} {packageLabel} <span className="text-[9px] text-gray-400 font-normal">({val.packageSize}{val.unit}/un)</span>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="break-inside-avoid">
+                    <p className="text-xs font-bold text-gray-700 uppercase mb-3 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
+                      Produtos Utilizados (Fechamento Embalagem)
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {Array.from(dados.produtoMap.entries()).map(([nome, val], pIdx) => {
+                        const totalPackages = val.packageSize > 0 ? Math.ceil(val.totalAplicado / val.packageSize) : 0;
+                        const packageLabel = val.unit === "KG" ? "Pacote(s)" : "Galão(ões)";
+                        
+                        return (
+                          <div key={`fechamento-${pIdx}`} className="bg-amber-50/50 border border-amber-200 rounded p-3 flex flex-col justify-center items-center text-center">
+                            <span className="text-[10px] text-amber-800 uppercase font-bold mb-1">{nome}</span>
+                            <div className="flex flex-col items-center">
+                              <div className="text-xl font-black text-amber-900 leading-tight">
+                                {val.totalAplicado.toFixed(1)} <span className="text-[10px] font-bold uppercase">{val.unit}</span>
                               </div>
-                            )}
+                              <div className="text-lg font-bold text-amber-700 leading-tight">
+                                {totalPackages} <span className="text-[10px] font-medium uppercase">{packageLabel}</span>
+                              </div>
+                            </div>
+                            <span className="text-[9px] text-amber-600/70 mt-1">
+                              (Embalagem: {val.packageSize}{val.unit})
+                            </span>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
@@ -230,7 +307,7 @@ export const OSApontamentoPreview = forwardRef<HTMLDivElement, Props>(({ os }, r
       })}
 
       {/* Assinaturas */}
-      <div className="grid grid-cols-1 gap-12 mt-16 max-w-sm mx-auto">
+      <div className="grid grid-cols-1 gap-12 mt-16 max-w-sm mx-auto break-inside-avoid">
         <div className="text-center">
           <div className="border-t border-black pt-2">
             <p className="text-sm font-medium">Responsável Técnico</p>

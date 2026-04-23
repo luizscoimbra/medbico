@@ -89,12 +89,24 @@ export default function Cadastros() {
 
   // Custom formulations
   const defaultFormulations = [
-    { value: "WP", label: "WP - Pó Molhável" },
-    { value: "WG", label: "WG - Grânulos Dispersíveis" },
-    { value: "SC", label: "SC - Suspensão Concentrada" },
-    { value: "EC", label: "EC - Concentrado Emulsionável" },
-    { value: "SL", label: "SL - Concentrado Solúvel" },
-    { value: "ADJ", label: "ADJ - Adjuvante / Óleo" },
+    { value: "CORRETIVO", label: "CORRETIVO — Adjuvante Corretivo (pH, quelatizante)" },
+    { value: "SG", label: "SG — Granulado Solúvel" },
+    { value: "SP", label: "SP — Pó Solúvel" },
+    { value: "WP", label: "WP — Pó Molhável" },
+    { value: "WG", label: "WG — Granulado Dispersível" },
+    { value: "CS", label: "CS — Suspensão de Encapsulado" },
+    { value: "SC", label: "SC — Suspensão Concentrada" },
+    { value: "OD", label: "OD — Dispersão de Óleo" },
+    { value: "SE", label: "SE — Suspo-Emulsão" },
+    { value: "EC", label: "EC — Concentrado Emulsionável" },
+    { value: "ADJ", label: "ADJ — Adjuvante em Óleo" },
+    { value: "EO", label: "EO — Emulsão de Água em Óleo" },
+    { value: "EW", label: "EW — Emulsão de Óleo em Água" },
+    { value: "ME", label: "ME — Microemulsão" },
+    { value: "SL", label: "SL — Concentrado Solúvel" },
+    { value: "SURFACTANTE", label: "SURFACTANTE — Adjuvante Surfactante (Espalhante)" },
+    { value: "FOLIARE", label: "FOLIARE — Fertilizante Foliar" },
+    { value: "REDUTOR", label: "REDUTOR — Adjuvante Redutor de Espuma" },
   ];
   const [customFormulations, setCustomFormulations] = useState<{ value: string; label: string }[]>(() => {
     const saved = localStorage.getItem("customFormulations");

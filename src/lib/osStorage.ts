@@ -51,6 +51,7 @@ export interface ApontamentoTalhao {
 
 export interface OrdemServico {
   id: string;
+  osExterna?: string;
   data: string;
   propriedade: string;
   codigoArea: string;

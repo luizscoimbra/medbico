@@ -11,7 +11,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { FlaskConical, Plus, Trash2, ListOrdered, Settings, Beaker, AlertTriangle, History, Search, Calendar, ChevronDown, ChevronUp, Printer, Droplets } from "lucide-react";
+import { FlaskConical, Plus, Trash2, ListOrdered, Settings, Beaker, AlertTriangle, History, Search, Calendar, ChevronDown, ChevronUp, Printer, Droplets, FileText, X, CheckCircle2, MapPin, Package } from "lucide-react";
+import { getAllOS, OrdemServico, TalhaoData } from "@/lib/osStorage";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 type FormulacaoConhecida = "WP" | "WG" | "SC" | "EC" | "SL" | "ADJ";
@@ -147,6 +150,71 @@ export default function CalculadoraCalda() {
   const inputRef = useRef<HTMLInputElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
 
+  // ── OS em aberto ──────────────────────────────────────────
+  const [ordens, setOrdens] = useState<OrdemServico[]>([]);
+  const [osSearch, setOsSearch] = useState("");
+  const [showOsSuggestions, setShowOsSuggestions] = useState(false);
+  const [selectedOS, setSelectedOS] = useState<OrdemServico | null>(null);
+  const [selectedTalhaoIdx, setSelectedTalhaoIdx] = useState<number | null>(null);
+  const osInputRef = useRef<HTMLInputElement>(null);
+  const osSuggestionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    getAllOS().then((all) => {
+      const abertas = all.filter((o) => !o.status || o.status === "aberta" || o.status === "em_andamento");
+      setOrdens(abertas);
+    });
+  }, []);
+
+  const filteredOS = useMemo(() => {
+    if (!osSearch.trim()) return ordens;
+    const s = osSearch.toLowerCase();
+    return ordens.filter((o) =>
+      o.id.toLowerCase().includes(s) ||
+      (o.osExterna || "").toLowerCase().includes(s) ||
+      (o.propriedade || "").toLowerCase().includes(s)
+    );
+  }, [osSearch, ordens]);
+
+  const handleSelectOS = (os: OrdemServico) => {
+    setSelectedOS(os);
+    setSelectedTalhaoIdx(null);
+    setOsSearch(os.osExterna ? `${os.id} — ${os.osExterna}` : os.id);
+    setShowOsSuggestions(false);
+    setMostrarResultado(false);
+  };
+
+  const handleSelectTalhao = (talhaoData: TalhaoData, idx: number) => {
+    setSelectedTalhaoIdx(idx);
+    setTalhao(talhaoData.nome);
+    setAreaTalhao(parseFloat(talhaoData.area) || 0);
+    // Preenche vazão do cabeçalho da OS, se disponível
+    if (selectedOS?.volumeCaldaHa) {
+      setVazaoTrabalho(parseFloat(selectedOS.volumeCaldaHa) || 0);
+    }
+    // Importa produtos do talhão
+    const produtosImportados: Produto[] = talhaoData.produtos.map((p) => ({
+      id: crypto.randomUUID(),
+      nome: p.produto,
+      formulacao: "SL",
+      dose: parseFloat(p.dose) || 0,
+      unidade: (p.unit === "KG" ? "kg/ha" : "L/ha") as "L/ha" | "kg/ha",
+    }));
+    setProdutos(produtosImportados);
+    setMostrarResultado(false);
+    toast.success(`Talhão "${talhaoData.nome}" carregado com ${produtosImportados.length} produto(s)!`);
+  };
+
+  const handleClearOS = () => {
+    setSelectedOS(null);
+    setSelectedTalhaoIdx(null);
+    setOsSearch("");
+    setTalhao("");
+    setAreaTalhao(0);
+    setProdutos([]);
+    setMostrarResultado(false);
+  };
+
   useEffect(() => {
     const fetchProducts = async () => {
       const { data } = await supabase.from("registered_products").select("id, commercial_name, formulation, unit, package_size");
@@ -160,6 +228,10 @@ export default function CalculadoraCalda() {
       if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node) &&
           inputRef.current && !inputRef.current.contains(e.target as Node)) {
         setShowSuggestions(false);
+      }
+      if (osSuggestionsRef.current && !osSuggestionsRef.current.contains(e.target as Node) &&
+          osInputRef.current && !osInputRef.current.contains(e.target as Node)) {
+        setShowOsSuggestions(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -307,83 +379,229 @@ export default function CalculadoraCalda() {
         </div>
       </div>
 
-      {/* Configuração do Tanque */}
-      <Card className="mb-6 print:hidden">
-        <CardHeader className="pb-4">
+      {/* ── Importar de OS em Aberto ── */}
+      <Card className="mb-6 print:hidden border-primary/30">
+        <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
-            <Settings className="h-5 w-5 text-primary" />
-            Configuração
+            <FileText className="h-5 w-5 text-primary" />
+            Importar de Ordem de Serviço
+            {ordens.length > 0 && (
+              <Badge variant="secondary" className="ml-auto text-xs">
+                {ordens.length} em aberto
+              </Badge>
+            )}
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="talhao">Talhão</Label>
-              <Input
-                id="talhao"
-                placeholder="Ex: T-01"
-                value={talhao}
-                onChange={(e) => setTalhao(e.target.value)}
-              />
+        <CardContent className="space-y-3">
+          {/* Busca OS */}
+          <div className="relative">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  ref={osInputRef}
+                  className="w-full pl-9 pr-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                  placeholder="Buscar OS por número, nº externo ou propriedade..."
+                  value={osSearch}
+                  onChange={(e) => {
+                    setOsSearch(e.target.value);
+                    setShowOsSuggestions(true);
+                    if (!e.target.value) { setSelectedOS(null); setSelectedTalhaoIdx(null); }
+                  }}
+                  onFocus={() => setShowOsSuggestions(true)}
+                  autoComplete="off"
+                />
+              </div>
+              {selectedOS && (
+                <button
+                  type="button"
+                  onClick={handleClearOS}
+                  className="px-3 py-2 rounded-md border border-border text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors text-sm flex items-center gap-1"
+                >
+                  <X className="h-4 w-4" />
+                  Limpar
+                </button>
+              )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="areaTalhao">Área (ha)</Label>
-              <Input
-                id="areaTalhao"
-                type="number"
-                min={0}
-                step={0.1}
-                placeholder="Ex: 50"
-                value={areaTalhao || ""}
-                onChange={(e) => setAreaTalhao(Number(e.target.value))}
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="vazao">Vazão (L/ha)</Label>
-              <Input
-                id="vazao"
-                type="number"
-                min={0}
-                step={1}
-                placeholder="Ex: 100"
-                value={vazaoTrabalho || ""}
-                onChange={(e) => setVazaoTrabalho(Number(e.target.value))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="tanque">Tanque (L)</Label>
-              <Input
-                id="tanque"
-                type="number"
-                min={0}
-                step={100}
-                placeholder="Ex: 2000"
-                value={capacidadeTanque || ""}
-                onChange={(e) => setCapacidadeTanque(Number(e.target.value))}
-              />
-            </div>
-          </div>
-          {areaPorTanque > 0 && (
-            <div className="rounded-lg bg-primary/10 p-4 text-sm text-primary space-y-2">
-              <p className="font-medium">
-                Cada tanque cobre <span className="font-mono font-bold">{areaPorTanque.toFixed(1)} ha</span>
+
+            {/* Dropdown de OS */}
+            {showOsSuggestions && filteredOS.length > 0 && !selectedOS && (
+              <div
+                ref={osSuggestionsRef}
+                className="absolute z-50 top-full left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-md border border-border bg-popover shadow-lg"
+              >
+                {filteredOS.map((os) => (
+                  <button
+                    key={os.id}
+                    type="button"
+                    className="w-full text-left px-4 py-3 text-sm hover:bg-accent hover:text-accent-foreground border-b border-border/50 last:border-0"
+                    onClick={() => handleSelectOS(os)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-medium font-mono">{os.id}</span>
+                        {os.osExterna && <span className="ml-2 text-xs text-muted-foreground">OS Ext: {os.osExterna}</span>}
+                      </div>
+                      <Badge variant="outline" className={`text-xs ${
+                        os.status === "em_andamento" ? "border-warning/50 text-warning" : "border-success/50 text-success"
+                      }`}>
+                        {os.status === "em_andamento" ? "Em andamento" : "Aberta"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{os.propriedade || "—"}</span>
+                      <span className="flex items-center gap-1"><Package className="h-3 w-3" />{os.talhoes?.length || 0} talhão(ões)</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {ordens.length === 0 && (
+              <p className="text-xs text-muted-foreground mt-2 text-center py-2">
+                Nenhuma OS em aberto encontrada. Crie uma OS no módulo de Ordens de Serviço.
               </p>
-              {volumeTotal > 0 && (
-                <div className="space-y-1 border-t border-primary/20 pt-2">
-                  <p className="font-medium">
-                    Volume total necessário: <span className="font-mono font-bold">{volumeTotal.toLocaleString("pt-BR")} L</span>
-                  </p>
-                  <p className="font-medium">
-                    👉 <span className="font-mono font-bold">{tanquesCheios}</span> tanque(s) cheio(s) de {capacidadeTanque.toLocaleString("pt-BR")} L
-                    {volumeRestante > 0 && (
-                      <> + <span className="font-mono font-bold">1 tanque parcial</span> com <span className="font-mono font-bold">{volumeRestante.toLocaleString("pt-BR")} L</span></>
+            )}
+          </div>
+
+          {/* OS selecionada → listar talhões */}
+          {selectedOS && (
+            <div className="space-y-2 animate-fade-in">
+              <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-primary" />
+                    <span className="font-medium text-sm">OS {selectedOS.id}</span>
+                    {selectedOS.osExterna && <span className="text-xs text-muted-foreground">• Ext: {selectedOS.osExterna}</span>}
+                  </div>
+                  <Badge variant="outline" className="text-xs border-primary/30 text-primary">
+                    {selectedOS.talhoes?.length || 0} talhão(ões)
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <MapPin className="h-3 w-3" />{selectedOS.propriedade || "—"}
+                  {selectedOS.volumeCaldaHa && <> · <Droplets className="h-3 w-3" />{selectedOS.volumeCaldaHa} L/ha</>}
+                </p>
+              </div>
+
+              <p className="text-xs font-medium text-muted-foreground px-1">Selecione o talhão para calcular:</p>
+              <div className="grid gap-2">
+                {(selectedOS.talhoes || []).map((t, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleSelectTalhao(t, idx)}
+                    className={`w-full text-left rounded-lg border p-3 transition-all hover:border-primary/50 hover:bg-primary/5 ${
+                      selectedTalhaoIdx === idx
+                        ? "border-primary bg-primary/10"
+                        : "border-border bg-muted/30"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-sm">{t.nome || `Talhão ${idx + 1}`}</p>
+                        <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
+                          <span>{t.area || "—"} ha</span>
+                          {t.produtos?.length > 0 && (
+                            <span>{t.produtos.length} produto(s)</span>
+                          )}
+                          {t.testemunho && <span className="text-warning">Testemunho</span>}
+                        </div>
+                      </div>
+                      {selectedTalhaoIdx === idx && (
+                        <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
+                      )}
+                    </div>
+                    {t.produtos?.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {t.produtos.slice(0, 4).map((p, pi) => (
+                          <span key={pi} className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-mono">
+                            {p.produto}
+                          </span>
+                        ))}
+                        {t.produtos.length > 4 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">+{t.produtos.length - 4}</span>
+                        )}
+                      </div>
                     )}
-                  </p>
-                  <p className="text-xs text-primary/70">
-                    Total: <span className="font-mono">{tanquesNecessarios} abastecimento(s)</span>
-                  </p>
+                  </button>
+                ))}
+              </div>
+
+              {/* Campos de vazão + tanque + botão Calcular — aparecem após talhão selecionado */}
+              {selectedTalhaoIdx !== null && (
+                <div className="space-y-3 pt-2 border-t border-border animate-fade-in">
+                  <p className="text-xs font-medium text-muted-foreground">Parâmetros do equipamento:</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="vazao-os" className="text-xs">Vazão de trabalho (L/ha)</Label>
+                      <Input
+                        id="vazao-os"
+                        type="number"
+                        min={0}
+                        step={1}
+                        placeholder="Ex: 100"
+                        value={vazaoTrabalho || ""}
+                        onChange={(e) => setVazaoTrabalho(Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="tanque-os" className="text-xs">Capacidade do tanque (L)</Label>
+                      <Input
+                        id="tanque-os"
+                        type="number"
+                        min={0}
+                        step={100}
+                        placeholder="Ex: 2000"
+                        value={capacidadeTanque || ""}
+                        onChange={(e) => setCapacidadeTanque(Number(e.target.value))}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Prévia de volumes */}
+                  {areaPorTanque > 0 && volumeTotal > 0 && (
+                    <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 text-xs text-primary space-y-0.5">
+                      <p className="font-medium">📋 Cada tanque cobre <span className="font-mono font-bold">{areaPorTanque.toFixed(1)} ha</span></p>
+                      <p className="font-medium">Volume total: <span className="font-mono font-bold">{volumeTotal.toLocaleString("pt-BR")} L</span></p>
+                      <p>
+                        👉 <span className="font-mono font-bold">{tanquesCheios}</span> tanque(s) cheio(s)
+                        {volumeRestante > 0 && <> + <span className="font-mono font-bold">1 parcial</span> de <span className="font-mono font-bold">{volumeRestante.toLocaleString("pt-BR")} L</span></>}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Lista de produtos importados */}
+                  {produtos.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground">Produtos da OS ({produtos.length}):</p>
+                      <div className="space-y-1 max-h-40 overflow-y-auto">
+                        {produtos.map((p) => (
+                          <div key={p.id} className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-1.5 text-sm">
+                            <div className="min-w-0 flex-1">
+                              <span className="font-medium text-foreground">{p.nome}</span>
+                              <span className="ml-2 text-xs rounded-full px-1.5 py-0.5 bg-primary/10 text-primary font-mono">{p.formulacao}</span>
+                              <span className="ml-2 text-xs text-muted-foreground">{p.dose} {p.unidade}</span>
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => handleRemoverProduto(p.id)}>
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={handleCalcular}
+                    disabled={!podeCalcular}
+                    variant="hero"
+                    className="w-full"
+                    size="lg"
+                  >
+                    <ListOrdered className="h-5 w-5" />
+                    Calcular Ordem de Mistura
+                  </Button>
                 </div>
               )}
             </div>
@@ -391,155 +609,8 @@ export default function CalculadoraCalda() {
         </CardContent>
       </Card>
 
-      {/* Adicionar Produtos */}
-      <Card className="mb-6 print:hidden">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Beaker className="h-5 w-5 text-primary" />
-            Adicionar Produto
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2 relative">
-            <Label htmlFor="nomeP">Nome Comercial</Label>
-            <Input
-              ref={inputRef}
-              id="nomeP"
-              placeholder="Digite para buscar ou cadastrar"
-              value={novoNome}
-              onChange={(e) => handleNomeChange(e.target.value)}
-              onFocus={() => {
-                if (novoNome.trim().length > 0) {
-                  const filtered = produtosCadastrados.filter((p) =>
-                    p.commercial_name.toLowerCase().includes(novoNome.toLowerCase())
-                  );
-                  setFilteredSuggestions(filtered);
-                  setShowSuggestions(true);
-                } else if (produtosCadastrados.length > 0) {
-                  setFilteredSuggestions(produtosCadastrados);
-                  setShowSuggestions(true);
-                }
-              }}
-              autoComplete="off"
-            />
-            {showSuggestions && filteredSuggestions.length > 0 && (
-              <div
-                ref={suggestionsRef}
-                className="absolute z-50 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-md border border-border bg-popover shadow-md"
-              >
-                {filteredSuggestions.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
-                    onClick={() => handleSelectProduct(p)}
-                  >
-                    <span className="font-medium">{p.commercial_name}</span>
-                    <span className="text-xs text-muted-foreground">{p.formulation}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-2">
-              <Label>Formulação</Label>
-              <Select value={novaFormulacao} onValueChange={(v) => handleFormulacaoChange(v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {FORMULACAO_OPTIONS.map(([key, info]) => (
-                    <SelectItem key={key} value={key}>
-                      {key} — {info.descricao}
-                    </SelectItem>
-                  ))}
-                  {novaFormulacao && !ORDEM_FORMULACAO[novaFormulacao] && (
-                    <SelectItem value={novaFormulacao}>
-                      {novaFormulacao}
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="doseP">Dose</Label>
-              <Input
-                id="doseP"
-                type="number"
-                min={0}
-                step={0.1}
-                placeholder="0"
-                value={novaDose || ""}
-                onChange={(e) => setNovaDose(Number(e.target.value))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Unidade</Label>
-              <Select value={novaUnidade} onValueChange={(v) => setNovaUnidade(v as "L/ha" | "kg/ha")}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="L/ha">L/ha</SelectItem>
-                  <SelectItem value="kg/ha">kg/ha</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <Button onClick={handleAdicionarProduto} disabled={!novoNome.trim() || novaDose <= 0} className="w-full">
-            <Plus className="h-4 w-4" />
-            Adicionar à Lista
-          </Button>
-        </CardContent>
-      </Card>
 
-      {/* Lista de Produtos */}
-      {produtos.length > 0 && (
-        <Card className="mb-6 print:hidden">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg">Produtos Adicionados ({produtos.length})</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {produtos.map((p) => (
-              <div
-                key={p.id}
-                className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-4 py-3"
-              >
-                <div className="min-w-0 flex-1">
-                  <span className="font-medium text-foreground">{p.nome}</span>
-                  <span className="ml-2 text-xs rounded-full px-2 py-0.5 bg-primary/10 text-primary font-mono">
-                    {p.formulacao}
-                  </span>
-                  <span className="ml-2 text-sm text-muted-foreground">
-                    {p.dose} {p.unidade}
-                  </span>
-                  {p.packageSize && (
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      (Emb: {p.packageSize} {p.packageUnit === "KG" ? "kg" : "L"})
-                    </span>
-                  )}
-                </div>
-                <Button variant="ghost" size="icon" onClick={() => handleRemoverProduto(p.id)}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            ))}
 
-            <Separator className="my-4" />
-
-            <Button
-              onClick={handleCalcular}
-              disabled={!podeCalcular}
-              variant="hero"
-              className="w-full"
-            >
-              <ListOrdered className="h-5 w-5" />
-              Calcular Ordem de Mistura
-            </Button>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Resultado / Relatório */}
       {mostrarResultado && podeCalcular && (

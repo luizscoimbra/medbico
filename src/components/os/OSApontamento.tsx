@@ -321,7 +321,15 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
             <Button variant="outline" size="sm" onClick={handleSave} className="h-9">
               <Save className="h-4 w-4 mr-2" /> Salvar
             </Button>
-            <Button variant="outline" size="sm" onClick={onViewReport} className="h-9">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={async () => {
+                await handleSave();
+                onViewReport();
+              }} 
+              className="h-9"
+            >
               <Eye className="h-4 w-4 mr-2" /> Relatório
             </Button>
             <Button 
