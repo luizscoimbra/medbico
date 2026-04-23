@@ -22,7 +22,6 @@ export type Database = {
           id: string
           total_nozzles: number
           tractor_model: string | null
-          tank_capacity: number
           updated_at: string
           user_id: string
         }
@@ -33,7 +32,6 @@ export type Database = {
           id?: string
           total_nozzles: number
           tractor_model?: string | null
-          tank_capacity?: number
           updated_at?: string
           user_id: string
         }
@@ -44,7 +42,6 @@ export type Database = {
           id?: string
           total_nozzles?: number
           tractor_model?: string | null
-          tank_capacity?: number
           updated_at?: string
           user_id?: string
         }

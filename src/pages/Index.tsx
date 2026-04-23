@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
+import { useMeasurement } from "@/context/MeasurementContext";
 import {
   Plus,
   FlaskConical,
@@ -70,34 +71,52 @@ const menuItems = [
   },
 ];
 
-const statCards = [
-  {
-    icon: Gauge,
-    label: "Avaliações",
-    value: "—",
-    subtitle: "precisão ISO",
-    color: "text-emerald-500",
-    bgColor: "bg-emerald-500/10",
-  },
-  {
-    icon: Droplets,
-    label: "Bicos analisados",
-    value: "—",
-    subtitle: "total acumulado",
-    color: "text-blue-500",
-    bgColor: "bg-blue-500/10",
-  },
-  {
-    icon: TrendingUp,
-    label: "Economia estimada",
-    value: "—",
-    subtitle: "em defensivos",
-    color: "text-amber-500",
-    bgColor: "bg-amber-500/10",
-  },
-];
-
 export default function Index() {
+  const { savedMeasurements } = useMeasurement();
+
+  const totalAvaliacoes = savedMeasurements.length;
+  const totalBicos = savedMeasurements.reduce(
+    (total, measurement) => total + (measurement.readings?.length || measurement.totalNozzles || 0),
+    0
+  );
+  const bicosComProblema = savedMeasurements.reduce(
+    (total, measurement) =>
+      total + (measurement.readings?.filter((reading) => reading.status !== "ok").length || 0),
+    0
+  );
+  const economiaEstimativa = bicosComProblema * 35;
+
+  const statCards = [
+    {
+      icon: Gauge,
+      label: "Avaliações",
+      value: totalAvaliacoes.toLocaleString("pt-BR"),
+      subtitle: "precisão ISO",
+      color: "text-emerald-500",
+      bgColor: "bg-emerald-500/10",
+    },
+    {
+      icon: Droplets,
+      label: "Bicos analisados",
+      value: totalBicos.toLocaleString("pt-BR"),
+      subtitle: "total acumulado",
+      color: "text-blue-500",
+      bgColor: "bg-blue-500/10",
+    },
+    {
+      icon: TrendingUp,
+      label: "Economia estimada",
+      value: economiaEstimativa.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+        maximumFractionDigits: 0,
+      }),
+      subtitle: "com bicos corrigidos",
+      color: "text-amber-500",
+      bgColor: "bg-amber-500/10",
+    },
+  ];
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Welcome Banner */}
