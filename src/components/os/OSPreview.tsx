@@ -124,6 +124,18 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
             </div>
           </div>
         )}
+        {os.equipamentos && os.equipamentos.length > 0 && (
+          <div className="border border-gray-300 rounded p-3 col-span-2">
+            <p className="text-xs text-gray-500 uppercase font-semibold">Equipamentos Vinculados</p>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {os.equipamentos.map((eq, idx) => (
+                <span key={idx} className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded border border-gray-200 font-medium">
+                  {eq}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tabela de Talhões */}

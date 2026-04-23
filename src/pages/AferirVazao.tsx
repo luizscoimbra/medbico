@@ -11,6 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 import {
   Gauge,
   Settings,
@@ -26,16 +28,19 @@ import {
   AlertTriangle,
   XCircle,
   ArrowRight,
+  Plus,
   RotateCcw,
   Search,
   History,
+  Calendar,
+  Beaker,
 } from "lucide-react";
 import { toast } from "sonner";
 import { getAllEquipments, Equipment as EquipmentRecord } from "@/lib/equipmentStorage";
 import { getAllOperadores, Operador } from "@/lib/operatorStorage";
 import { saveAfericao, getAllAfericoes, deleteAfericao, AfericaoVazaoRecord } from "@/lib/vazaoStorage";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Trash2 as TrashIcon, Save } from "lucide-react";
+import { Trash2 as TrashIcon, Save, Share2 } from "lucide-react";
 
 
 interface Measurement {
@@ -101,6 +106,8 @@ function getStatusConfig(status: CalibrationStatus) {
       return { label: "Ajustar Pressão", icon: AlertTriangle, className: "bg-warning/10 text-warning border-warning/30" };
     case "trocar":
       return { label: "Trocar Pontas", icon: XCircle, className: "bg-destructive/10 text-destructive border-destructive/30" };
+    default:
+      return { label: "Desconhecido", icon: AlertTriangle, className: "bg-muted text-muted-foreground border-muted" };
   }
 }
 
@@ -206,8 +213,14 @@ export default function AferirVazao() {
   const handleSelectFleet = (eq: EquipmentRecord) => {
     setFrota(eq.fleet_number);
     setModeloTrator(eq.tractor_model || "");
-    setTipoImplemento(eq.equipment_model || "");
+    setTipoImplemento((eq.equipment_model || "").toLowerCase());
     setNumeroBicos(String(eq.total_nozzles));
+    
+    // Consumir dados adicionais se disponíveis
+    if (eq.application_rate) setTaxaDesejada(String(eq.application_rate));
+    if (eq.working_speed) setVelocidade(String(eq.working_speed));
+    if (eq.nozzle_spacing) setEspacamento(String(eq.nozzle_spacing));
+    
     setShowFleetSuggestions(false);
     setFleetNotFound(false);
     toast.success(`Frota ${eq.fleet_number} carregada!`);
@@ -292,6 +305,9 @@ export default function AferirVazao() {
     window.print();
   };
 
+
+
+  // Step 1: Configuration
   const handleReset = () => {
     setStep("config");
     setColetas([]);
@@ -299,11 +315,12 @@ export default function AferirVazao() {
   };
 
   const handleSave = async () => {
+    if (step !== "resultado") return;
+    setIsSaving(true);
     try {
-      setIsSaving(true);
       const record: AfericaoVazaoRecord = {
-        id: crypto.randomUUID(),
-        dataHora: new Date().toISOString(),
+        id: Math.random().toString(36).substring(2, 11) + Date.now().toString(36),
+        dataHora: dataHora.toISOString(),
         modeloTrator,
         frota,
         tipoImplemento,
@@ -318,12 +335,11 @@ export default function AferirVazao() {
         mediaReal,
         desvioPercent,
         statusGeral,
-        coletas: coletas.map(c => ({ nozzleNumber: c.nozzleNumber, value: c.value }))
+        coletas,
       };
-      
       await saveAfericao(record);
+      await loadHistory();
       toast.success("Aferição salva com sucesso!");
-      loadHistory();
     } catch (error) {
       toast.error("Erro ao salvar aferição");
     } finally {
@@ -331,431 +347,47 @@ export default function AferirVazao() {
     }
   };
 
-  const handleDeleteRecord = async (id: string) => {
-    if (!confirm("Deseja realmente excluir este registro?")) return;
-    await deleteAfericao(id);
-    toast.success("Registro excluído");
-    loadHistory();
+  const handleDeleteHistory = async (id: string) => {
+    if (confirm("Tem certeza que deseja excluir esta aferição?")) {
+      await deleteAfericao(id);
+      await loadHistory();
+      toast.success("Aferição excluída");
+    }
   };
 
-  // Step 1: Configuration
-  if (step === "config") {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-3xl mx-auto">
-          <div className="mb-8 animate-fade-in">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="px-2 py-1 rounded bg-primary/10 text-primary font-medium">
-                  Etapa 1 de 3
-                </span>
-                <span>Configuração</span>
-              </div>
-              
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <History className="h-4 w-4" />
-                    Histórico
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Histórico de Aferições</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    {historico.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-8">Nenhum registro encontrado.</p>
-                    ) : (
-                      <div className="grid gap-4">
-                        {historico.map((rec) => (
-                          <Card key={rec.id} className="overflow-hidden">
-                            <CardContent className="p-4">
-                              <div className="flex justify-between items-start mb-2">
-                                <div>
-                                  <p className="font-bold text-lg">{rec.frota || "Sem Frota"}</p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {new Date(rec.dataHora).toLocaleString("pt-BR")}
-                                  </p>
-                                </div>
-                                <div className="flex gap-2">
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="text-destructive hover:bg-destructive/10"
-                                    onClick={() => handleDeleteRecord(rec.id)}
-                                  >
-                                    <TrashIcon className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </div>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                <div>
-                                  <p className="text-muted-foreground">Trator</p>
-                                  <p className="font-medium">{rec.modeloTrator}</p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground">Desvio</p>
-                                  <p className={`font-bold ${
-                                    Math.abs(rec.desvioPercent) <= 5 ? "text-success" :
-                                    Math.abs(rec.desvioPercent) <= 10 ? "text-warning" : "text-destructive"
-                                  }`}>
-                                    {rec.desvioPercent.toFixed(2)}%
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground">Status</p>
-                                  <p className="font-medium uppercase">{rec.statusGeral}</p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground">Operador</p>
-                                  <p className="font-medium">{rec.operador || "-"}</p>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-            <h1 className="text-3xl font-heading text-foreground mb-2">
-              Aferir Vazão do Implemento
-            </h1>
-            <p className="text-muted-foreground">
-              Calibração de pulverização agrícola com cálculo de vazão teórica e desvio.
-            </p>
-          </div>
+  const [viewHistoryRecord, setViewHistoryRecord] = useState<AfericaoVazaoRecord | null>(null);
+  const [searchHistory, setSearchHistory] = useState("");
 
-          <form onSubmit={handleStartColeta} className="space-y-6">
-            {/* Identification */}
-            <Card className="shadow-lg animate-slide-up">
-              <CardHeader className="border-b border-border">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Settings className="h-5 w-5 text-primary" />
-                  Identificação
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2">
-                      <Tractor className="h-4 w-4 text-muted-foreground" />
-                      Modelo do Trator *
-                    </Label>
-                    <Input
-                      placeholder="Ex: John Deere 8R 410"
-                      value={modeloTrator}
-                      onChange={(e) => setModeloTrator(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2 relative">
-                    <Label className="flex items-center gap-2">
-                      <Search className="h-4 w-4 text-muted-foreground" />
-                      Buscar Frota
-                    </Label>
-                    <Input
-                      ref={fleetInputRef}
-                      placeholder="Digite o número da frota"
-                      value={frota}
-                      onChange={(e) => handleFrotaChange(e.target.value)}
-                      onFocus={() => {
-                        if (equipments.length > 0) {
-                          setShowFleetSuggestions(true);
-                        }
-                      }}
-                      autoComplete="off"
-                    />
-                    {showFleetSuggestions && filteredFleets.length > 0 && (
-                      <div
-                        ref={fleetSuggestionsRef}
-                        className="absolute z-50 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-md border border-border bg-popover shadow-md"
-                      >
-                        {filteredFleets.map((eq) => (
-                          <button
-                            key={eq.id}
-                            type="button"
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
-                            onClick={() => handleSelectFleet(eq)}
-                          >
-                            <span className="font-medium">{eq.fleet_number}</span>
-                            <span className="text-xs text-muted-foreground">{eq.tractor_model || eq.equipment_model}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {fleetNotFound && (
-                      <p className="text-xs text-destructive flex items-center gap-1 mt-1">
-                        <AlertTriangle className="h-3 w-3" />
-                        Veículo não cadastrado
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Tipo de Implemento *</Label>
-                    <Select value={tipoImplemento} onValueChange={setTipoImplemento} required>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="barra">Barra</SelectItem>
-                        <SelectItem value="turbo">Turbo</SelectItem>
-                        <SelectItem value="costal">Costal</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Número de Bicos *</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      max="200"
-                      placeholder="Ex: 48"
-                      value={numeroBicos}
-                      onChange={(e) => setNumeroBicos(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      Local da Coleta
-                    </Label>
-                    <Input
-                      placeholder="Ex: Fazenda São Pedro - Talhão 5"
-                      value={localColeta}
-                      onChange={(e) => setLocalColeta(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2 relative">
-                    <Label className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      Operador
-                    </Label>
-                    <Input
-                      ref={operadorInputRef}
-                      placeholder="Nome do operador"
-                      value={operador}
-                      onChange={(e) => {
-                        setOperador(e.target.value);
-                        setShowOperadorSuggestions(true);
-                      }}
-                      onFocus={() => {
-                        if (operadoresList.length > 0) {
-                          setShowOperadorSuggestions(true);
-                        }
-                      }}
-                      autoComplete="off"
-                    />
-                    {showOperadorSuggestions && filteredOperadores.length > 0 && (
-                      <div
-                        ref={operadorSuggestionsRef}
-                        className="absolute z-50 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-md border border-border bg-popover shadow-md"
-                      >
-                        {filteredOperadores.map((op) => (
-                          <button
-                            key={op.id}
-                            type="button"
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
-                            onClick={() => {
-                              setOperador(op.nome);
-                              setShowOperadorSuggestions(false);
-                            }}
-                          >
-                            <span className="font-medium">{op.nome}</span>
-                            <span className="text-xs text-muted-foreground">{op.funcao}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      Turno
-                    </Label>
-                    <Select value={turno} onValueChange={setTurno}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o turno" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="manha">Manhã</SelectItem>
-                        <SelectItem value="tarde">Tarde</SelectItem>
-                        <SelectItem value="noite">Noite</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Data / Hora</Label>
-                    <Input
-                      value={dataHora.toLocaleString("pt-BR")}
-                      disabled
-                      className="bg-muted"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Calculation Parameters */}
-            <Card className="shadow-lg animate-slide-up" style={{ animationDelay: "0.1s" }}>
-              <CardHeader className="border-b border-border">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Calculator className="h-5 w-5 text-primary" />
-                  Parâmetros de Cálculo
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-2">
-                    <Label>Taxa Desejada (L/ha) *</Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      min="1"
-                      placeholder="Ex: 150"
-                      value={taxaDesejada}
-                      onChange={(e) => setTaxaDesejada(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Velocidade (km/h) *</Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      min="0.1"
-                      placeholder="Ex: 8"
-                      value={velocidade}
-                      onChange={(e) => setVelocidade(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Espaçamento entre Bicos (cm) *</Label>
-                    <Input
-                      type="number"
-                      step="1"
-                      min="1"
-                      placeholder="Ex: 50"
-                      value={espacamento}
-                      onChange={(e) => setEspacamento(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                {vazaoTeorica > 0 && (
-                  <div className="mt-6 p-4 rounded-lg bg-primary/5 border border-primary/20">
-                    <p className="text-sm text-muted-foreground mb-1">Vazão Teórica por Bico (q<sub>t</sub>)</p>
-                    <p className="text-2xl font-heading text-primary">
-                      {vazaoTeorica.toFixed(3)} <span className="text-base font-normal">L/min</span>
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      q<sub>t</sub> = ({T} × {V} × {E}) / 60.000
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <div className="flex justify-end">
-              <Button type="submit" size="lg">
-                Iniciar Coleta
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </form>
-        </div>
-      </div>
+  const filteredHistory = useMemo(() => {
+    if (!searchHistory.trim()) return historico;
+    const s = searchHistory.toLowerCase();
+    return historico.filter(h => 
+      h.frota.toLowerCase().includes(s) || 
+      h.modeloTrator.toLowerCase().includes(s) ||
+      h.operador.toLowerCase().includes(s) ||
+      h.localColeta.toLowerCase().includes(s)
     );
-  }
+  }, [historico, searchHistory]);
 
-  // Step 2: Nozzle data collection
-  if (step === "coleta") {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-8 animate-fade-in">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-              <span className="px-2 py-1 rounded bg-primary/10 text-primary font-medium">
-                Etapa 2 de 3
-              </span>
-              <span>Coleta de Dados</span>
-            </div>
-            <h1 className="text-3xl font-heading text-foreground mb-2">
-              Coleta por Bico
-            </h1>
-            <p className="text-muted-foreground">
-              Informe a vazão coletada (L/min) de cada bico. Vazão teórica: <strong>{vazaoTeorica.toFixed(3)} L/min</strong>
-            </p>
-          </div>
+  const handleViewFromHistory = (record: AfericaoVazaoRecord) => {
+    // Para visualizar, podemos abrir um dialog com o relatório
+    setViewHistoryRecord(record);
+  };
 
-          <Card className="shadow-lg animate-slide-up">
-            <CardContent className="p-6">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {coletas.map((c, i) => (
-                  <div key={c.nozzleNumber} className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
-                      Bico {c.nozzleNumber}
-                    </Label>
-                    <Input
-                      type="number"
-                      step="0.001"
-                      min="0"
-                      placeholder="0.000"
-                      value={c.value || ""}
-                      onChange={(e) => handleColetaChange(i, e.target.value)}
-                      className="text-center font-mono text-sm"
-                    />
-                  </div>
-                ))}
-              </div>
+  const handleShare = (record: AfericaoVazaoRecord) => {
+    const statusLabel = getStatusConfig(record.statusGeral).label;
+    const bicosAlerta = record.coletas.filter(c => {
+      const vt = record.vazaoTeorica || 0;
+      return vt > 0 && Math.abs((c.value - vt) / vt) * 100 > 10;
+    }).length;
 
-              {mediaReal > 0 && (
-                <div className="mt-6 p-4 rounded-lg bg-muted/50 border border-border">
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Média Real (q̄)</p>
-                      <p className="text-lg font-heading text-foreground">{mediaReal.toFixed(3)} L/min</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Vazão Teórica (q<sub>t</sub>)</p>
-                      <p className="text-lg font-heading text-foreground">{vazaoTeorica.toFixed(3)} L/min</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Desvio</p>
-                      <p className={`text-lg font-heading ${
-                        Math.abs(desvioPercent) <= 5 ? "text-success" :
-                        Math.abs(desvioPercent) <= 10 ? "text-warning" : "text-destructive"
-                      }`}>
-                        {desvioPercent >= 0 ? "+" : ""}{desvioPercent.toFixed(2)}%
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
+    const texto = `*Relatório de Aferição de Vazão* 🚜\n----------------------------------\n📍 *Local:* ${record.localColeta || "-"}\n🚜 *Equipamento:* Frota ${record.frota} (${record.modeloTrator})\n👤 *Operador:* ${record.operador || "-"}\n📅 *Data:* ${new Date(record.dataHora).toLocaleString("pt-BR")}\n\n📊 *Resultado:* ${statusLabel.toUpperCase()}\n📉 *Desvio Geral:* ${record.desvioPercent >= 0 ? "+" : ""}${record.desvioPercent.toFixed(2)}%\n⚠️ *Bicos em Alerta:* ${bicosAlerta} de ${record.numeroBicos}\n\n⚙️ *Parâmetros:*\n- Taxa Alvo: ${record.taxaDesejada} L/ha\n- Velocidade: ${record.velocidade} km/h\n- Vazão Teórica: ${record.vazaoTeorica.toFixed(3)} L/min\n- Média Real: ${record.mediaReal.toFixed(3)} L/min\n\n_Gerado pelo sistema MedBico_`;
 
-              <div className="flex justify-between mt-6 pt-4 border-t border-border">
-                <Button variant="outline" onClick={() => setStep("config")}>
-                  Voltar
-                </Button>
-                <Button size="lg" onClick={handleCalcular}>
-                  Calcular Resultado
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
+    const encodedText = encodeURIComponent(texto);
+    const whatsappUrl = `https://wa.me/?text=${encodedText}`;
+    window.open(whatsappUrl, "_blank");
+  };
 
-  // Step 3: Results & Report
   const statusConfig = getStatusConfig(statusGeral);
   const StatusIcon = statusConfig.icon;
 
@@ -764,203 +396,648 @@ export default function AferirVazao() {
   const implementoLabel = tipoImplemento === "barra" ? "Barra" : tipoImplemento === "turbo" ? "Turbo" : tipoImplemento === "costal" ? "Costal" : "-";
 
   return (
-    <div className="container mx-auto px-4 py-8 print:px-2 print:py-1">
-      <div className="max-w-4xl mx-auto print:max-w-full">
-        {/* Screen header - hidden on print */}
-        <div className="mb-8 animate-fade-in flex items-center justify-between print:hidden">
-          <div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-              <span className="px-2 py-1 rounded bg-primary/10 text-primary font-medium">
-                Etapa 3 de 3
-              </span>
-              <span>Resultado</span>
-            </div>
-            <h1 className="text-3xl font-heading text-foreground">
-              Relatório de Calibração
-            </h1>
+    <div className="container mx-auto px-4 py-8 max-w-5xl">
+      <div className="flex items-center justify-between mb-8 no-print">
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+            <Gauge className="h-6 w-6" />
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleSave} disabled={isSaving}>
-              <Save className="h-4 w-4" />
-              {isSaving ? "Salvando..." : "Salvar"}
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleReset}>
-              <RotateCcw className="h-4 w-4" />
-              Nova Aferição
-            </Button>
-            <Button size="sm" onClick={handleImprimir}>
-              <Printer className="h-4 w-4" />
-              Imprimir
-            </Button>
+          <div>
+            <h1 className="text-3xl font-heading text-foreground tracking-tight">Aferir Vazão</h1>
+            <p className="text-muted-foreground text-sm font-medium">Calibração precisa de bicos e pulverizadores</p>
           </div>
         </div>
+      </div>
 
-        <div ref={reportRef} className="space-y-6 print:space-y-1">
-          {/* Print-only compact header */}
-          <div className="hidden print:block border-b border-border pb-1 mb-1">
-            <h1 className="text-sm font-heading text-foreground text-center">
-              Relatório de Calibração de Vazão
-            </h1>
-            <p className="text-center text-[8px] text-muted-foreground">
-              Gerado em: {dataHora.toLocaleString("pt-BR")}
-            </p>
-          </div>
+      <Tabs defaultValue="nova" className="no-print mb-8">
+        <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto h-12 p-1 bg-muted/50">
+          <TabsTrigger value="nova" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <Plus className="h-4 w-4 mr-2" />
+            Nova Aferição
+          </TabsTrigger>
+          <TabsTrigger value="historico" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <History className="h-4 w-4 mr-2" />
+            Aferições realizadas
+          </TabsTrigger>
+        </TabsList>
 
-          {/* Status Card - compact on print */}
-          <Card className={`shadow-lg animate-slide-up border-2 ${statusConfig.className} print:shadow-none print:border`}>
-            <CardContent className="p-6 flex items-center gap-4 print:p-2 print:gap-2">
-              <div className="h-16 w-16 rounded-xl flex items-center justify-center bg-background print:h-7 print:w-7 print:rounded">
-                <StatusIcon className="h-8 w-8 print:h-4 print:w-4" />
+        <TabsContent value="nova" className="mt-6">
+          <div className="space-y-8">
+            {/* Steps - Navigation */}
+            <div className="flex items-center justify-center mb-8 no-print">
+              <div className="flex items-center w-full max-w-2xl px-4">
+                {/* Step 1: Config */}
+                <div className="flex flex-col items-center flex-1 relative">
+                  <div className={`h-10 w-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                    step === "config" ? "bg-primary border-primary text-white scale-110 shadow-lg" : "bg-background border-border text-muted-foreground"
+                  }`}>
+                    <Settings className="h-5 w-5" />
+                  </div>
+                  <span className={`text-[10px] mt-2 font-bold uppercase tracking-wider ${step === "config" ? "text-primary" : "text-muted-foreground"}`}>Configuração</span>
+                  <div className="absolute top-5 left-[calc(50%+25px)] w-[calc(100%-50px)] h-0.5 bg-border -z-10" />
+                </div>
+
+                {/* Step 2: Coleta */}
+                <div className="flex flex-col items-center flex-1 relative">
+                  <div className={`h-10 w-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                    step === "coleta" ? "bg-primary border-primary text-white scale-110 shadow-lg" : 
+                    step === "resultado" ? "bg-primary/20 border-primary/40 text-primary" : "bg-background border-border text-muted-foreground"
+                  }`}>
+                    <Beaker className="h-5 w-5" />
+                  </div>
+                  <span className={`text-[10px] mt-2 font-bold uppercase tracking-wider ${step === "coleta" ? "text-primary" : "text-muted-foreground"}`}>Coleta Bicos</span>
+                  <div className="absolute top-5 left-[calc(50%+25px)] w-[calc(100%-50px)] h-0.5 bg-border -z-10" />
+                </div>
+
+                {/* Step 3: Resultado */}
+                <div className="flex flex-col items-center flex-1">
+                  <div className={`h-10 w-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                    step === "resultado" ? "bg-primary border-primary text-white scale-110 shadow-lg" : "bg-background border-border text-muted-foreground"
+                  }`}>
+                    <CheckCircle2 className="h-5 w-5" />
+                  </div>
+                  <span className={`text-[10px] mt-2 font-bold uppercase tracking-wider ${step === "resultado" ? "text-primary" : "text-muted-foreground"}`}>Relatório</span>
+                </div>
               </div>
-              <div>
-                <h2 className="text-2xl font-heading print:text-xs">{statusConfig.label}</h2>
-                <p className="text-sm opacity-80 print:text-[8px]">
-                  Desvio geral: {desvioPercent >= 0 ? "+" : ""}{desvioPercent.toFixed(2)}% em relação à vazão teórica
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* Identification + Calculation side by side on print */}
-          <div className="print:grid print:grid-cols-2 print:gap-1 space-y-6 print:space-y-0">
-            {/* Identification Summary */}
-            <Card className="shadow-lg animate-slide-up print:shadow-none" style={{ animationDelay: "0.05s" }}>
-              <CardHeader className="border-b border-border print:p-1.5 print:pb-0.5">
-                <CardTitle className="text-lg flex items-center gap-2 print:text-[9px]">
-                  <FileText className="h-5 w-5 text-primary print:h-3 print:w-3" />
-                  Dados da Aferição
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 print:p-1.5">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm print:grid-cols-2 print:gap-0.5 print:text-[8px]">
+            {/* Step Content */}
+            {step === "config" && (
+              <Card className="shadow-xl border-t-4 border-t-primary animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-visible">
+                <CardHeader className="border-b border-border/50 bg-muted/10">
+                  <CardTitle className="flex items-center gap-2 text-xl tracking-tight">
+                    <Tractor className="h-5 w-5 text-primary" />
+                    Identificação e Parâmetros
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-8 space-y-8">
+                  <form onSubmit={handleStartColeta} className="space-y-8">
+                    {/* Grid 1: Identificação */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="space-y-2 relative">
+                        <Label htmlFor="frota" className="text-sm font-semibold flex items-center gap-2">
+                          <Hash className="h-3.5 w-3.5 text-primary" /> Frota / Número do Trator
+                        </Label>
+                        <Input
+                          id="frota"
+                          ref={fleetInputRef}
+                          placeholder="Ex: T-01"
+                          value={frota}
+                          onChange={(e) => handleFrotaChange(e.target.value)}
+                          onFocus={() => frota.length > 0 && setShowFleetSuggestions(true)}
+                          className={`h-11 ${fleetNotFound ? "border-amber-300 bg-amber-50" : ""}`}
+                        />
+                        {showFleetSuggestions && (
+                          <div
+                            ref={fleetSuggestionsRef}
+                            className="absolute z-50 w-full mt-1 bg-background border border-border rounded-lg shadow-2xl max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-200"
+                          >
+                            {filteredFleets.length > 0 ? (
+                              filteredFleets.map((eq) => (
+                                <button
+                                  key={eq.id}
+                                  type="button"
+                                  className="w-full text-left px-4 py-3 hover:bg-muted transition-colors flex items-center justify-between border-b border-border/50 last:border-0"
+                                  onClick={() => handleSelectFleet(eq)}
+                                >
+                                  <div>
+                                    <p className="font-bold text-foreground text-sm">{eq.fleet_number}</p>
+                                    <p className="text-[10px] text-muted-foreground uppercase">{eq.equipment_model}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-[10px] font-bold text-primary">{eq.total_nozzles} bicos</p>
+                                  </div>
+                                </button>
+                              ))
+                            ) : (
+                              <div className="px-4 py-3 text-sm text-muted-foreground italic">Nenhum equipamento encontrado</div>
+                            )}
+                          </div>
+                        )}
+                        {fleetNotFound && (
+                          <p className="text-[10px] text-amber-600 font-medium flex items-center gap-1 mt-1">
+                            <AlertTriangle className="h-3 w-3" /> Frota não cadastrada. Preencha manualmente abaixo.
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="modelo" className="text-sm font-semibold flex items-center gap-2">
+                          <Tractor className="h-3.5 w-3.5 text-primary" /> Modelo do Trator
+                        </Label>
+                        <Input
+                          id="modelo"
+                          placeholder="Ex: John Deere 6125J"
+                          value={modeloTrator}
+                          onChange={(e) => setModeloTrator(e.target.value)}
+                          className="h-11"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="implemento" className="text-sm font-semibold">Tipo de Implemento</Label>
+                        <Select value={tipoImplemento} onValueChange={setTipoImplemento}>
+                          <SelectTrigger id="implemento" className="h-11">
+                            <SelectValue placeholder="Selecione..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="barra">Barra</SelectItem>
+                            <SelectItem value="turbo">Turbo</SelectItem>
+                            <SelectItem value="costal">Costal</SelectItem>
+                            <SelectItem value="pulverizador_tracionado">Pulverizador Tracionado</SelectItem>
+                            <SelectItem value="pulverizador_autopropelido">Pulverizador Autopropelido</SelectItem>
+                            <SelectItem value="pulverizador_montado">Pulverizador Montado</SelectItem>
+                            <SelectItem value="outro">Outro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="bicos" className="text-sm font-semibold flex items-center gap-2">
+                          <Hash className="h-3.5 w-3.5 text-primary" /> Quantidade de Bicos
+                        </Label>
+                        <Input
+                          id="bicos"
+                          type="number"
+                          placeholder="60"
+                          value={numeroBicos}
+                          onChange={(e) => setNumeroBicos(e.target.value)}
+                          className="h-11"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="local" className="text-sm font-semibold flex items-center gap-2">
+                          <MapPin className="h-3.5 w-3.5 text-primary" /> Local da Coleta / Talhão
+                        </Label>
+                        <Input
+                          id="local"
+                          placeholder="Ex: Talhão 04"
+                          value={localColeta}
+                          onChange={(e) => setLocalColeta(e.target.value)}
+                          className="h-11"
+                        />
+                      </div>
+
+                      <div className="space-y-2 relative">
+                        <Label htmlFor="operador" className="text-sm font-semibold flex items-center gap-2">
+                          <User className="h-3.5 w-3.5 text-primary" /> Operador
+                        </Label>
+                        <Input
+                          id="operador"
+                          ref={operadorInputRef}
+                          placeholder="Nome do operador"
+                          value={operador}
+                          onChange={(e) => {
+                            setOperador(e.target.value);
+                            setShowOperadorSuggestions(true);
+                          }}
+                          onFocus={() => setShowOperadorSuggestions(true)}
+                          className="h-11"
+                        />
+                        {showOperadorSuggestions && (
+                          <div
+                            ref={operadorSuggestionsRef}
+                            className="absolute z-50 w-full mt-1 bg-background border border-border rounded-lg shadow-2xl max-h-48 overflow-y-auto animate-in fade-in zoom-in-95 duration-200"
+                          >
+                            {filteredOperadores.length > 0 ? (
+                              filteredOperadores.map((op) => (
+                                <button
+                                  key={op.id}
+                                  type="button"
+                                  className="w-full text-left px-4 py-3 hover:bg-muted transition-colors border-b border-border/50 last:border-0"
+                                  onClick={() => {
+                                    setOperador(op.nome);
+                                    setShowOperadorSuggestions(false);
+                                  }}
+                                >
+                                  <p className="font-medium text-sm">{op.nome}</p>
+                                </button>
+                              ))
+                            ) : (
+                              <div className="px-4 py-3 text-sm text-muted-foreground italic">Nenhum operador encontrado</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="turno" className="text-sm font-semibold flex items-center gap-2">
+                          <Clock className="h-3.5 w-3.5 text-primary" /> Turno
+                        </Label>
+                        <Select value={turno} onValueChange={setTurno}>
+                          <SelectTrigger id="turno" className="h-11">
+                            <SelectValue placeholder="Selecione o turno..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="diurno">Diurno</SelectItem>
+                            <SelectItem value="noturno">Noturno</SelectItem>
+                            <SelectItem value="especial">Especial / 24h</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <Separator className="opacity-50" />
+
+                    {/* Grid 2: Parâmetros de Cálculo */}
+                    <div className="bg-muted/30 p-6 rounded-2xl space-y-6">
+                      <h3 className="text-lg font-heading flex items-center gap-2">
+                        <Calculator className="h-5 w-5 text-primary" />
+                        Parâmetros de Trabalho
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                          <Label htmlFor="taxa" className="text-sm font-semibold">Taxa Desejada (L/ha)</Label>
+                          <Input
+                            id="taxa"
+                            type="number"
+                            placeholder="Ex: 100"
+                            value={taxaDesejada}
+                            onChange={(e) => setTaxaDesejada(e.target.value)}
+                            className="h-11 text-lg font-mono font-bold"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="velocidade" className="text-sm font-semibold">Velocidade (km/h)</Label>
+                          <Input
+                            id="velocidade"
+                            type="number"
+                            placeholder="Ex: 8"
+                            value={velocidade}
+                            onChange={(e) => setVelocidade(e.target.value)}
+                            className="h-11 text-lg font-mono font-bold"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="espacamento" className="text-sm font-semibold">Espaçamento Bicos (cm)</Label>
+                          <Input
+                            id="espacamento"
+                            type="number"
+                            placeholder="Ex: 50"
+                            value={espacamento}
+                            onChange={(e) => setEspacamento(e.target.value)}
+                            className="h-11 text-lg font-mono font-bold"
+                          />
+                        </div>
+                      </div>
+
+                      {vazaoTeorica > 0 && (
+                        <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 animate-in fade-in zoom-in duration-300">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-xs text-primary font-bold uppercase tracking-wider mb-1">Vazão Teórica por Bico (qt)</p>
+                              <p className="text-3xl font-heading text-primary font-bold">{vazaoTeorica.toFixed(3)} <span className="text-sm font-normal">L/min</span></p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <Button type="submit" size="lg" className="w-full h-14 text-lg font-heading group">
+                      Iniciar Coleta de Dados
+                      <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Step 2 Content: Coleta */}
+            {step === "coleta" && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
                   <div>
-                    <p className="text-muted-foreground">Trator</p>
-                    <p className="font-medium text-foreground">{modeloTrator || "-"}</p>
+                    <h2 className="text-2xl font-heading text-foreground tracking-tight">Coleta de Volume</h2>
+                    <p className="text-muted-foreground text-sm">Colete o volume de cada bico durante 60 segundos</p>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground">Frota</p>
-                    <p className="font-medium text-foreground">{frota || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Implemento</p>
-                    <p className="font-medium text-foreground">{implementoLabel}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Nº Bicos</p>
-                    <p className="font-medium text-foreground">{nBicos}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Local</p>
-                    <p className="font-medium text-foreground">{localColeta || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Operador</p>
-                    <p className="font-medium text-foreground">{operador || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Turno</p>
-                    <p className="font-medium text-foreground">{turnoLabel}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Data/Hora</p>
-                    <p className="font-medium text-foreground">{dataHora.toLocaleString("pt-BR")}</p>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={handleReset}>
+                      <RotateCcw className="h-4 w-4 mr-1" /> Reiniciar
+                    </Button>
+                    <div className="bg-primary/10 text-primary px-3 py-1.5 rounded-full text-sm font-bold border border-primary/20">
+                      Vazão Alvo: {vazaoTeorica.toFixed(3)} L/min
+                    </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* Calculation Summary */}
-            <Card className="shadow-lg animate-slide-up print:shadow-none" style={{ animationDelay: "0.1s" }}>
-              <CardHeader className="border-b border-border print:p-1.5 print:pb-0.5">
-                <CardTitle className="text-lg flex items-center gap-2 print:text-[9px]">
-                  <Calculator className="h-5 w-5 text-primary print:h-3 print:w-3" />
-                  Resumo do Cálculo
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 print:p-1.5">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 print:grid-cols-2 print:gap-0.5">
-                  <div className="p-4 rounded-lg bg-muted/50 text-center print:p-1 print:rounded">
-                    <p className="text-xs text-muted-foreground mb-1 print:text-[7px] print:mb-0">Taxa Desejada</p>
-                    <p className="text-xl font-heading text-foreground print:text-[9px]">{T} <span className="text-xs font-normal print:text-[7px]">L/ha</span></p>
+                <Card className="shadow-lg overflow-hidden border-border/50">
+                  <CardContent className="p-0">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-0 border-t border-l border-border/50">
+                      {coletas.map((c, i) => {
+                        const status = getNozzleStatus(c.value, vazaoTeorica);
+                        const desvio = vazaoTeorica > 0 ? ((c.value - vazaoTeorica) / vazaoTeorica) * 100 : 0;
+                        return (
+                          <div key={i} className={`p-4 border-r border-b border-border/50 transition-colors ${
+                            c.value === 0 ? "bg-background" : 
+                            status === "alerta" ? "bg-destructive/5" : "bg-success/5"
+                          }`}>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Bico {c.nozzleNumber}</span>
+                              {c.value > 0 && (
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                  status === "alerta" ? "bg-destructive text-destructive-foreground" : "bg-success text-success-foreground"
+                                }`}>
+                                  {desvio >= 0 ? "+" : ""}{desvio.toFixed(1)}%
+                                </span>
+                              )}
+                            </div>
+                            <div className="relative">
+                              <Input
+                                type="number"
+                                step="0.001"
+                                placeholder="0.000"
+                                value={c.value || ""}
+                                onChange={(e) => handleColetaChange(i, e.target.value)}
+                                className={`text-lg font-mono font-bold h-11 pr-10 text-center ${
+                                  c.value > 0 && status === "alerta" ? "border-destructive focus-visible:ring-destructive" : ""
+                                }`}
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono">L</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <div className="flex justify-end gap-3 no-print">
+                  <Button variant="ghost" size="lg" onClick={() => setStep("config")}>Voltar</Button>
+                  <Button size="lg" onClick={handleCalcular} className="px-12 font-heading text-lg">
+                    Calcular Resultados
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3 Content: Resultado */}
+            {step === "resultado" && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center justify-between no-print gap-4 flex-wrap">
+                  <div>
+                    <h2 className="text-2xl font-heading text-foreground tracking-tight">Relatório de Calibração</h2>
+                    <p className="text-muted-foreground text-sm font-medium">Análise detalhada da uniformidade de aplicação</p>
                   </div>
-                  <div className="p-4 rounded-lg bg-muted/50 text-center print:p-1 print:rounded">
-                    <p className="text-xs text-muted-foreground mb-1 print:text-[7px] print:mb-0">Vazão Teórica</p>
-                    <p className="text-xl font-heading text-primary print:text-[9px]">{vazaoTeorica.toFixed(3)} <span className="text-xs font-normal print:text-[7px]">L/min</span></p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={handleImprimir}>
+                      <Printer className="h-4 w-4 mr-1" /> Imprimir PDF
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => {
+                      // Construir um objeto compatível com AfericaoVazaoRecord para o handleShare
+                      const record: any = {
+                        dataHora: dataHora.toISOString(),
+                        modeloTrator,
+                        frota,
+                        tipoImplemento,
+                        numeroBicos: nBicos,
+                        localColeta,
+                        operador,
+                        turno,
+                        taxaDesejada: T,
+                        velocidade: V,
+                        espacamento: E,
+                        vazaoTeorica,
+                        mediaReal,
+                        desvioPercent,
+                        statusGeral,
+                        coletas,
+                      };
+                      handleShare(record);
+                    }}>
+                      <Share2 className="h-4 w-4 mr-1" /> WhatsApp
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleSave} disabled={isSaving}>
+                      <Save className="h-4 w-4 mr-1" /> {isSaving ? "Salvando..." : "Salvar Aferição"}
+                    </Button>
+                    <Button variant="default" size="sm" onClick={handleReset}>
+                      <Plus className="h-4 w-4 mr-1" /> Nova Aferição
+                    </Button>
                   </div>
-                  <div className="p-4 rounded-lg bg-muted/50 text-center print:p-1 print:rounded">
-                    <p className="text-xs text-muted-foreground mb-1 print:text-[7px] print:mb-0">Média Real</p>
-                    <p className="text-xl font-heading text-foreground print:text-[9px]">{mediaReal.toFixed(3)} <span className="text-xs font-normal print:text-[7px]">L/min</span></p>
-                  </div>
-                  <div className={`p-4 rounded-lg text-center print:p-1 print:rounded ${
-                    Math.abs(desvioPercent) <= 5 ? "bg-success/10" :
-                    Math.abs(desvioPercent) <= 10 ? "bg-warning/10" : "bg-destructive/10"
-                  }`}>
-                    <p className="text-xs text-muted-foreground mb-1 print:text-[7px] print:mb-0">Desvio (%)</p>
-                    <p className={`text-xl font-heading print:text-[9px] ${
-                      Math.abs(desvioPercent) <= 5 ? "text-success" :
-                      Math.abs(desvioPercent) <= 10 ? "text-warning" : "text-destructive"
-                    }`}>
-                      {desvioPercent >= 0 ? "+" : ""}{desvioPercent.toFixed(2)}%
+                </div>
+
+                <div ref={reportRef} className="space-y-8 print:p-0">
+                  <div className="hidden print:block border-b border-border pb-1 mb-1">
+                    <h1 className="text-sm font-heading text-foreground text-center">
+                      Relatório de Calibração de Vazão
+                    </h1>
+                    <p className="text-center text-[8px] text-muted-foreground">
+                      Gerado em: {dataHora.toLocaleString("pt-BR")}
                     </p>
                   </div>
-                </div>
 
-                <div className="mt-4 p-3 rounded bg-muted/30 text-xs text-muted-foreground font-mono print:mt-1 print:p-1 print:text-[6px]">
-                  q<sub>t</sub> = ({T} × {V} × {E}) / 60.000 = {vazaoTeorica.toFixed(3)} L/min &nbsp;|&nbsp;
-                  q̄ = Σcoletas / {nBicos} = {mediaReal.toFixed(3)} L/min &nbsp;|&nbsp;
-                  Erro = {desvioPercent.toFixed(2)}%
+                  <Card className={`shadow-lg animate-slide-up border-2 ${statusConfig.className} print:shadow-none print:border`}>
+                    <CardContent className="p-6 flex items-center gap-4 print:p-2 print:gap-2">
+                      <div className="h-16 w-16 rounded-xl flex items-center justify-center bg-background print:h-7 print:w-7 print:rounded">
+                        <StatusIcon className="h-8 w-8 print:h-4 print:w-4" />
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-heading print:text-xs">{statusConfig.label}</h2>
+                        <p className="text-sm opacity-80 print:text-[8px]">
+                          Desvio geral: {desvioPercent >= 0 ? "+" : ""}{desvioPercent.toFixed(2)}% em relação à vazão teórica
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <div className="print:grid print:grid-cols-2 print:gap-1 space-y-6 print:space-y-0">
+                    <Card className="shadow-lg animate-slide-up print:shadow-none">
+                      <CardHeader className="border-b border-border print:p-1.5">
+                        <CardTitle className="text-lg flex items-center gap-2 print:text-[9px]">
+                          <FileText className="h-5 w-5 text-primary print:h-3 print:w-3" />
+                          Dados da Aferição
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-6 print:p-1.5">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm print:grid-cols-2 print:gap-0.5 print:text-[8px]">
+                          <div><p className="text-muted-foreground">Trator</p><p className="font-medium">{modeloTrator}</p></div>
+                          <div><p className="text-muted-foreground">Frota</p><p className="font-medium">{frota}</p></div>
+                          <div><p className="text-muted-foreground">Operador</p><p className="font-medium">{operador}</p></div>
+                          <div><p className="text-muted-foreground">Data/Hora</p><p className="font-medium">{dataHora.toLocaleString("pt-BR")}</p></div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="shadow-lg animate-slide-up print:shadow-none">
+                      <CardHeader className="border-b border-border print:p-1.5">
+                        <CardTitle className="text-lg flex items-center gap-2 print:text-[9px]">
+                          <Calculator className="h-5 w-5 text-primary print:h-3 print:w-3" />
+                          Resumo do Cálculo
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-6 print:p-1.5">
+                        <div className="grid grid-cols-2 gap-4 print:gap-1">
+                          <div className="bg-muted p-2 rounded"><p className="text-xs">Vazão Teórica</p><p className="font-bold">{vazaoTeorica.toFixed(3)} L/min</p></div>
+                          <div className="bg-muted p-2 rounded"><p className="text-xs">Média Real</p><p className="font-bold">{mediaReal.toFixed(3)} L/min</p></div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Card className="shadow-lg animate-slide-up print:shadow-none">
+                    <CardHeader className="border-b border-border print:p-1.5">
+                      <CardTitle className="text-lg flex items-center gap-2 print:text-[9px]">
+                        <Beaker className="h-5 w-5 text-primary print:h-3 print:w-3" />
+                        Análise Individual dos Bicos
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm print:text-[7px]">
+                          <thead className="bg-muted/50">
+                            <tr>
+                              <th className="px-4 py-3 text-left font-semibold print:px-1 print:py-0.5">Bico</th>
+                              <th className="px-4 py-3 text-right font-semibold print:px-1 print:py-0.5">Vazão (L/min)</th>
+                              <th className="px-4 py-3 text-right font-semibold print:px-1 print:py-0.5">Desvio (%)</th>
+                              <th className="px-4 py-3 text-center font-semibold print:px-1 print:py-0.5">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {coletas.map((c) => {
+                              const desvio = vazaoTeorica > 0 ? ((c.value - vazaoTeorica) / vazaoTeorica) * 100 : 0;
+                              const status = getNozzleStatus(c.value, vazaoTeorica);
+                              return (
+                                <tr key={c.nozzleNumber} className="hover:bg-muted/30 transition-colors">
+                                  <td className="px-4 py-2 font-medium print:px-1 print:py-0.5">#{c.nozzleNumber}</td>
+                                  <td className="px-4 py-2 text-right font-mono print:px-1 print:py-0.5">{c.value.toFixed(3)}</td>
+                                  <td className={`px-4 py-2 text-right font-mono font-bold print:px-1 print:py-0.5 ${
+                                    status === "alerta" ? "text-destructive" : "text-success"
+                                  }`}>
+                                    {desvio >= 0 ? "+" : ""}{desvio.toFixed(1)}%
+                                  </td>
+                                  <td className="px-4 py-2 text-center print:px-1 print:py-0.5">
+                                    <Badge variant={status === "alerta" ? "destructive" : "secondary"} className="text-[10px] py-0 px-1.5 h-5 print:h-3 print:text-[5px]">
+                                      {status === "alerta" ? "Alerta" : "OK"}
+                                    </Badge>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            )}
           </div>
+        </TabsContent>
 
-          {/* Nozzle Detail Table */}
-          <Card className="shadow-lg animate-slide-up print:shadow-none print:break-inside-avoid" style={{ animationDelay: "0.15s" }}>
-            <CardHeader className="border-b border-border print:p-1.5 print:pb-0.5">
-              <CardTitle className="text-lg flex items-center gap-2 print:text-[9px]">
-                <Gauge className="h-5 w-5 text-primary print:h-3 print:w-3" />
-                Coleta por Bico
-                {bicosAlerta.length > 0 && (
-                  <Badge variant="destructive" className="ml-2 print:text-[7px] print:px-1 print:py-0">
-                    {bicosAlerta.length} bico(s) com desvio &gt; 10%
-                  </Badge>
-                )}
-              </CardTitle>
+        <TabsContent value="historico" className="mt-6">
+          <Card className="shadow-lg border-border/50">
+            <CardHeader className="border-b border-border/50 bg-muted/10">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <CardTitle className="flex items-center gap-2 text-xl tracking-tight">
+                  <History className="h-5 w-5 text-primary" />
+                  Histórico de Aferições
+                </CardTitle>
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar frota, operador..."
+                    className="pl-9 h-9"
+                    value={searchHistory}
+                    onChange={(e) => setSearchHistory(e.target.value)}
+                  />
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="p-6 print:p-1">
-              <div className="overflow-visible">
-                <table className="w-full text-sm print:text-[8px]">
-                  <thead>
-                    <tr className="border-b border-border text-left">
-                      <th className="py-2 px-3 text-muted-foreground font-medium print:py-0.5 print:px-1">Bico</th>
-                      <th className="py-2 px-3 text-muted-foreground font-medium print:py-0.5 print:px-1">Vazão (L/min)</th>
-                      <th className="py-2 px-3 text-muted-foreground font-medium print:py-0.5 print:px-1">Desvio vs Média</th>
-                      <th className="py-2 px-3 text-muted-foreground font-medium print:py-0.5 print:px-1">Status</th>
+            <CardContent className="p-0">
+              {filteredHistory.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground italic">
+                  Nenhuma aferição encontrada.
+                </div>
+              ) : (
+                <div className="divide-y divide-border/50">
+                  {filteredHistory.map((h) => {
+                    const hConfig = getStatusConfig(h.statusGeral);
+                    const HStatusIcon = hConfig.icon;
+                    return (
+                      <div key={h.id} className="p-4 hover:bg-muted/30 transition-colors flex items-center justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-bold text-foreground">Frota {h.frota}</span>
+                            <Badge className={`${hConfig.className} text-[10px] py-0 px-1.5`}>
+                              <HStatusIcon className="h-3 w-3 mr-1" />
+                              {hConfig.label}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground flex items-center gap-3">
+                            <span><Tractor className="h-3 w-3 inline mr-1" />{h.modeloTrator}</span>
+                            <span><User className="h-3 w-3 inline mr-1" />{h.operador}</span>
+                            <span><Calendar className="h-3 w-3 inline mr-1" />{new Date(h.dataHora).toLocaleDateString("pt-BR")}</span>
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="ghost" size="icon" className="text-primary hover:bg-primary/10" onClick={() => handleShare(h)}>
+                            <Share2 className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleViewFromHistory(h)}>
+                            <FileText className="h-4 w-4 mr-1" /> Ver
+                          </Button>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => handleDeleteHistory(h.id)}>
+                            <TrashIcon className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Detail Dialog */}
+      <Dialog open={!!viewHistoryRecord} onOpenChange={(open) => !open && setViewHistoryRecord(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="flex flex-row items-center justify-between pr-8">
+            <DialogTitle>Detalhes da Aferição</DialogTitle>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => viewHistoryRecord && handleShare(viewHistoryRecord)}>
+              <Share2 className="h-4 w-4" /> Compartilhar
+            </Button>
+          </DialogHeader>
+          {viewHistoryRecord && (
+            <div className="space-y-4">
+              <div className={`p-4 rounded-xl flex items-center gap-3 ${getStatusConfig(viewHistoryRecord.statusGeral).className}`}>
+                <div><p className="font-bold">{getStatusConfig(viewHistoryRecord.statusGeral).label}</p><p className="text-xs opacity-80">Desvio: {viewHistoryRecord.desvioPercent.toFixed(2)}%</p></div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                <div className="p-2 border rounded"><b>Data:</b> {new Date(viewHistoryRecord.dataHora).toLocaleString("pt-BR")}</div>
+                <div className="p-2 border rounded"><b>Frota:</b> {viewHistoryRecord.frota}</div>
+                <div className="p-2 border rounded"><b>Operador:</b> {viewHistoryRecord.operador}</div>
+                <div className="p-2 border rounded"><b>Taxa:</b> {viewHistoryRecord.taxaDesejada} L/ha</div>
+              </div>
+              <div className="border rounded overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Bico</th>
+                      <th className="px-3 py-2 text-right">L/min</th>
+                      <th className="px-3 py-2 text-right">Desvio (%)</th>
+                      <th className="px-3 py-2 text-center">Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {coletas.map((c) => {
-                      const desvioIndividual = mediaReal > 0 ? ((c.value - mediaReal) / mediaReal) * 100 : 0;
-                      const isAlerta = Math.abs(desvioIndividual) > 10;
+                    {viewHistoryRecord.coletas.map(c => {
+                      const vt = viewHistoryRecord.vazaoTeorica || 0;
+                      const desvio = vt > 0 ? ((c.value - vt) / vt) * 100 : 0;
+                      const status = getNozzleStatus(c.value, vt);
                       return (
-                        <tr
-                          key={c.nozzleNumber}
-                          className={`border-b border-border/50 ${isAlerta ? "bg-destructive/5" : ""}`}
-                        >
-                          <td className="py-2 px-3 font-mono print:py-0 print:px-1">{c.nozzleNumber}</td>
-                          <td className="py-2 px-3 font-mono print:py-0 print:px-1">{c.value.toFixed(3)}</td>
-                          <td className={`py-2 px-3 font-mono print:py-0 print:px-1 ${
-                            isAlerta ? "text-destructive font-semibold" :
-                            Math.abs(desvioIndividual) <= 5 ? "text-success" : "text-warning"
+                        <tr key={c.nozzleNumber} className="border-t">
+                          <td className="px-3 py-1.5">#{c.nozzleNumber}</td>
+                          <td className="px-3 py-1.5 text-right font-mono">{c.value.toFixed(3)}</td>
+                          <td className={`px-3 py-1.5 text-right font-mono font-bold ${
+                            status === "alerta" ? "text-destructive" : "text-success"
                           }`}>
-                            {desvioIndividual >= 0 ? "+" : ""}{desvioIndividual.toFixed(2)}%
+                            {desvio >= 0 ? "+" : ""}{desvio.toFixed(1)}%
                           </td>
-                          <td className="py-2 px-3 print:py-0 print:px-1">
-                            {isAlerta ? (
-                              <Badge variant="destructive" className="text-xs print:text-[7px] print:px-0.5 print:py-0">⚠ Fora</Badge>
-                            ) : (
-                              <Badge className="bg-success/10 text-success border-success/30 text-xs print:text-[7px] print:px-0.5 print:py-0">OK</Badge>
-                            )}
+                          <td className="px-3 py-1.5 text-center">
+                            <Badge variant={status === "alerta" ? "destructive" : "secondary"} className="text-[9px] h-4">
+                              {status === "alerta" ? "Alerta" : "OK"}
+                            </Badge>
                           </td>
                         </tr>
                       );
@@ -968,10 +1045,10 @@ export default function AferirVazao() {
                   </tbody>
                 </table>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -34,6 +34,9 @@ interface OSFormProps {
   setVolumeCaldaHa: (v: string) => void;
   coordenadas?: string;
   setCoordenadas?: (v: string) => void;
+  equipamentos?: string[];
+  setEquipamentos: (v: string[]) => void;
+  availableEquipments: any[];
   onGenerate: () => void;
 }
 
@@ -67,6 +70,8 @@ export function OSForm({
   talhoes, setTalhoes,
   volumeCaldaHa, setVolumeCaldaHa,
   coordenadas, setCoordenadas,
+  equipamentos = [], setEquipamentos,
+  availableEquipments,
   onGenerate,
 }: OSFormProps) {
   const [produtosDB, setProdutosDB] = useState<ProdutoDB[]>([]);
@@ -247,6 +252,44 @@ export function OSForm({
               onChange={(e) => setVolumeCaldaHa(e.target.value)}
               placeholder="Ex: 150"
             />
+          </div>
+
+          <div className="sm:col-span-2 space-y-2 border-t pt-4">
+            <Label className="text-sm font-semibold flex items-center gap-2">
+              Equipamentos Vinculados
+              <span className="text-[10px] font-normal text-muted-foreground">(Selecione um ou mais)</span>
+            </Label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 bg-muted/20 p-4 rounded-lg border border-dashed border-border">
+              {availableEquipments.map((eq) => (
+                <div key={eq.id} className="flex items-center space-x-2">
+                  <Checkbox 
+                    id={`eq-${eq.id}`} 
+                    checked={equipamentos.includes(eq.fleet_number)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setEquipamentos([...equipamentos, eq.fleet_number]);
+                      } else {
+                        setEquipamentos(equipamentos.filter(id => id !== eq.fleet_number));
+                      }
+                    }}
+                  />
+                  <label 
+                    htmlFor={`eq-${eq.id}`} 
+                    className="text-xs font-medium leading-none cursor-pointer"
+                  >
+                    {eq.fleet_number}
+                    <span className="block text-[9px] text-muted-foreground font-normal">
+                      {eq.equipment_model}
+                    </span>
+                  </label>
+                </div>
+              ))}
+              {availableEquipments.length === 0 && (
+                <p className="col-span-full text-xs text-muted-foreground italic py-2">
+                  Nenhum equipamento cadastrado.
+                </p>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

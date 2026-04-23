@@ -7,6 +7,9 @@ export interface Equipment {
   fleet_number: string;
   total_nozzles: number;
   tank_capacity: number;
+  nozzle_spacing?: number;
+  working_speed?: number;
+  application_rate?: number;
   createdAt: string;
 }
 

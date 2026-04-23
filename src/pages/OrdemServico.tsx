@@ -33,6 +33,7 @@ export default function OrdemServico() {
   const [codigoAplicacao, setCodigoAplicacao] = useState("");
   const [volumeCaldaHa, setVolumeCaldaHa] = useState("");
   const [coordenadas, setCoordenadas] = useState("");
+  const [selectedEquipments, setSelectedEquipments] = useState<string[]>([]);
   const [talhoes, setTalhoes] = useState<TalhaoData[]>([
     { nome: "", area: "", produtos: [{ produto: "", dose: "" }], testemunho: false, testemunhoArea: "", testeProduto: false, produtoTeste: "", produtoTesteQtd: "" },
   ]);
@@ -62,6 +63,7 @@ export default function OrdemServico() {
       volumeCaldaHa: volumeCaldaHa || undefined,
       coordenadas,
       status: "aberta",
+      equipamentos: selectedEquipments,
     };
     await saveOS(os);
     setCurrentOS(os);
@@ -148,6 +150,7 @@ export default function OrdemServico() {
     setVolumeCaldaHa("");
     setCoordenadas("");
     setTalhoes([{ nome: "", area: "", produtos: [{ produto: "", dose: "" }], testemunho: false, testemunhoArea: "", testeProduto: false, produtoTeste: "", produtoTesteQtd: "" }]);
+    setSelectedEquipments([]);
     setCurrentOS(null);
     setView("form");
   };
@@ -199,6 +202,8 @@ export default function OrdemServico() {
           talhoes={talhoes} setTalhoes={setTalhoes}
           volumeCaldaHa={volumeCaldaHa} setVolumeCaldaHa={setVolumeCaldaHa}
           coordenadas={coordenadas} setCoordenadas={setCoordenadas}
+          equipamentos={selectedEquipments} setEquipamentos={setSelectedEquipments}
+          availableEquipments={equipments}
           onGenerate={handleGenerate}
         />
       )}

@@ -65,6 +65,7 @@ export interface OrdemServico {
   codigoAplicacao?: string;
   apontamentos?: ApontamentoTalhao[];
   status?: "aberta" | "em_andamento" | "concluida";
+  equipamentos?: string[];
 }
 
 function getTodayPrefix(): string {

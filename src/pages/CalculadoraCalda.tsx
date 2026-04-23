@@ -11,8 +11,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { FlaskConical, Plus, Trash2, ListOrdered, Settings, Beaker, AlertTriangle, History, Search, Calendar, ChevronDown, ChevronUp, Printer, Droplets, FileText, X, CheckCircle2, MapPin, Package } from "lucide-react";
+import { FlaskConical, Plus, Trash2, ListOrdered, Settings, Beaker, AlertTriangle, History, Search, Calendar, ChevronDown, ChevronUp, Printer, Droplets, FileText, X, CheckCircle2, MapPin, Package, Share2 } from "lucide-react";
 import { getAllOS, OrdemServico, TalhaoData } from "@/lib/osStorage";
+import { getAllEquipments, Equipment } from "@/lib/equipmentStorage";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -156,6 +158,8 @@ export default function CalculadoraCalda() {
   const [showOsSuggestions, setShowOsSuggestions] = useState(false);
   const [selectedOS, setSelectedOS] = useState<OrdemServico | null>(null);
   const [selectedTalhaoIdx, setSelectedTalhaoIdx] = useState<number | null>(null);
+  const [showCapacityDialog, setShowCapacityDialog] = useState(false);
+  const [availableCapacities, setAvailableCapacities] = useState<number[]>([]);
   const osInputRef = useRef<HTMLInputElement>(null);
   const osSuggestionsRef = useRef<HTMLDivElement>(null);
 
@@ -194,7 +198,7 @@ export default function CalculadoraCalda() {
     }
     // Importa produtos do talhão
     const produtosImportados: Produto[] = talhaoData.produtos.map((p) => ({
-      id: crypto.randomUUID(),
+      id: Math.random().toString(36).substring(2, 11) + Date.now().toString(36),
       nome: p.produto,
       formulacao: "SL",
       dose: parseFloat(p.dose) || 0,
@@ -203,6 +207,22 @@ export default function CalculadoraCalda() {
     setProdutos(produtosImportados);
     setMostrarResultado(false);
     toast.success(`Talhão "${talhaoData.nome}" carregado com ${produtosImportados.length} produto(s)!`);
+
+    // Lógica de capacidade do tanque baseada nos equipamentos vinculados
+    if (selectedOS?.equipamentos && selectedOS.equipamentos.length > 0) {
+      getAllEquipments().then((all) => {
+        const linked = all.filter(e => selectedOS.equipamentos?.includes(e.fleet_number));
+        const capacities = Array.from(new Set(linked.map(e => e.tank_capacity))).filter(c => !!c);
+        
+        if (capacities.length === 1) {
+          setCapacidadeTanque(capacities[0]);
+          toast.info(`Capacidade do tanque definida para ${capacities[0]}L (Equipamento: ${linked[0].fleet_number})`);
+        } else if (capacities.length > 1) {
+          setAvailableCapacities(capacities);
+          setShowCapacityDialog(true);
+        }
+      });
+    }
   };
 
   const handleClearOS = () => {
@@ -295,7 +315,7 @@ export default function CalculadoraCalda() {
   const handleAdicionarProduto = () => {
     if (!novoNome.trim() || novaDose <= 0) return;
     const novoProduto: Produto = {
-      id: crypto.randomUUID(),
+      id: Math.random().toString(36).substring(2, 11) + Date.now().toString(36),
       nome: novoNome.trim(),
       formulacao: novaFormulacao,
       dose: novaDose,
@@ -321,13 +341,13 @@ export default function CalculadoraCalda() {
     setNovaUnidade(UNIDADE_PADRAO[val] || "L/ha");
   };
 
-  const podeCalcular = produtos.length > 0 && vazaoTrabalho > 0 && capacidadeTanque > 0;
+  const podeCalcular = produtos.length > 0 && vazaoTrabalho > 0 && capacidadeTanque > 0 && areaTalhao > 0;
 
   const handleCalcular = () => {
     setMostrarResultado(true);
     // Save to history
     const entry: HistoricoCalda = {
-      id: crypto.randomUUID(),
+      id: Math.random().toString(36).substring(2, 11) + Date.now().toString(36),
       data: new Date().toISOString(),
       talhao: talhao || "Sem nome",
       areaTalhao,
@@ -344,11 +364,59 @@ export default function CalculadoraCalda() {
     saveHistorico(updated);
   };
 
+  const handleShare = async () => {
+    const text = `📋 *RELATÓRIO DE MISTURA - MedBico*\n\n` +
+      `📌 *Talhão:* ${talhao || "Não informado"}\n` +
+      `📏 *Área:* ${areaTalhao} ha\n` +
+      `💧 *Vazão:* ${vazaoTrabalho} L/ha\n` +
+      `🚜 *Capacidade Tanque:* ${capacidadeTanque.toLocaleString("pt-BR")} L\n\n` +
+      `📋 *PLANO DE ABASTECIMENTO:*\n` +
+      (tanquesCheios > 0 ? `👉 *${tanquesCheios}x* tanques cheios (${areaPorTanque.toFixed(1)} ha cada)\n` : "") +
+      (volumeRestante > 0 ? `👉 *1x* tanque parcial com *${volumeRestante.toLocaleString("pt-BR")} L* (${(volumeRestante / vazaoTrabalho).toFixed(1)} ha)\n` : "") +
+      `Total: ${tanquesNecessarios} abastecimento(s)\n\n` +
+      `🧪 *ORDEM DE ADIÇÃO (por tanque cheio):*\n` +
+      `1. Água (70%): ${(capacidadeTanque * 0.7).toLocaleString("pt-BR")} L\n` +
+      produtosOrdenados.map((p, i) => {
+        const doseCheio = areaPorTanque * p.dose;
+        const un = p.unidade === "L/ha" ? "L" : "kg";
+        return `${i + 2}. ${p.nome} (${p.formulacao}): *${doseCheio.toFixed(2)} ${un}*`;
+      }).join("\n") +
+      `\n${produtosOrdenados.length + 2}. Completar até ${capacidadeTanque.toLocaleString("pt-BR")} L\n\n` +
+      `⚠ *Mantenha a agitação ligada!*`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Relatório de Mistura - ${talhao}`,
+          text: text,
+        });
+      } catch (err) {
+        console.error("Erro ao compartilhar:", err);
+      }
+    } else {
+      // Fallback: Copy to clipboard or WhatsApp link
+      const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+      window.open(url, "_blank");
+    }
+  };
+
   const handleRemoverHistorico = (id: string) => {
     const updated = historico.filter((h) => h.id !== id);
     setHistorico(updated);
     saveHistorico(updated);
     if (expandedHistorico === id) setExpandedHistorico(null);
+  };
+
+  const handleCarregarHistorico = (h: HistoricoCalda) => {
+    setTalhao(h.talhao);
+    setAreaTalhao(h.areaTalhao);
+    setVazaoTrabalho(h.vazaoTrabalho);
+    setCapacidadeTanque(h.capacidadeTanque);
+    setProdutos([...h.produtos]);
+    setMostrarResultado(true);
+    setExpandedHistorico(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    toast.success("Cálculo restaurado do histórico!");
   };
 
   const filteredHistorico = historico.filter((h) => {
@@ -592,6 +660,21 @@ export default function CalculadoraCalda() {
                     </div>
                   )}
 
+                  {!podeCalcular && (
+                    <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 flex items-start gap-2 animate-pulse">
+                      <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                      <div className="text-xs text-amber-800">
+                        <p className="font-bold mb-1">Pendências para calcular:</p>
+                        <ul className="list-disc list-inside space-y-0.5">
+                          {produtos.length === 0 && <li>Adicione ou importe ao menos 1 produto</li>}
+                          {!(vazaoTrabalho > 0) && <li>Informe a vazão de trabalho (L/ha)</li>}
+                          {!(capacidadeTanque > 0) && <li>Informe a capacidade do tanque (L)</li>}
+                          {!(areaTalhao > 0) && <li>A área do talhão deve ser maior que 0 ha</li>}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
                   <Button
                     onClick={handleCalcular}
                     disabled={!podeCalcular}
@@ -663,10 +746,16 @@ export default function CalculadoraCalda() {
                   <ListOrdered className="h-5 w-5 text-primary" />
                   Relatório de Mistura
                 </CardTitle>
-                <Button variant="outline" size="sm" onClick={handlePrint} className="print:hidden">
-                  <Printer className="h-4 w-4" />
-                  Imprimir
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={handleShare} className="print:hidden">
+                    <Share2 className="h-4 w-4 mr-1" />
+                    Compartilhar
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handlePrint} className="print:hidden">
+                    <Printer className="h-4 w-4 mr-1" />
+                    Imprimir
+                  </Button>
+                </div>
               </div>
               <CardDescription>
                 {talhao && <>Talhão: {talhao} — </>}
@@ -979,6 +1068,25 @@ export default function CalculadoraCalda() {
                               <span className="text-muted-foreground ml-auto">{p.dose} {p.unidade}</span>
                             </div>
                           ))}
+                          <div className="flex gap-2 mt-3 pt-2 border-t border-border/50">
+                            <Button 
+                              size="sm" 
+                              variant="default" 
+                              className="flex-1 h-8 text-xs font-semibold"
+                              onClick={() => handleCarregarHistorico(h)}
+                            >
+                              <FileText className="h-3.5 w-3.5 mr-1" />
+                              Visualizar / Carregar
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="h-8 text-xs text-destructive hover:bg-destructive/10 border-destructive/20"
+                              onClick={(e) => { e.stopPropagation(); handleRemoverHistorico(h.id); }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -989,6 +1097,40 @@ export default function CalculadoraCalda() {
           </CardContent>
         )}
       </Card>
+
+      <Dialog open={showCapacityDialog} onOpenChange={setShowCapacityDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-primary" />
+              Selecionar Capacidade do Tanque
+            </DialogTitle>
+            <DialogDescription>
+              A Ordem de Serviço possui equipamentos com capacidades diferentes vinculados. Selecione a capacidade desejada para o cálculo:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3 py-4">
+            {availableCapacities.map((cap) => (
+              <Button
+                key={cap}
+                variant="outline"
+                className="h-16 flex flex-col items-center justify-center gap-1 hover:border-primary hover:bg-primary/5"
+                onClick={() => {
+                  setCapacidadeTanque(cap);
+                  setShowCapacityDialog(false);
+                  toast.success(`Capacidade de ${cap}L selecionada!`);
+                }}
+              >
+                <span className="text-xl font-bold">{cap}</span>
+                <span className="text-[10px] uppercase text-muted-foreground">Litros</span>
+              </Button>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowCapacityDialog(false)}>Cancelar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
