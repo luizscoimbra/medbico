@@ -33,7 +33,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { saveArea, getAllAreas, deleteArea, AreaCadastro, AreaTalhao } from "@/lib/areaStorage";
-import { saveOperador, getAllOperadores, deleteOperador, Operador } from "@/lib/operatorStorage";
+import { saveOperador, getAllOperadores, deleteOperador, deleteAllOperadores, Operador } from "@/lib/operatorStorage";
 
 
 
@@ -498,6 +498,13 @@ export default function Cadastros() {
   const handleDeleteOperador = async (id: string) => {
     await deleteOperador(id);
     toast.success("Operador removido");
+    fetchOperadoresList();
+  };
+
+  const handleClearAllOperadores = async () => {
+    if (!confirm("Deseja realmente excluir TODOS os operadores cadastrados? Esta ação não pode ser desfeita.")) return;
+    await deleteAllOperadores();
+    toast.success("Todos os operadores foram removidos.");
     fetchOperadoresList();
   };
 
@@ -1563,8 +1570,17 @@ export default function Cadastros() {
 
           {operadores.length > 0 && (
             <Card className="mt-6 shadow-lg">
-              <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-lg">Operadores Cadastrados ({operadores.length})</CardTitle>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={handleClearAllOperadores}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Limpar Todos
+                </Button>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">

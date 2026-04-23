@@ -33,3 +33,7 @@ export const deleteOperador = async (id: string): Promise<void> => {
   const updated = operadores.filter(item => item.id !== id);
   await set(STORAGE_KEY, updated);
 };
+
+export const deleteAllOperadores = async (): Promise<void> => {
+  await set(STORAGE_KEY, []);
+};

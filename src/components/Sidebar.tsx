@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Home,
   Plus,
@@ -15,10 +15,15 @@ import {
   X,
   Droplets,
   Truck,
+  Shield,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/context/SidebarContext";
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { getUserProfile, UserProfile } from "@/lib/auth-roles";
+import { toast } from "sonner";
 
 interface NavItem {
   path: string;
@@ -37,14 +42,51 @@ const navItems: NavItem[] = [
   { path: "/historico", label: "Histórico", icon: History, group: "Consultas" },
   { path: "/tabela-referencia", label: "Tabela ISO", icon: BookOpen, group: "Consultas" },
   { path: "/cadastros", label: "Cadastros", icon: ClipboardList, group: "Configurações" },
+  { path: "/acessos", label: "Gestão de Acessos", icon: Shield, group: "Configurações" },
 ];
 
 const groups = ["Principal", "Operações", "Consultas", "Configurações"];
 
 export function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { collapsed, mobileOpen, toggleCollapse, toggleMobile, closeMobile } = useSidebar();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const p = await getUserProfile(user.id);
+        setProfile(p);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast.success("Sessão encerrada");
+    navigate("/auth");
+  };
+
+  const filteredItems = navItems.filter(item => {
+    if (!profile) return item.path === "/" || item.path === "/auth";
+    
+    // Operators/Drivers only see OS and ISO Table
+    if (profile.role === 'operador' || profile.role === 'motorista') {
+      return item.path === "/ordem-servico" || item.path === "/tabela-referencia" || item.path === "/";
+    }
+
+    // Gestor sees everything except Acessos
+    if (profile.role === 'gestor') {
+      return item.path !== "/acessos";
+    }
+
+    // Master sees everything
+    return true;
+  });
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -102,7 +144,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 sidebar-scrollbar">
         {groups.map((group) => {
-          const items = navItems.filter((item) => item.group === group);
+          const items = filteredItems.filter((item) => item.group === group);
           if (items.length === 0) return null;
 
           return (
@@ -186,6 +228,25 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Logout button */}
+      <div className="shrink-0 px-3 py-2">
+        <button
+          onClick={handleLogout}
+          className={cn(
+            "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200",
+            collapsed && !isMobile ? "justify-center" : ""
+          )}
+        >
+          <LogOut className="h-[18px] w-[18px]" />
+          <span className={cn(
+            "text-sm font-medium transition-all duration-300",
+            collapsed && !isMobile ? "hidden" : "block"
+          )}>
+            Sair do Sistema
+          </span>
+        </button>
+      </div>
 
       {/* Collapse button — desktop only */}
       {!isMobile && (

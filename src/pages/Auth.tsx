@@ -7,6 +7,7 @@ import { LogIn, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { getUserProfile, UserProfile } from "@/lib/auth-roles";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ export default function Auth() {
     password: "",
     full_name: "",
     company: "",
+    phone: "",
   });
 
   useEffect(() => {
@@ -30,19 +32,33 @@ export default function Auth() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: { user }, error } = await supabase.auth.signInWithPassword({
       email: form.email,
       password: form.password,
     });
-    setLoading(false);
+    
     if (error) {
+      setLoading(false);
       toast.error(error.message === "Invalid login credentials" 
         ? "E-mail ou senha inválidos" 
         : error.message);
       return;
     }
-    toast.success("Login realizado com sucesso!");
-    navigate("/cadastros");
+
+    if (user) {
+      const profile = await getUserProfile(user.id);
+      if (profile && profile.status === 'blocked') {
+        await supabase.auth.signOut();
+        setLoading(false);
+        toast.error("Seu acesso está bloqueado. Entre em contato com o administrador.");
+        return;
+      }
+      
+      toast.success("Login realizado com sucesso!");
+      const target = profile?.role === 'operador' || profile?.role === 'motorista' ? "/ordem-servico" : "/cadastros";
+      navigate(target);
+    }
+    setLoading(false);
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -52,22 +68,49 @@ export default function Auth() {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data: { user }, error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: {
         data: {
           full_name: form.full_name,
           company: form.company,
+          phone: form.phone,
         },
         emailRedirectTo: window.location.origin,
       },
     });
-    setLoading(false);
+
     if (error) {
+      setLoading(false);
       toast.error(error.message);
       return;
     }
+
+    if (user) {
+      // Check if this is the first user to make them Master
+      const { count } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+      
+      const isFirstUser = count === 0;
+
+      // Create profile record
+      const { error: profileError } = await supabase.from('profiles').insert({
+        id: user.id,
+        full_name: form.full_name,
+        phone: form.phone,
+        company: form.company,
+        role: isFirstUser ? 'master' : 'operador',
+        status: 'active',
+      });
+
+      if (profileError) {
+        console.error("Error creating profile:", profileError);
+      }
+    }
+
+    setLoading(false);
     toast.success("Cadastro realizado! Verifique seu e-mail para confirmar.");
   };
 
@@ -75,8 +118,11 @@ export default function Auth() {
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 bg-background">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center space-y-2">
-          <div className="flex justify-center">
-            <img src="/herbilog_logo.png" alt="HerbiLog" className="h-16 w-auto object-contain" />
+          <div className="flex justify-center mb-4">
+            <div className="relative">
+              <div className="absolute -inset-1 bg-emerald-500/20 rounded-full blur-md animate-pulse" />
+              <img src="/herbilog_3d.png" alt="HerbiLog" className="relative h-24 w-auto drop-shadow-xl" />
+            </div>
           </div>
           <CardTitle className="text-2xl font-heading">
             {isLogin ? "Acessar HerbiLog" : "Criar Conta"}
@@ -108,6 +154,16 @@ export default function Auth() {
                     placeholder="Nome da empresa ou fazenda"
                     value={form.company}
                     onChange={(e) => setForm({ ...form, company: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">WhatsApp (com DDD) *</Label>
+                  <Input
+                    id="phone"
+                    placeholder="Ex: 11999999999"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
                     required
                   />
                 </div>
