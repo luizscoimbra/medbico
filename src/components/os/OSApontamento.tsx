@@ -4,8 +4,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, Eye, AlertTriangle, Droplets, Clock, Settings, AlertCircle, History as HistoryIcon, ArrowRightLeft, CheckCircle2, Search } from "lucide-react";
-import type { OrdemServico, ApontamentoTalhao, MotivoParada } from "@/lib/osStorage";
+import { Save, Eye, AlertTriangle, Droplets, Clock, Settings, AlertCircle, History as HistoryIcon, ArrowRightLeft, CheckCircle2, Search, FlaskConical, Trash2, Plus } from "lucide-react";
+import type { OrdemServico, ApontamentoTalhao, MotivoParada, ProdutoDose } from "@/lib/osStorage";
 import { saveOS, MOTIVO_PARADA_LABELS } from "@/lib/osStorage";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -50,10 +50,15 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
   const [historyTalhao, setHistoryTalhao] = useState<number | null>(null);
   const [highlightIncomplete, setHighlightIncomplete] = useState(false);
   const [showCloseOSDialog, setShowCloseOSDialog] = useState(false);
+  const [editingProdutos, setEditingProdutos] = useState<{ globalIdx: number; produtos: ProdutoDose[] } | null>(null);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
 
   useEffect(() => {
     getAllOperadores().then(setOperadores);
     getAllEquipments().then(setEquipamentos);
+    supabase.from("products").select("*").order("name").then(({ data }) => {
+      if (data) setAllProducts(data);
+    });
   }, []);
 
   function createEmptyApontamento(i: number): ApontamentoTalhao {
@@ -407,6 +412,17 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                           <HistoryIcon className="h-3 w-3 mr-1" /> Continuar
                         </Button>
                       )}
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-7 border-emerald-200 text-emerald-700 hover:bg-emerald-50 px-2"
+                        onClick={() => setEditingProdutos({ 
+                          globalIdx: ap.globalIdx, 
+                          produtos: ap.produtosSubstitutos ? ap.produtosSubstitutos.map(p => ({...p})) : os.talhoes[ap.talhaoIndex].produtos.map(p => ({...p}))
+                        })}
+                      >
+                        <FlaskConical className="h-3 w-3 mr-1" /> Alterar Insumos
+                      </Button>
                       {aps.length > 1 && (
                         <Button variant="ghost" size="sm" className="h-7 text-destructive px-2" onClick={() => removeTrator(ap.globalIdx)}>
                           Remover
@@ -1000,6 +1016,137 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
               }}
             >
               Confirmar Encerramento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingProdutos} onOpenChange={(open) => !open && setEditingProdutos(null)}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FlaskConical className="h-5 w-5" />
+              Substituir Insumos (Registro #{editingProdutos ? apontamentos[editingProdutos.globalIdx].talhaoIndex + 1 : ''})
+            </DialogTitle>
+            <DialogDescription>
+              Atenção: As alterações feitas aqui serão aplicadas APENAS a este registro específico, preservando a recomendação original da OS nos relatórios.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {editingProdutos && editingProdutos.produtos.map((p, idx) => (
+              <div key={idx} className="flex gap-2 items-start border p-3 rounded-lg bg-muted/20 relative">
+                <div className="flex-1 space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">Produto</Label>
+                      <Select 
+                        value={p.produto || undefined}
+                        onValueChange={val => {
+                          const novo = [...editingProdutos.produtos];
+                          novo[idx].produto = val;
+                          const registered = allProducts.find(pr => pr.name === val);
+                          if (registered) {
+                             novo[idx].unit = registered.unit || "L";
+                             novo[idx].packageSize = registered.package_size || 0;
+                          }
+                          setEditingProdutos({...editingProdutos, produtos: novo});
+                        }}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Selecione o produto"/></SelectTrigger>
+                        <SelectContent>
+                          {allProducts.map(pr => (
+                            <SelectItem key={pr.id} value={pr.name}>{pr.name}</SelectItem>
+                          ))}
+                          {p.produto && !allProducts.find(pr => pr.name === p.produto) && (
+                            <SelectItem value={p.produto}>{p.produto}</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Dose (por ha)</Label>
+                      <Input 
+                        type="number"
+                        step="0.01"
+                        value={p.dose}
+                        onChange={e => {
+                          const novo = [...editingProdutos.produtos];
+                          novo[idx].dose = e.target.value;
+                          setEditingProdutos({...editingProdutos, produtos: novo});
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">Unidade</Label>
+                      <Select 
+                        value={p.unit || "L"}
+                        onValueChange={val => {
+                          const novo = [...editingProdutos.produtos];
+                          novo[idx].unit = val;
+                          setEditingProdutos({...editingProdutos, produtos: novo});
+                        }}
+                      >
+                        <SelectTrigger><SelectValue/></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="L">Litros (L)</SelectItem>
+                          <SelectItem value="KG">Quilos (KG)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Tamanho da Embalagem</Label>
+                      <Input 
+                        type="number"
+                        value={p.packageSize || ""}
+                        onChange={e => {
+                          const novo = [...editingProdutos.produtos];
+                          novo[idx].packageSize = parseFloat(e.target.value) || 0;
+                          setEditingProdutos({...editingProdutos, produtos: novo});
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="text-destructive h-8 w-8 absolute top-2 right-2"
+                  onClick={() => {
+                    const novo = editingProdutos.produtos.filter((_, i) => i !== idx);
+                    setEditingProdutos({...editingProdutos, produtos: novo});
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+            <Button 
+              variant="outline" 
+              className="w-full border-dashed"
+              onClick={() => {
+                if (!editingProdutos) return;
+                setEditingProdutos({
+                  ...editingProdutos,
+                  produtos: [...editingProdutos.produtos, { produto: "", dose: "", unit: "L", packageSize: 0 }]
+                });
+              }}
+            >
+              <Plus className="h-4 w-4 mr-2" /> Adicionar Insumo
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditingProdutos(null)}>Cancelar</Button>
+            <Button onClick={() => {
+              if (!editingProdutos) return;
+              const updated = [...apontamentos];
+              updated[editingProdutos.globalIdx].produtosSubstitutos = editingProdutos.produtos;
+              setApontamentos(updated);
+              setEditingProdutos(null);
+              toast.success("Insumos deste registro foram alterados com sucesso!");
+            }}>
+              Salvar Alterações
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -21,6 +21,7 @@ import Frotas from "./pages/Frotas";
 import Acessos from "./pages/Acessos";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import AreaMotorista from "./pages/AreaMotorista";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -60,6 +61,7 @@ function AppLayout() {
             <Route path="/calculadora-calda" element={<ProtectedRoute><CalculadoraCalda /></ProtectedRoute>} />
             <Route path="/aferir-vazao" element={<ProtectedRoute><AferirVazao /></ProtectedRoute>} />
             <Route path="/ordem-servico" element={<ProtectedRoute><OrdemServico /></ProtectedRoute>} />
+            <Route path="/area-motorista" element={<ProtectedRoute><AreaMotorista /></ProtectedRoute>} />
             <Route path="/frotas" element={<ProtectedRoute><Frotas /></ProtectedRoute>} />
             <Route path="/acessos" element={<ProtectedRoute><Acessos /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />

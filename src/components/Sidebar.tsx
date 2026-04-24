@@ -38,6 +38,7 @@ const navItems: NavItem[] = [
   { path: "/calculadora-calda", label: "Calculadora de Calda", icon: FlaskConical, group: "Operações" },
   { path: "/aferir-vazao", label: "Aferir Vazão", icon: Activity, group: "Operações" },
   { path: "/ordem-servico", label: "Ordem de Serviço", icon: FileText, group: "Operações" },
+  { path: "/area-motorista", label: "Área do Motorista", icon: Truck, group: "Operações" },
   { path: "/frotas", label: "Gestão de Frotas", icon: Truck, group: "Consultas" },
   { path: "/historico", label: "Histórico", icon: History, group: "Consultas" },
   { path: "/tabela-referencia", label: "Tabela ISO", icon: BookOpen, group: "Consultas" },

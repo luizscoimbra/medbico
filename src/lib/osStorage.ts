@@ -47,6 +47,7 @@ export interface ApontamentoTalhao {
   equipamentoOrigem?: string;  // Frota do equipamento de origem (continuação)
   equipamentoDestino?: string; // Frota do equipamento que recebeu a calda (quebra)
   registroAnteriorIdx?: number; // Índice do registro anterior (encadeamento)
+  produtosSubstitutos?: ProdutoDose[]; // Insumos alternativos usados apenas neste apontamento
 }
 
 export interface OrdemServico {

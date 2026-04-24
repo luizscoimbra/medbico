@@ -18,6 +18,8 @@ interface Product {
   culture: string;
   manufacturer: string;
   withholding_period: string;
+  unit: string;
+  package_size: number;
 }
 
 const CadastroProdutos = () => {
@@ -32,6 +34,8 @@ const CadastroProdutos = () => {
     culture: "",
     manufacturer: "",
     withholding_period: "",
+    unit: "L",
+    package_size: 0,
   });
 
   useEffect(() => {
@@ -79,13 +83,15 @@ const CadastroProdutos = () => {
       culture: form.culture,
       manufacturer: form.manufacturer,
       withholding_period: form.withholding_period,
+      unit: form.unit,
+      package_size: form.package_size,
     });
 
     if (error) {
       toast({ title: "Erro ao cadastrar produto", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Produto cadastrado com sucesso!" });
-      setForm({ name: "", type: "", dose: "", culture: "", manufacturer: "", withholding_period: "" });
+      setForm({ name: "", type: "", dose: "", culture: "", manufacturer: "", withholding_period: "", unit: "L", package_size: 0 });
       fetchProducts();
     }
     setLoading(false);
@@ -153,7 +159,25 @@ const CadastroProdutos = () => {
               <Input id="withholding_period" value={form.withholding_period} onChange={(e) => setForm({ ...form, withholding_period: e.target.value })} placeholder="Ex: 14 dias" />
             </div>
 
-            <div className="md:col-span-2">
+            <div className="space-y-2">
+              <Label htmlFor="unit">Unidade</Label>
+              <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Unidade" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="L">Litros (L)</SelectItem>
+                  <SelectItem value="KG">Quilos (KG)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="package_size">Tamanho da Embalagem</Label>
+              <Input id="package_size" type="number" value={form.package_size || ""} onChange={(e) => setForm({ ...form, package_size: parseFloat(e.target.value) || 0 })} placeholder="Ex: 20" />
+            </div>
+
+            <div className="md:col-span-2 mt-2">
               <Button type="submit" disabled={loading} className="w-full">
                 <Plus className="h-4 w-4 mr-2" />
                 {loading ? "Cadastrando..." : "Cadastrar Produto"}
@@ -177,6 +201,7 @@ const CadastroProdutos = () => {
                   <TableHead>Dose</TableHead>
                   <TableHead>Cultura</TableHead>
                   <TableHead>Fabricante</TableHead>
+                  <TableHead>Embalagem</TableHead>
                   <TableHead>Carência</TableHead>
                   <TableHead className="w-12"></TableHead>
                 </TableRow>
@@ -189,6 +214,7 @@ const CadastroProdutos = () => {
                     <TableCell>{p.dose}</TableCell>
                     <TableCell>{p.culture}</TableCell>
                     <TableCell>{p.manufacturer}</TableCell>
+                    <TableCell>{p.package_size} {p.unit}</TableCell>
                     <TableCell>{p.withholding_period}</TableCell>
                     <TableCell>
                       <Button variant="ghost" size="icon" onClick={() => handleDelete(p.id)}>

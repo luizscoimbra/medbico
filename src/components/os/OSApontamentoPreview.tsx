@@ -28,22 +28,24 @@ export const OSApontamentoPreview = forwardRef<HTMLDivElement, Props>(({ os, equ
       const areaAplicada = parseFloat(ap.areaAplicada || "0") || 0;
       const caldaRestante = parseFloat(ap.caldaRestante || "0") || 0;
       
-      const produtosCalc = t.testemunho
-        ? []
-        : t.produtos.map((p) => {
-            const dose = parseFloat(p.dose) || 0;
-            const concentracao = volumeCaldaHa > 0 ? dose / volumeCaldaHa : 0;
-            const produtoRestante = caldaRestante * concentracao;
-            const totalPlanejado = dose * areaPlanejada;
-            return {
-              produto: p.produto,
-              dose,
-              unit: p.unit || "L",
-              packageSize: p.packageSize || 0,
-              totalPlanejado,
-              produtoRestante,
-            };
-          });
+        const produtosBase = ap.produtosSubstitutos && ap.produtosSubstitutos.length > 0 ? ap.produtosSubstitutos : t.produtos;
+        
+        const produtosCalc = t.testemunho
+          ? []
+          : produtosBase.map((p) => {
+              const dose = parseFloat(p.dose) || 0;
+              const concentracao = volumeCaldaHa > 0 ? dose / volumeCaldaHa : 0;
+              const produtoRestante = caldaRestante * concentracao;
+              const totalPlanejado = dose * areaPlanejada;
+              return {
+                produto: p.produto,
+                dose,
+                unit: p.unit || "L",
+                packageSize: p.packageSize || 0,
+                totalPlanejado,
+                produtoRestante,
+              };
+            });
 
       return {
         nome: t.nome || `T-${ap.talhaoIndex + 1}`,
@@ -64,6 +66,7 @@ export const OSApontamentoPreview = forwardRef<HTMLDivElement, Props>(({ os, equ
         motivoParadaDetalhe: ap.motivoParadaDetalhe,
         registroAnteriorIdx: ap.registroAnteriorIdx,
         equipamentoOrigem: ap.equipamentoOrigem,
+        produtosSubstitutos: ap.produtosSubstitutos,
       };
     });
   }, [apontamentos, os.talhoes, volumeCaldaHa]);
@@ -229,6 +232,11 @@ export const OSApontamentoPreview = forwardRef<HTMLDivElement, Props>(({ os, equ
                         {t.observacoes && (
                           <div className="text-[10px] text-gray-500 mt-1 italic border-l-2 border-gray-200 pl-2 py-0.5">
                             {t.observacoes}
+                          </div>
+                        )}
+                        {t.produtosSubstitutos && t.produtosSubstitutos.length > 0 && (
+                          <div className="text-[10px] text-amber-600 font-bold mt-1 flex items-center gap-1">
+                            ⚠ INSUMOS SUBSTITUÍDOS NESTA APLICAÇÃO
                           </div>
                         )}
                       </td>
