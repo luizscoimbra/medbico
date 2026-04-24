@@ -26,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Settings, FlaskConical, Plus, Trash2, Tractor, Hash, Truck, Map, MapPin, Activity, Pencil, RefreshCcw, Users } from "lucide-react";
+import { Settings, FlaskConical, Plus, Trash2, Tractor, Hash, Truck, Map, MapPin, Activity, Pencil, RefreshCcw, Users, Download, Upload } from "lucide-react";
 import { saveTipoAplicacao, getAllTiposAplicacao, deleteTipoAplicacao, TipoAplicacao } from "@/lib/applicationTypeStorage";
 import { saveEquipment, getAllEquipments, deleteEquipment, Equipment } from "@/lib/equipmentStorage";
 import { supabase } from "@/integrations/supabase/client";
@@ -520,6 +520,138 @@ export default function Cadastros() {
     fetchOperadoresList();
   };
 
+  const handleDownloadCSV = (type: 'equipamentos' | 'areas' | 'operadores' | 'produtos') => {
+    let headers = "";
+    let example = "";
+    let filename = "";
+
+    if (type === 'equipamentos') {
+      headers = "modelo;modelo_trator;frota;bicos;tanque\n";
+      example = "Jacto Uniport 3030;John Deere 8R 410;FR-001;48;3000\n";
+      filename = "modelo_equipamentos.csv";
+    } else if (type === 'areas') {
+      headers = "nome;codigo;municipio;coordenadas;area_carreador;talhoes\n";
+      example = "Fazenda Boa Vista;FBV-01;Ribeirão Preto;;1.5;10,20.5,30\n";
+      filename = "modelo_areas.csv";
+    } else if (type === 'operadores') {
+      headers = "nome;cracha;funcao;setor\n";
+      example = "João da Silva;123456;Operador;Agrícola\n";
+      filename = "modelo_operadores.csv";
+    }
+
+    else if (type === 'produtos') {
+      headers = "nome_comercial;formulacao;unidade;tamanho_embalagem\n";
+      example = "Roundup Original;SL;L;20\n";
+      filename = "modelo_produtos_geral.csv";
+    }
+
+    const blob = new Blob([headers + example], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleUploadCSV = (type: 'equipamentos' | 'areas' | 'operadores' | 'produtos', e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      const lines = text.split('\n');
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const cols = line.split(';');
+
+        try {
+          if (type === 'equipamentos' && cols.length >= 5) {
+            const newEq: Equipment = {
+              id: crypto.randomUUID(),
+              equipment_model: cols[0].trim(),
+              tractor_model: cols[1].trim(),
+              fleet_number: cols[2].trim(),
+              total_nozzles: parseInt(cols[3].trim()) || 1,
+              tank_capacity: parseFloat(cols[4].trim()) || 0,
+              createdAt: new Date().toISOString()
+            };
+            await saveEquipment(newEq);
+            successCount++;
+          } else if (type === 'areas' && cols.length >= 6) {
+            const talhoesSizes = cols[5].trim().split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n));
+            const talhoes: AreaTalhao[] = talhoesSizes.map((size, idx) => ({
+              id: crypto.randomUUID(),
+              numero: `${idx + 1}`,
+              tamanhoHectares: size
+            }));
+            const newArea: AreaCadastro = {
+              id: crypto.randomUUID(),
+              nome: cols[0].trim(),
+              codigo: cols[1].trim(),
+              municipio: cols[2].trim(),
+              coordenadas: cols[3].trim(),
+              quantidadeTalhoes: talhoes.length,
+              talhoes: talhoes,
+              areaCarreador: parseFloat(cols[4].trim()) || 0,
+              createdAt: new Date().toISOString()
+            };
+            await saveArea(newArea);
+            successCount++;
+          } else if (type === 'operadores' && cols.length >= 4) {
+            const fn = cols[2].trim() as 'Operador' | 'Motorista' | 'Gestor';
+            const newOp: Operador = {
+              id: crypto.randomUUID(),
+              nome: cols[0].trim(),
+              cracha: cols[1].trim(),
+              funcao: ['Operador', 'Motorista', 'Gestor'].includes(fn) ? fn : 'Operador',
+              setor: cols[3].trim(),
+              createdAt: new Date().toISOString()
+            };
+            await saveOperador(newOp);
+            successCount++;
+          } else if (type === 'produtos' && cols.length >= 4) {
+            if (!userId) throw new Error("Usuário não autenticado");
+            const { error } = await supabase.from("registered_products").insert({
+              user_id: userId,
+              commercial_name: cols[0].trim(),
+              formulation: cols[1].trim() || 'SL',
+              unit: cols[2].trim().toUpperCase() === 'KG' ? 'KG' : 'L',
+              package_size: parseFloat(cols[3].trim()) || 0,
+            });
+            if (error) errorCount++;
+            else successCount++;
+          } else {
+            errorCount++;
+          }
+        } catch (err) {
+          errorCount++;
+        }
+      }
+
+      toast({ 
+        title: "Importação Concluída", 
+        description: `${successCount} registros cadastrados. ${errorCount} erros/linhas ignoradas.`,
+        variant: errorCount > 0 ? "default" : "default" 
+      });
+      
+      if (type === 'equipamentos') fetchEquipments();
+      if (type === 'areas') fetchAreasList();
+      if (type === 'operadores') fetchOperadoresList();
+      if (type === 'produtos') fetchProducts();
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   const handleAddArea = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!areaForm.nome.trim() || talhoesForm.length === 0) {
@@ -628,21 +760,32 @@ export default function Cadastros() {
         <TabsContent value="equipamentos">
           <Card className="shadow-lg">
             <CardHeader className="border-b border-border" id="form-equipamento">
-              <CardTitle className="text-lg flex items-center justify-between">
+              <CardTitle className="text-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
                   <Plus className="h-5 w-5 text-primary" />
                   {editingEquipmentId ? "Editar Equipamento" : "Cadastrar Equipamento"}
                 </div>
-                {editingEquipmentId && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={handleCancelEditEquipment}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    Cancelar Edição
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {editingEquipmentId ? (
+                    <Button variant="ghost" size="sm" onClick={handleCancelEditEquipment}>
+                      Cancelar Edição
+                    </Button>
+                  ) : (
+                    <>
+                      <Button variant="outline" size="sm" onClick={() => handleDownloadCSV('equipamentos')}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Modelo CSV
+                      </Button>
+                      <div>
+                        <input type="file" id="csv-equipamentos" accept=".csv" className="hidden" onChange={(e) => handleUploadCSV('equipamentos', e)} />
+                        <Button variant="outline" size="sm" onClick={() => document.getElementById('csv-equipamentos')?.click()}>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Importar CSV
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
@@ -930,21 +1073,32 @@ export default function Cadastros() {
         <TabsContent value="produtos">
           <Card className="shadow-lg">
             <CardHeader className="border-b border-border" id="form-produto">
-              <CardTitle className="text-lg flex items-center justify-between">
+              <CardTitle className="text-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
                   <FlaskConical className="h-5 w-5 text-primary" />
                   {editingProductId ? "Editar Produto" : "Cadastrar Produto"}
                 </div>
-                {editingProductId && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={handleCancelEditProduct}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    Cancelar Edição
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {editingProductId ? (
+                    <Button variant="ghost" size="sm" onClick={handleCancelEditProduct}>
+                      Cancelar Edição
+                    </Button>
+                  ) : (
+                    <>
+                      <Button variant="outline" size="sm" onClick={() => handleDownloadCSV('produtos')}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Modelo CSV
+                      </Button>
+                      <div>
+                        <input type="file" id="csv-produtos" accept=".csv" className="hidden" onChange={(e) => handleUploadCSV('produtos', e)} />
+                        <Button variant="outline" size="sm" onClick={() => document.getElementById('csv-produtos')?.click()}>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Importar CSV
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
@@ -1131,21 +1285,32 @@ export default function Cadastros() {
         <TabsContent value="areas">
           <Card className="shadow-lg mb-6">
             <CardHeader className="border-b border-border">
-              <CardTitle className="text-lg flex items-center justify-between">
+              <CardTitle className="text-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
                   <Map className="h-5 w-5 text-primary" />
                   {editingAreaId ? "Editar Área" : "Cadastrar Área"}
                 </div>
-                {editingAreaId && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={handleCancelEditArea}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    Cancelar Edição
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {editingAreaId ? (
+                    <Button variant="ghost" size="sm" onClick={handleCancelEditArea}>
+                      Cancelar Edição
+                    </Button>
+                  ) : (
+                    <>
+                      <Button variant="outline" size="sm" onClick={() => handleDownloadCSV('areas')}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Modelo CSV
+                      </Button>
+                      <div>
+                        <input type="file" id="csv-areas" accept=".csv" className="hidden" onChange={(e) => handleUploadCSV('areas', e)} />
+                        <Button variant="outline" size="sm" onClick={() => document.getElementById('csv-areas')?.click()}>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Importar CSV
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
@@ -1490,21 +1655,32 @@ export default function Cadastros() {
         <TabsContent value="operadores">
           <Card className="shadow-lg">
             <CardHeader className="border-b border-border" id="form-operador">
-              <CardTitle className="text-lg flex items-center justify-between">
+              <CardTitle className="text-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
                   <Users className="h-5 w-5 text-primary" />
                   {editingOperadorId ? "Editar Operador" : "Cadastrar Operador"}
                 </div>
-                {editingOperadorId && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={handleCancelEditOperador}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    Cancelar Edição
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {editingOperadorId ? (
+                    <Button variant="ghost" size="sm" onClick={handleCancelEditOperador}>
+                      Cancelar Edição
+                    </Button>
+                  ) : (
+                    <>
+                      <Button variant="outline" size="sm" onClick={() => handleDownloadCSV('operadores')}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Modelo CSV
+                      </Button>
+                      <div>
+                        <input type="file" id="csv-operadores" accept=".csv" className="hidden" onChange={(e) => handleUploadCSV('operadores', e)} />
+                        <Button variant="outline" size="sm" onClick={() => document.getElementById('csv-operadores')?.click()}>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Importar CSV
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">

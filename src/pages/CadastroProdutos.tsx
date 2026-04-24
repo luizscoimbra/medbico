@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, FlaskConical } from "lucide-react";
+import { Plus, Trash2, FlaskConical, Download, Upload } from "lucide-react";
 
 interface Product {
   id: string;
@@ -107,15 +107,108 @@ const CadastroProdutos = () => {
     }
   };
 
+  const handleDownloadTemplate = () => {
+    const headers = "nome;tipo;dose;cultura;fabricante;carencia;unidade;tamanho_embalagem\n";
+    const example = "Exemplo Glifosato;herbicida;2.5;Soja;Monsanto;14 dias;L;20\n";
+    const blob = new Blob([headers + example], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "modelo_produtos.csv");
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast({ title: "Usuário não autenticado", variant: "destructive" });
+      setLoading(false);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      const lines = text.split('\n');
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const cols = line.split(';');
+        if (cols.length >= 8) {
+          const { error } = await supabase.from("products").insert({
+            user_id: user.id,
+            name: cols[0].trim(),
+            type: cols[1].trim().toLowerCase() === 'fungicida' ? 'fungicida' : 'herbicida',
+            dose: cols[2].trim(),
+            culture: cols[3].trim(),
+            manufacturer: cols[4].trim(),
+            withholding_period: cols[5].trim(),
+            unit: cols[6].trim().toUpperCase() === 'KG' ? 'KG' : 'L',
+            package_size: parseFloat(cols[7].trim()) || 0,
+          });
+
+          if (error) {
+            console.error("CSV Import Error:", error);
+            errorCount++;
+          } else {
+            successCount++;
+          }
+        } else {
+          errorCount++;
+        }
+      }
+
+      toast({ 
+        title: "Importação Concluída", 
+        description: `${successCount} produtos cadastrados. ${errorCount} erros/linhas ignoradas.`,
+        variant: errorCount > 0 ? "default" : "default" 
+      });
+      fetchProducts();
+      setLoading(false);
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <Card className="mb-8">
-        <CardHeader>
+        <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <FlaskConical className="h-6 w-6 text-primary" />
             <div>
               <CardTitle>Cadastro de Produtos</CardTitle>
               <CardDescription>Cadastre herbicidas e fungicidas</CardDescription>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleDownloadTemplate}>
+              <Download className="h-4 w-4 mr-2" />
+              Modelo CSV
+            </Button>
+            <div>
+              <input 
+                type="file" 
+                id="csv-upload" 
+                accept=".csv" 
+                className="hidden" 
+                onChange={handleFileUpload}
+              />
+              <Button variant="outline" size="sm" onClick={() => document.getElementById('csv-upload')?.click()} disabled={loading}>
+                <Upload className="h-4 w-4 mr-2" />
+                Importar CSV
+              </Button>
             </div>
           </div>
         </CardHeader>
