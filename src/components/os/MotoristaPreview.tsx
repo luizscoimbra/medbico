@@ -36,7 +36,6 @@ export const MotoristaPreview = forwardRef<HTMLDivElement, Props>(({ os, tratore
           ? []
           : produtosBase.map((p) => {
               const dose = parseFloat(p.dose) || 0;
-              const concentracao = volumeCaldaHa > 0 ? dose / volumeCaldaHa : 0;
               const totalPlanejado = dose * areaPlanejada;
               return {
                 produto: p.produto,
@@ -54,42 +53,74 @@ export const MotoristaPreview = forwardRef<HTMLDivElement, Props>(({ os, tratore
           tratorFrota: ap.tratorFrota || "Não Informado",
           bombasCheias: parseInt(ap.bombasCheias || "0", 10) || 0,
           cargaParcial: parseFloat(ap.cargaParcial || "0") || 0,
+          caldaRestante,
         };
       });
   }, [apontamentos, os.talhoes, volumeCaldaHa, tratoresSelecionados]);
 
   // Aggregated data for the selected tractors
   const aggregateData = useMemo(() => {
-    let totalArea = 0;
-    const produtoMap = new Map<string, { unit: string; packageSize: number; totalAplicado: number }>();
+    const tractorData = new Map<string, {
+      tankCapacity: number;
+      totalArea: number;
+      bombasCheias: number;
+      bombasParciaisCount: number;
+      caldaRestanteTotal: number;
+      produtoMap: Map<string, { 
+        unit: string; 
+        packageSize: number; 
+        totalAplicado: number;
+        dose: number;
+      }>;
+    }>();
+
+    let globalTotalArea = 0;
 
     enrichedApontamentos.forEach((c) => {
-      totalArea += c.areaAplicada;
+      globalTotalArea += c.areaAplicada;
 
       const equipment = equipments.find(e => e.fleet_number === c.tratorFrota);
       const tankCapacity = equipment?.tank_capacity || 0;
       
+      if (!tractorData.has(c.tratorFrota)) {
+         tractorData.set(c.tratorFrota, {
+            tankCapacity,
+            totalArea: 0,
+            bombasCheias: 0,
+            bombasParciaisCount: 0,
+            caldaRestanteTotal: 0,
+            produtoMap: new Map()
+         });
+      }
+
+      const tData = tractorData.get(c.tratorFrota)!;
+      tData.totalArea += c.areaAplicada;
+      tData.bombasCheias += c.bombasCheias;
+      if (c.cargaParcial > 0) tData.bombasParciaisCount += 1;
+      tData.caldaRestanteTotal += c.caldaRestante;
+
       const hectaresMixed = volumeCaldaHa > 0 
         ? ((c.bombasCheias * tankCapacity) + c.cargaParcial) / volumeCaldaHa 
         : 0;
 
       c.produtosCalc.forEach((pc) => {
-        const existing = produtoMap.get(pc.produto);
+        const existing = tData.produtoMap.get(pc.produto);
         const amountMixed = pc.dose * hectaresMixed;
 
         if (existing) {
           existing.totalAplicado += amountMixed;
         } else {
-          produtoMap.set(pc.produto, { 
+          tData.produtoMap.set(pc.produto, { 
             unit: pc.unit, 
             packageSize: pc.packageSize,
-            totalAplicado: amountMixed 
+            totalAplicado: amountMixed,
+            dose: pc.dose
           });
         }
       });
     });
 
-    return { totalArea, produtoMap };
+    return { tractorData, globalTotalArea };
   }, [enrichedApontamentos, equipments, volumeCaldaHa]);
 
   return (
@@ -134,77 +165,101 @@ export const MotoristaPreview = forwardRef<HTMLDivElement, Props>(({ os, tratore
         </div>
       </div>
 
-      {/* Relatório de Embalagens */}
-      <div className="mb-8 border border-gray-300 rounded overflow-hidden break-inside-avoid">
-        <div className="bg-gray-100 p-3 border-b border-gray-300 flex justify-between items-center">
-          <div>
-            <h2 className="text-sm font-bold uppercase text-gray-800">Resumo de Aplicação</h2>
-          </div>
-          <div className="text-right">
-            <p className="text-[10px] text-gray-500 uppercase font-bold">Área Total Aplicada</p>
-            <p className="text-sm font-bold text-green-700">{aggregateData.totalArea.toFixed(2)} ha</p>
-          </div>
-        </div>
-
-        {aggregateData.produtoMap.size > 0 ? (
-          <div className="p-4">
-            <div className="break-inside-avoid">
-              <p className="text-sm font-bold text-gray-700 uppercase mb-4 flex items-center gap-2">
-                <span className="w-2 h-2 bg-amber-500 rounded-full" />
-                Produtos Utilizados (Fechamento Embalagem)
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Array.from(aggregateData.produtoMap.entries()).map(([nome, val], pIdx) => {
-                  const roundedTotal = Math.round(val.totalAplicado * 2) / 2;
-                  const totalPackages = val.packageSize > 0 ? Math.ceil(roundedTotal / val.packageSize) : 0;
-                  const packageLabel = val.unit === "KG" ? "Pacote(s)" : "Galão(ões)";
-                  
-                  // Calculate remainder in the opened package
-                  let partialLeftover = 0;
-                  if (val.packageSize > 0) {
-                    const remainder = roundedTotal % val.packageSize;
-                    // Ensure we don't show leftovers for perfectly divisible amounts (handling small float precision issues)
-                    if (remainder > 0.05 && (val.packageSize - remainder) > 0.05) {
-                      partialLeftover = val.packageSize - remainder;
-                    }
-                  }
-                  
-                  return (
-                    <div key={pIdx} className="bg-amber-50/50 border border-amber-200 rounded p-4 flex flex-col justify-center items-center text-center">
-                      <span className="text-sm text-amber-800 uppercase font-bold mb-2">{nome}</span>
-                      <div className="flex flex-col items-center">
-                        <div className="text-2xl font-black text-amber-900 leading-tight">
-                          {roundedTotal.toFixed(1).replace('.0', '')} <span className="text-xs font-bold uppercase">{val.unit}</span>
-                        </div>
-                        <div className="text-xl font-bold text-amber-700 leading-tight mt-1">
-                          {totalPackages} <span className="text-xs font-medium uppercase">{packageLabel}</span>
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-amber-600/70 mt-2 block">
-                        (Embalagem: {val.packageSize}{val.unit})
-                      </span>
-                      {partialLeftover > 0 && (
-                        <div className="mt-2 pt-2 border-t border-amber-200/50 w-full text-center">
-                          <span className="text-xs font-bold text-red-600 block">
-                            Sobra na Embalagem Aberta:
-                          </span>
-                          <span className="text-sm font-black text-red-700">
-                            {partialLeftover.toFixed(1)} {val.unit}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+      {/* Relatório por Trator */}
+      {aggregateData.tractorData.size > 0 ? (
+        Array.from(aggregateData.tractorData.entries()).map(([frota, tData], tIdx) => (
+          <div key={tIdx} className="mb-8 border border-gray-300 rounded overflow-hidden break-inside-avoid bg-white">
+            <div className="bg-slate-800 p-4 border-b border-gray-300 flex justify-between items-center text-white">
+              <div>
+                <h2 className="text-lg font-bold uppercase">Trator: {frota}</h2>
+                <p className="text-sm text-slate-300 font-medium">Capacidade do Tanque: {tData.tankCapacity} L</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs uppercase font-bold text-slate-400">Área Aplicada</p>
+                <p className="text-lg font-bold text-emerald-400">{tData.totalArea.toFixed(2)} ha</p>
               </div>
             </div>
+
+            {/* Resumo de Bombas */}
+            <div className="p-4 bg-slate-50 border-b border-gray-200 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+              <div className="bg-white p-3 rounded shadow-sm border border-gray-100">
+                <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Bombas Cheias</p>
+                <p className="text-2xl font-black text-blue-600">{tData.bombasCheias}</p>
+              </div>
+              <div className="bg-white p-3 rounded shadow-sm border border-gray-100">
+                <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Bombas Parciais</p>
+                <p className="text-2xl font-black text-orange-500">{tData.bombasParciaisCount}</p>
+              </div>
+              <div className="bg-white p-3 rounded shadow-sm border border-gray-100">
+                <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Total Dosadas</p>
+                <p className="text-2xl font-black text-purple-600">{tData.bombasCheias + tData.bombasParciaisCount}</p>
+              </div>
+              <div className="bg-white p-3 rounded shadow-sm border border-gray-100">
+                <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Volume de Calda Restante</p>
+                <p className="text-2xl font-black text-red-500">{tData.caldaRestanteTotal.toFixed(0)} <span className="text-sm">L</span></p>
+              </div>
+            </div>
+
+            {/* Consumo de Produtos */}
+            {tData.produtoMap.size > 0 && (
+              <div className="p-5">
+                <p className="text-sm font-bold text-gray-700 uppercase mb-4 flex items-center gap-2">
+                  <span className="w-2 h-2 bg-emerald-500 rounded-full" />
+                  Consumo de Produtos
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Array.from(tData.produtoMap.entries()).map(([nome, val], pIdx) => {
+                    const consumoBombaCheia = volumeCaldaHa > 0 ? val.dose * (tData.tankCapacity / volumeCaldaHa) : 0;
+                    const sobraProduto = volumeCaldaHa > 0 ? (tData.caldaRestanteTotal * val.dose) / volumeCaldaHa : 0;
+                    
+                    const roundedTotal = Math.round(val.totalAplicado * 2) / 2;
+                    const totalPackages = val.packageSize > 0 ? Math.ceil(roundedTotal / val.packageSize) : 0;
+                    const packageLabel = val.unit === "KG" ? "Pct" : "Gal";
+
+                    return (
+                      <div key={pIdx} className="bg-white border border-gray-200 rounded-lg shadow-sm flex flex-col overflow-hidden">
+                        <div className="bg-gray-100 px-3 py-2 border-b border-gray-200">
+                          <span className="text-sm text-gray-800 font-bold uppercase truncate block">{nome}</span>
+                        </div>
+                        
+                        <div className="p-3 flex flex-col gap-2 flex-grow">
+                          <div className="flex justify-between items-center bg-blue-50/50 p-2 rounded">
+                            <span className="text-xs text-gray-600 font-medium">Por Bomba Cheia:</span>
+                            <span className="font-bold text-blue-700">{consumoBombaCheia.toFixed(2)} {val.unit}</span>
+                          </div>
+                          
+                          <div className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                            <span className="text-xs text-gray-600 font-medium">Total Utilizado:</span>
+                            <span className="font-bold text-gray-900">{val.totalAplicado.toFixed(2)} {val.unit}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                            <span className="text-xs text-gray-600 font-medium">Embalagens ({val.packageSize}{val.unit}):</span>
+                            <span className="font-bold text-gray-900">{totalPackages} {packageLabel}</span>
+                          </div>
+
+                          {sobraProduto > 0 && (
+                            <div className="mt-auto pt-2 border-t border-red-100">
+                              <div className="flex justify-between items-center bg-red-50 p-2 rounded border border-red-100">
+                                <span className="text-xs font-bold text-red-600">Sobra (Ñ Finalizada):</span>
+                                <span className="font-black text-red-700">{sobraProduto.toFixed(2)} {val.unit}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="p-8 text-center text-gray-500">
-            Nenhum produto aplicado pelos tratores selecionados até o momento.
-          </div>
-        )}
-      </div>
+        ))
+      ) : (
+        <div className="p-8 text-center text-gray-500 border border-gray-300 rounded">
+          Nenhum produto aplicado pelos tratores selecionados até o momento.
+        </div>
+      )}
 
       <div className="mt-16 text-center border-t border-black pt-2 max-w-xs mx-auto break-inside-avoid">
         <p className="text-sm font-medium">Assinatura do Motorista/Aplicador</p>
@@ -218,3 +273,4 @@ export const MotoristaPreview = forwardRef<HTMLDivElement, Props>(({ os, tratore
 });
 
 MotoristaPreview.displayName = "MotoristaPreview";
+
