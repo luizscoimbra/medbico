@@ -124,7 +124,7 @@ export const MotoristaPreview = forwardRef<HTMLDivElement, Props>(({ os, tratore
   }, [enrichedApontamentos, equipments, volumeCaldaHa]);
 
   return (
-    <div ref={ref} className="bg-white text-black p-8 max-w-[210mm] mx-auto print-area" id="motorista-print">
+    <div ref={ref} className="bg-white text-black p-4 sm:p-8 w-full lg:max-w-[210mm] mx-auto print-area" id="motorista-print">
       <style>{`
         @media print {
           .print-area {
@@ -154,7 +154,7 @@ export const MotoristaPreview = forwardRef<HTMLDivElement, Props>(({ os, tratore
       </div>
 
       {/* Dados da Propriedade */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div className="border border-gray-300 rounded p-3">
           <p className="text-xs text-gray-500 uppercase font-semibold">Propriedade</p>
           <p className="font-medium">{os.propriedade}</p>

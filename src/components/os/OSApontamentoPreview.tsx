@@ -117,7 +117,7 @@ export const OSApontamentoPreview = forwardRef<HTMLDivElement, Props>(({ os, equ
   const statusColor = os.status === "concluida" ? "bg-green-100 text-green-800" : os.status === "em_andamento" ? "bg-yellow-100 text-yellow-800" : "bg-gray-100 text-gray-800";
 
   return (
-    <div ref={ref} className="bg-white text-black p-8 max-w-[210mm] mx-auto print-area" id="apontamento-print">
+    <div ref={ref} className="bg-white text-black p-4 sm:p-8 w-full lg:max-w-[210mm] mx-auto print-area" id="apontamento-print">
       {/* Header */}
       <style>{`
         @media print {
@@ -151,7 +151,7 @@ export const OSApontamentoPreview = forwardRef<HTMLDivElement, Props>(({ os, equ
       </div>
 
       {/* Dados da Propriedade */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div className="border border-gray-300 rounded p-3">
           <p className="text-xs text-gray-500 uppercase font-semibold">Propriedade</p>
           <p className="font-medium">{os.propriedade}</p>
@@ -202,8 +202,8 @@ export const OSApontamentoPreview = forwardRef<HTMLDivElement, Props>(({ os, equ
               </div>
             </div>
 
-            <div className="p-0">
-              <table className="w-full border-collapse text-sm mb-4">
+            <div className="p-0 overflow-x-auto">
+              <table className="w-full border-collapse text-sm mb-4 min-w-[600px]">
                 <thead>
                   <tr className="bg-gray-50">
                     <th className="border-b border-gray-200 px-3 py-2 text-left text-xs text-gray-500">Talhão / Histórico</th>
@@ -290,12 +290,12 @@ export const OSApontamentoPreview = forwardRef<HTMLDivElement, Props>(({ os, equ
                     </div>
                   </div>
 
-                  <div className="break-inside-avoid">
+                  <div className="break-inside-avoid mt-6">
                     <p className="text-xs font-bold text-gray-700 uppercase mb-3 flex items-center gap-2">
                       <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
                       Produtos Utilizados (Fechamento Embalagem)
                     </p>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {Array.from(dados.produtoMap.entries()).map(([nome, val], pIdx) => {
                         const totalPackages = val.packageSize > 0 ? Math.ceil(val.totalAplicado / val.packageSize) : 0;
                         const packageLabel = val.unit === "KG" ? "Pacote(s)" : "Galão(ões)";

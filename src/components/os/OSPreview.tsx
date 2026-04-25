@@ -63,7 +63,7 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
   }, [os]);
 
   return (
-    <div ref={ref} className="bg-white text-black p-8 max-w-[210mm] mx-auto print-area" id="os-print">
+    <div ref={ref} className="bg-white text-black p-4 sm:p-8 w-full lg:max-w-[210mm] mx-auto print-area" id="os-print">
       {/* Header */}
       <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
         <div className="flex items-center">
@@ -77,7 +77,7 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
       </div>
 
       {/* Dados da Propriedade */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div className="border border-gray-300 rounded p-3">
           <p className="text-xs text-gray-500 uppercase font-semibold">Propriedade</p>
           <p className="font-medium">{os.propriedade}</p>
@@ -139,9 +139,9 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
       </div>
 
       {/* Tabela de Talhões */}
-      <div className="mb-6">
+      <div className="mb-6 overflow-x-auto">
         <h2 className="text-sm font-bold uppercase mb-2 text-gray-700">Detalhamento por Talhão</h2>
-        <table className="w-full border-collapse text-sm">
+        <table className="w-full border-collapse text-sm min-w-[600px]">
           <thead>
             <tr className="bg-gray-100">
               <th className="border border-gray-300 px-3 py-2 text-left">Talhão</th>
@@ -211,9 +211,9 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
 
       {/* Resumo de Insumos */}
       {resumoInsumos.length > 0 && (
-        <div className="mb-6">
+        <div className="mb-6 overflow-x-auto">
           <h2 className="text-sm font-bold uppercase mb-2 text-gray-700">Resumo de Insumos</h2>
-          <table className="w-full border-collapse text-sm">
+          <table className="w-full border-collapse text-sm min-w-[500px]">
             <thead>
               <tr className="bg-green-50">
                 <th className="border border-gray-300 px-3 py-2 text-left">Produto</th>
