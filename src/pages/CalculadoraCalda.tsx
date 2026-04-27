@@ -379,7 +379,7 @@ export default function CalculadoraCalda() {
       produtosOrdenados.map((p, i) => {
         const doseCheio = areaPorTanque * p.dose;
         const un = p.unidade === "L/ha" ? "L" : "kg";
-        return `${i + 2}. ${p.nome} (${p.formulacao}): *${doseCheio.toFixed(2)} ${un}*`;
+        return `${i + 2}. ${p.nome} (${p.formulacao}): *${(doseCheio % 1 === 0 ? doseCheio.toFixed(0) : doseCheio.toFixed(3))} ${un}*`;
       }).join("\n") +
       `\n${produtosOrdenados.length + 2}. Completar até ${capacidadeTanque.toLocaleString("pt-BR")} L\n\n` +
       `⚠ *Mantenha a agitação ligada!*`;
@@ -844,7 +844,7 @@ export default function CalculadoraCalda() {
                                 </span>
                               </div>
                               <p className="text-lg print:text-base font-mono font-bold text-primary mt-0.5">
-                                {doseCheio.toFixed(2)} {un}
+                                {(doseCheio % 1 === 0 ? doseCheio.toFixed(0) : doseCheio.toFixed(3))} {un}
                               </p>
                               {galoes !== null && (
                                 <p className="text-xs text-muted-foreground mt-0.5 font-mono">
@@ -934,7 +934,7 @@ export default function CalculadoraCalda() {
                                 </span>
                               </div>
                               <p className="text-lg print:text-base font-mono font-bold text-warning mt-0.5">
-                                {doseParcial.toFixed(2)} {un}
+                                {(doseParcial % 1 === 0 ? doseParcial.toFixed(0) : doseParcial.toFixed(3))} {un}
                               </p>
                               {galoes !== null && (
                                 <p className="text-xs text-muted-foreground mt-0.5 font-mono">

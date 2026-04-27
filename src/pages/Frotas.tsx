@@ -258,8 +258,8 @@ export default function Frotas() {
             </div>
             <p className="text-3xl font-heading text-foreground">{totalPackages.toFixed(1)} <span className="text-sm font-normal text-muted-foreground">und</span></p>
             <div className="flex gap-2 mt-1">
-              <p className="text-[10px] text-muted-foreground font-semibold uppercase">{totalInsumosL.toFixed(0)} L</p>
-              <p className="text-[10px] text-muted-foreground font-semibold uppercase">{totalInsumosKG.toFixed(0)} KG</p>
+              <p className="text-[10px] text-muted-foreground font-semibold uppercase">{(totalInsumosL % 1 === 0 ? totalInsumosL.toFixed(0) : totalInsumosL.toFixed(3))} L</p>
+              <p className="text-[10px] text-muted-foreground font-semibold uppercase">{(totalInsumosKG % 1 === 0 ? totalInsumosKG.toFixed(0) : totalInsumosKG.toFixed(3))} KG</p>
             </div>
           </CardContent>
         </Card>
@@ -395,7 +395,7 @@ export default function Frotas() {
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] text-muted-foreground uppercase font-bold">Calda (L)</p>
-                  <p className="text-xl font-heading text-blue-600">{t.totalCalda.toFixed(0)}</p>
+                  <p className="text-xl font-heading text-blue-600">{(t.totalCalda % 1 === 0 ? t.totalCalda.toFixed(0) : t.totalCalda.toFixed(3))}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] text-muted-foreground uppercase font-bold">Interrupções</p>
@@ -450,7 +450,7 @@ export default function Frotas() {
                           return (
                             <tr key={prodName} className="group hover:bg-white/40 transition-colors">
                               <td className="py-2 font-medium">{prodName}</td>
-                              <td className="py-2 text-right font-bold text-primary">{pData.total.toFixed(2)} {pData.unit}</td>
+                              <td className="py-2 text-right font-bold text-primary">{(pData.total % 1 === 0 ? pData.total.toFixed(0) : pData.total.toFixed(3))} {pData.unit}</td>
                               <td className="py-2 text-right">
                                 {packages > 0 ? (
                                   <span className="text-xs font-semibold text-amber-600">
@@ -528,7 +528,7 @@ export default function Frotas() {
                   return (
                     <tr key={name} className="hover:bg-muted/50 transition-colors">
                       <td className="p-2 font-medium">{name}</td>
-                      <td className="p-2 text-right font-bold text-primary">{data.total.toFixed(2)} {data.unit}</td>
+                      <td className="p-2 text-right font-bold text-primary">{(data.total % 1 === 0 ? data.total.toFixed(0) : data.total.toFixed(3))} {data.unit}</td>
                       <td className="p-2 text-right">
                         {packs > 0 ? (
                           <span className="text-xs font-semibold text-amber-600">

@@ -196,7 +196,7 @@ export const MotoristaPreview = forwardRef<HTMLDivElement, Props>(({ os, tratore
               </div>
               <div className="bg-white p-3 rounded shadow-sm border border-gray-100">
                 <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Volume de Calda Restante</p>
-                <p className="text-2xl font-black text-red-500">{tData.caldaRestanteTotal.toFixed(0)} <span className="text-sm">L</span></p>
+                <p className="text-2xl font-black text-red-500">{(tData.caldaRestanteTotal % 1 === 0 ? tData.caldaRestanteTotal.toFixed(0) : tData.caldaRestanteTotal.toFixed(3))} <span className="text-sm">L</span></p>
               </div>
             </div>
 
@@ -225,12 +225,12 @@ export const MotoristaPreview = forwardRef<HTMLDivElement, Props>(({ os, tratore
                         <div className="p-3 flex flex-col gap-2 flex-grow">
                           <div className="flex justify-between items-center bg-blue-50/50 p-2 rounded">
                             <span className="text-xs text-gray-600 font-medium">Por Bomba Cheia:</span>
-                            <span className="font-bold text-blue-700">{consumoBombaCheia.toFixed(2)} {val.unit}</span>
+                            <span className="font-bold text-blue-700">{(consumoBombaCheia % 1 === 0 ? consumoBombaCheia.toFixed(0) : consumoBombaCheia.toFixed(3))} {val.unit}</span>
                           </div>
                           
                           <div className="flex justify-between items-center bg-gray-50 p-2 rounded">
                             <span className="text-xs text-gray-600 font-medium">Total Utilizado:</span>
-                            <span className="font-bold text-gray-900">{val.totalAplicado.toFixed(2)} {val.unit}</span>
+                            <span className="font-bold text-gray-900">{(val.totalAplicado % 1 === 0 ? val.totalAplicado.toFixed(0) : val.totalAplicado.toFixed(3))} {val.unit}</span>
                           </div>
 
                           <div className="flex justify-between items-center bg-gray-50 p-2 rounded">
@@ -242,7 +242,7 @@ export const MotoristaPreview = forwardRef<HTMLDivElement, Props>(({ os, tratore
                             <div className="mt-auto pt-2 border-t border-red-100">
                               <div className="flex justify-between items-center bg-red-50 p-2 rounded border border-red-100">
                                 <span className="text-xs font-bold text-red-600">Sobra (Ñ Finalizada):</span>
-                                <span className="font-black text-red-700">{sobraProduto.toFixed(2)} {val.unit}</span>
+                                <span className="font-black text-red-700">{(sobraProduto % 1 === 0 ? sobraProduto.toFixed(0) : sobraProduto.toFixed(3))} {val.unit}</span>
                               </div>
                             </div>
                           )}

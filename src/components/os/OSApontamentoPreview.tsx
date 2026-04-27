@@ -242,8 +242,8 @@ export const OSApontamentoPreview = forwardRef<HTMLDivElement, Props>(({ os, equ
                       </td>
                       <td className="border-b border-gray-100 px-3 py-2 text-right">{t.testemunho ? "—" : t.areaAplicada.toFixed(2)} ha</td>
                       <td className="border-b border-gray-100 px-3 py-2 text-right">{t.testemunho ? "—" : t.bombasCheias}</td>
-                      <td className="border-b border-gray-100 px-3 py-2 text-right">{t.testemunho ? "—" : (t.cargaParcial > 0 ? t.cargaParcial.toFixed(0) : "—")}</td>
-                      <td className="border-b border-gray-100 px-3 py-2 text-right font-bold text-gray-700">{t.testemunho ? "—" : t.caldaRestante.toFixed(1)}</td>
+                      <td className="border-b border-gray-100 px-3 py-2 text-right">{t.testemunho ? "—" : (t.cargaParcial > 0 ? (t.cargaParcial % 1 === 0 ? t.cargaParcial.toFixed(0) : t.cargaParcial.toFixed(3)) : "—")}</td>
+                      <td className="border-b border-gray-100 px-3 py-2 text-right font-bold text-gray-700">{t.testemunho ? "—" : (t.caldaRestante % 1 === 0 ? t.caldaRestante.toFixed(0) : t.caldaRestante.toFixed(3))}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -252,8 +252,8 @@ export const OSApontamentoPreview = forwardRef<HTMLDivElement, Props>(({ os, equ
                     <td className="px-3 py-2 text-right text-xs text-gray-600 uppercase">Totais Trator {trator}:</td>
                     <td className="px-3 py-2 text-right text-green-700">{areaAplicadaTrator.toFixed(2)} ha</td>
                     <td className="px-3 py-2 text-right">{dados.bombasCheias}</td>
-                    <td className="px-3 py-2 text-right">{dados.cargaParcial > 0 ? `${dados.cargaParcial.toFixed(0)}` : "—"}</td>
-                    <td className="px-3 py-2 text-right font-bold">{dados.caldaRestante.toFixed(1)} L</td>
+                    <td className="px-3 py-2 text-right">{dados.cargaParcial > 0 ? (dados.cargaParcial % 1 === 0 ? dados.cargaParcial.toFixed(0) : dados.cargaParcial.toFixed(3)) : "—"}</td>
+                    <td className="px-3 py-2 text-right font-bold">{(dados.caldaRestante % 1 === 0 ? dados.caldaRestante.toFixed(0) : dados.caldaRestante.toFixed(3))} L</td>
                   </tr>
                 </tfoot>
               </table>
@@ -277,10 +277,10 @@ export const OSApontamentoPreview = forwardRef<HTMLDivElement, Props>(({ os, equ
                               <span className="text-[10px] text-gray-500 uppercase tracking-tight">Utilizado nesta aplicação</span>
                             </div>
                             <div className="text-right">
-                              <div className="text-xl font-black text-primary">{val.totalAplicado.toFixed(1)} {val.unit}</div>
+                              <div className="text-xl font-black text-primary">{(val.totalAplicado % 1 === 0 ? val.totalAplicado.toFixed(0) : val.totalAplicado.toFixed(3))} {val.unit}</div>
                               {packages > 0 && (
                                 <div className="text-[11px] font-medium text-amber-700 flex items-center justify-end gap-1">
-                                  📦 {packages.toFixed(2)} {packageLabel} <span className="text-[9px] text-gray-400 font-normal">({val.packageSize}{val.unit}/un)</span>
+                                  📦 {packages.toFixed(3)} {packageLabel} <span className="text-[9px] text-gray-400 font-normal">({val.packageSize}{val.unit}/un)</span>
                                 </div>
                               )}
                             </div>
@@ -305,7 +305,7 @@ export const OSApontamentoPreview = forwardRef<HTMLDivElement, Props>(({ os, equ
                             <span className="text-[10px] text-amber-800 uppercase font-bold mb-1">{nome}</span>
                             <div className="flex flex-col items-center">
                               <div className="text-xl font-black text-amber-900 leading-tight">
-                                {val.totalAplicado.toFixed(1)} <span className="text-[10px] font-bold uppercase">{val.unit}</span>
+                                {(val.totalAplicado % 1 === 0 ? val.totalAplicado.toFixed(0) : val.totalAplicado.toFixed(3))} <span className="text-[10px] font-bold uppercase">{val.unit}</span>
                               </div>
                               <div className="text-lg font-bold text-amber-700 leading-tight">
                                 {totalPackages} <span className="text-[10px] font-medium uppercase">{packageLabel}</span>

@@ -137,7 +137,7 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
         const leftover = supplyVolume - appliedVolume;
         
         if (newAp.areaAplicada || newAp.bombasCheias || newAp.cargaParcial || newAp.sobraUtilizada) {
-          newAp.caldaRestante = Math.max(0, leftover).toFixed(1);
+          newAp.caldaRestante = Math.max(0, leftover).toFixed(3);
         }
       }
     }
@@ -165,10 +165,10 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
         
         if (amount > caldaNecessaria) {
           ap.areaAplicada = areaPlanejada.toFixed(2);
-          ap.caldaRestante = (amount - caldaNecessaria).toFixed(1);
+          ap.caldaRestante = (amount - caldaNecessaria).toFixed(3);
         } else {
           ap.areaAplicada = areaFromSobra.toFixed(2);
-          ap.caldaRestante = "0.0";
+          ap.caldaRestante = "0";
         }
       }
       
@@ -179,7 +179,7 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
         const targetArea = parseFloat(ap.areaAplicada) || 0;
         const appliedVolume = targetArea * volumeCaldaHa;
         const supplyVolume = (targetPumps * targetTankCapacity) + amount;
-        ap.caldaRestante = Math.max(0, supplyVolume - appliedVolume).toFixed(1);
+        ap.caldaRestante = Math.max(0, supplyVolume - appliedVolume).toFixed(3);
       }
       
       ap.observacoes = `${ap.observacoes || ""}\n[Sobra] Recebida de: ${sobraPrompt.fromTalhao}`.trim();
@@ -588,7 +588,7 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                               Sugestao de Carga para {areaDigitada.toFixed(2)} ha
                             </p>
                             <p className="text-xs text-blue-700 mt-1">
-                              Volume necessario: <strong>{caldaNecessaria.toFixed(0)}L</strong> — Tanque: <strong>{tankCapacity}L</strong>
+                              Volume necessario: <strong>{(caldaNecessaria % 1 === 0 ? caldaNecessaria.toFixed(0) : caldaNecessaria.toFixed(3))}L</strong> — Tanque: <strong>{tankCapacity}L</strong>
                             </p>
                             <div className="flex flex-wrap gap-2 mt-2">
                               <Button
@@ -599,16 +599,16 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                                   const updated = [...apontamentos];
                                   const updatedAp = { ...updated[ap.globalIdx] };
                                   updatedAp.bombasCheias = bombasInteiras.toString();
-                                  updatedAp.cargaParcial = temParcial ? restoParcial.toFixed(1) : "";
-                                  updatedAp.caldaRestante = "0.0";
-                                  const nota = `Dosagem parcial: ${bombasInteiras} bombas + ${restoParcial.toFixed(0)}L (sem sobra).`;
+                                  updatedAp.cargaParcial = temParcial ? restoParcial.toFixed(3) : "";
+                                  updatedAp.caldaRestante = "0";
+                                  const nota = `Dosagem parcial: ${bombasInteiras} bombas + ${(restoParcial % 1 === 0 ? restoParcial.toFixed(0) : restoParcial.toFixed(3))}L (sem sobra).`;
                                   updatedAp.observacoes = (updatedAp.observacoes || "") + "\n" + nota;
                                   updated[ap.globalIdx] = updatedAp;
                                   setApontamentos(updated);
                                   toast.success("Dosagem exata aplicada!");
                                 }}
                               >
-                                {temParcial ? `${bombasInteiras} bombas + ${restoParcial.toFixed(0)}L` : `${bombasInteiras} bombas exatas`} (Sobra: 0L)
+                                {temParcial ? `${bombasInteiras} bombas + ${(restoParcial % 1 === 0 ? restoParcial.toFixed(0) : restoParcial.toFixed(3))}L` : `${bombasInteiras} bombas exatas`} (Sobra: 0L)
                               </Button>
                               
                               {sobraBombaCheia > 0 && (
@@ -621,15 +621,15 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                                     const updatedAp = { ...updated[ap.globalIdx] };
                                     updatedAp.bombasCheias = bombasNecessarias.toString();
                                     updatedAp.cargaParcial = "";
-                                    updatedAp.caldaRestante = sobraBombaCheia.toFixed(1);
-                                    const nota = `${bombasNecessarias} bombas cheias - sobra de ${sobraBombaCheia.toFixed(0)}L.`;
+                                    updatedAp.caldaRestante = sobraBombaCheia.toFixed(3);
+                                    const nota = `${bombasNecessarias} bombas cheias - sobra de ${(sobraBombaCheia % 1 === 0 ? sobraBombaCheia.toFixed(0) : sobraBombaCheia.toFixed(3))}L.`;
                                     updatedAp.observacoes = (updatedAp.observacoes || "") + "\n" + nota;
                                     updated[ap.globalIdx] = updatedAp;
                                     setApontamentos(updated);
                                     toast.success("Bomba cheia aplicada!");
                                   }}
                                 >
-                                  {bombasNecessarias} bombas cheias (Sobra: {sobraBombaCheia.toFixed(0)}L)
+                                  {bombasNecessarias} bombas cheias (Sobra: {(sobraBombaCheia % 1 === 0 ? sobraBombaCheia.toFixed(0) : sobraBombaCheia.toFixed(3))}L)
                                 </Button>
                               )}
                             </div>
@@ -833,7 +833,7 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                           const total = dose * (parseFloat(ap.areaAplicada) || 0);
                           return (
                             <span key={pIdx} className="bg-blue-50 text-blue-800 text-[10px] px-2 py-0.5 rounded border border-blue-100">
-                              {p.produto}: <strong>{total.toFixed(2)}{p.unit}</strong> ({p.dose}{p.unit}/ha)
+                              {p.produto}: <strong>{(total % 1 === 0 ? total.toFixed(0) : total.toFixed(3))}{p.unit}</strong> ({p.dose}{p.unit}/ha)
                             </span>
                           );
                         })}

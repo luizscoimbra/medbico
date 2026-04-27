@@ -227,7 +227,7 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
               {resumoInsumos.map((item, idx) => (
                 <tr key={idx}>
                   <td className="border border-gray-300 px-3 py-2">{item.produto}</td>
-                  <td className="border border-gray-300 px-3 py-2 text-right">{item.totalNecessario.toFixed(2)}</td>
+                  <td className="border border-gray-300 px-3 py-2 text-right">{(item.totalNecessario % 1 === 0 ? item.totalNecessario.toFixed(0) : item.totalNecessario.toFixed(3))}</td>
                   <td className="border border-gray-300 px-3 py-2 text-center">{item.unit}</td>
                   <td className="border border-gray-300 px-3 py-2 text-right">
                     {item.packageSize > 0 ? `${item.packageSize} ${item.unit}` : "—"}
