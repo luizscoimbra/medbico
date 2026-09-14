@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Copy, Plus, Minus, X, History as HistoryIcon, Clock, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import type { TalhaoData, ProdutoDose, OrdemServico } from "@/lib/osStorage";
+import type { TalhaoData, ProdutoDose, OrdemServico, ServicoOS } from "@/lib/osStorage";
 import type { Cliente } from "@/lib/clienteStorage";
 import { getAllOS, MOTIVO_PARADA_LABELS } from "@/lib/osStorage";
 import { getAllAreas, AreaCadastro } from "@/lib/areaStorage";
@@ -43,6 +43,9 @@ interface OSFormProps {
   setSelectedClienteId: (v: string) => void;
   selectedClienteNome: string;
   setSelectedClienteNome: (v: string) => void;
+  servicosDisponiveis: any[];
+  servicosOS: ServicoOS[];
+  setServicosOS: (v: ServicoOS[]) => void;
   onGenerate: () => void;
 }
 
@@ -50,6 +53,9 @@ interface ProdutoDB {
   commercial_name: string;
   unit: string;
   package_size: number;
+  preco_unitario?: number;
+  ncm?: string;
+  cfop?: string;
 }
 
 const emptyProduto = (): ProdutoDose => ({ produto: "", dose: "" });
@@ -81,6 +87,8 @@ export function OSForm({
   clientes,
   selectedClienteId, setSelectedClienteId,
   selectedClienteNome, setSelectedClienteNome,
+  servicosDisponiveis,
+  servicosOS, setServicosOS,
   onGenerate,
 }: OSFormProps) {
   const [produtosDB, setProdutosDB] = useState<ProdutoDB[]>([]);
@@ -92,7 +100,7 @@ export function OSForm({
   useEffect(() => {
     supabase
       .from("registered_products")
-      .select("commercial_name, unit, package_size")
+      .select("commercial_name, unit, package_size, preco_unitario, ncm, cfop")
       .then(({ data }) => {
         if (data) setProdutosDB(data as ProdutoDB[]);
       });
@@ -489,6 +497,104 @@ export function OSForm({
               </CardContent>
             </Card>
           ))}
+        </CardContent>
+      </Card>
+
+      {/* Serviços da OS */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg">Serviços</CardTitle>
+          <Button type="button" variant="outline" size="sm" onClick={() => {
+            setServicosOS([...servicosOS, { servicoId: "", codigo: "", descricao: "", quantidade: 1, valorUnitario: 0, valorTotal: 0 }]);
+          }}>
+            <Plus className="h-4 w-4 mr-1" /> Adicionar Serviço
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {servicosOS.length === 0 && (
+            <p className="text-sm text-muted-foreground italic">Nenhum serviço adicionado. Clique em "Adicionar Serviço" para incluir.</p>
+          )}
+          {servicosOS.map((s, idx) => (
+            <div key={idx} className="flex items-end gap-2 border rounded-lg p-3 bg-muted/10">
+              <div className="flex-1 min-w-0">
+                <Label className="text-xs">Serviço</Label>
+                <select
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={s.servicoId}
+                  onChange={(e) => {
+                    const selected = servicosDisponiveis.find(srv => srv.id === e.target.value);
+                    const updated = [...servicosOS];
+                    if (selected) {
+                      updated[idx] = {
+                        servicoId: selected.id,
+                        codigo: selected.codigo,
+                        descricao: selected.descricao,
+                        quantidade: updated[idx].quantidade || 1,
+                        valorUnitario: selected.preco_unitario || 0,
+                        valorTotal: (updated[idx].quantidade || 1) * (selected.preco_unitario || 0),
+                      };
+                    } else {
+                      updated[idx] = { servicoId: "", codigo: "", descricao: "", quantidade: 1, valorUnitario: 0, valorTotal: 0 };
+                    }
+                    setServicosOS(updated);
+                  }}
+                >
+                  <option value="">Selecione um serviço...</option>
+                  {servicosDisponiveis.map(srv => (
+                    <option key={srv.id} value={srv.id}>{srv.codigo} - {srv.descricao}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-24">
+                <Label className="text-xs">Qtd.</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={s.quantidade || ""}
+                  onChange={(e) => {
+                    const qty = parseFloat(e.target.value) || 0;
+                    const updated = [...servicosOS];
+                    updated[idx] = { ...updated[idx], quantidade: qty, valorTotal: qty * updated[idx].valorUnitario };
+                    setServicosOS(updated);
+                  }}
+                />
+              </div>
+              <div className="w-28">
+                <Label className="text-xs">Valor Unit.</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={s.valorUnitario || ""}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value) || 0;
+                    const updated = [...servicosOS];
+                    updated[idx] = { ...updated[idx], valorUnitario: val, valorTotal: updated[idx].quantidade * val };
+                    setServicosOS(updated);
+                  }}
+                />
+              </div>
+              <div className="w-28">
+                <Label className="text-xs">Subtotal</Label>
+                <div className="h-9 flex items-center text-sm font-semibold">
+                  R$ {(s.valorTotal || 0).toFixed(2)}
+                </div>
+              </div>
+              <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => {
+                setServicosOS(servicosOS.filter((_, j) => j !== idx));
+              }}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+          {servicosOS.length > 0 && (
+            <div className="flex justify-end pt-2 border-t">
+              <div className="text-sm">
+                Total Serviços: <span className="font-bold">R$ {servicosOS.reduce((sum, s) => sum + (s.valorTotal || 0), 0).toFixed(2)}</span>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

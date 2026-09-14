@@ -13,6 +13,8 @@ import jsPDF from "jspdf";
 import { Link } from "react-router-dom";
 import { getAllEquipments, Equipment } from "@/lib/equipmentStorage";
 import { getAllClientes, Cliente } from "@/lib/clienteStorage";
+import { supabase } from "@/integrations/supabase/client";
+import type { ServicoOS } from "@/lib/osStorage";
 
 type View = "form" | "preview" | "history" | "apontamento" | "apontamento-preview";
 
@@ -38,6 +40,8 @@ export default function OrdemServico() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [selectedClienteId, setSelectedClienteId] = useState("");
   const [selectedClienteNome, setSelectedClienteNome] = useState("");
+  const [servicosDisponiveis, setServicosDisponiveis] = useState<any[]>([]);
+  const [servicosOS, setServicosOS] = useState<ServicoOS[]>([]);
   const [talhoes, setTalhoes] = useState<TalhaoData[]>([
     { nome: "", area: "", produtos: [{ produto: "", dose: "" }], testemunho: false, testemunhoArea: "", testeProduto: false, produtoTeste: "", produtoTesteQtd: "" },
   ]);
@@ -45,6 +49,9 @@ export default function OrdemServico() {
   useEffect(() => {
     getAllEquipments().then(setEquipments);
     getAllClientes().then(setClientes);
+    supabase.from("services").select("*").order("descricao").then(({ data }) => {
+      if (data) setServicosDisponiveis(data);
+    });
   }, []);
 
   const handleGenerate = async () => {
@@ -71,6 +78,7 @@ export default function OrdemServico() {
       equipamentos: selectedEquipments,
       clienteId: selectedClienteId || undefined,
       clienteNome: selectedClienteNome || undefined,
+      servicos: servicosOS.length > 0 ? servicosOS : undefined,
     };
     await saveOS(os);
     setCurrentOS(os);
@@ -160,6 +168,7 @@ export default function OrdemServico() {
     setSelectedEquipments([]);
     setSelectedClienteId("");
     setSelectedClienteNome("");
+    setServicosOS([]);
     setCurrentOS(null);
     setView("form");
   };
@@ -216,6 +225,8 @@ export default function OrdemServico() {
           clientes={clientes}
           selectedClienteId={selectedClienteId} setSelectedClienteId={setSelectedClienteId}
           selectedClienteNome={selectedClienteNome} setSelectedClienteNome={setSelectedClienteNome}
+          servicosDisponiveis={servicosDisponiveis}
+          servicosOS={servicosOS} setServicosOS={setServicosOS}
           onGenerate={handleGenerate}
         />
       )}

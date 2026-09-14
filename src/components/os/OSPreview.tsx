@@ -63,6 +63,7 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
   }, [os]);
 
   const temValores = (os.valorHerbicidas || 0) + (os.valorServico || 0) > 0;
+  const totalServicos = os.servicos?.reduce((sum, s) => sum + s.valorTotal, 0) || 0;
 
   return (
     <div ref={ref} className="bg-white text-black p-4 sm:p-6 w-full lg:max-w-[210mm] mx-auto print-area" id="os-print" style={{ fontSize: "11px", lineHeight: "1.3" }}>
@@ -253,7 +254,7 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
         )}
 
         {/* Resumo Financeiro */}
-        {temValores && (
+        {(temValores || totalServicos > 0) && (
           <div>
             <h2 className="text-[11px] font-bold uppercase mb-1 text-gray-700">Resumo Financeiro</h2>
             <div className="border border-gray-300 rounded p-2 h-full">
@@ -269,16 +270,57 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
                   <span className="font-medium">R$ {os.valorServico.toFixed(2)}</span>
                 </div>
               ) : null}
+              {totalServicos > 0 && (
+                <div className="flex justify-between py-0.5" style={{ fontSize: "10px" }}>
+                  <span className="text-gray-600">Serviços (NFSE):</span>
+                  <span className="font-medium">R$ {totalServicos.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between py-0.5 border-t border-gray-300 mt-1 pt-1" style={{ fontSize: "11px" }}>
                 <span className="font-bold text-gray-800">TOTAL:</span>
                 <span className="font-bold text-gray-800">
-                  R$ {((os.valorHerbicidas || 0) + (os.valorServico || 0)).toFixed(2)}
+                  R$ {((os.valorHerbicidas || 0) + (os.valorServico || 0) + totalServicos).toFixed(2)}
                 </span>
               </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* Serviços da OS */}
+      {os.servicos && os.servicos.length > 0 && (
+        <div className="mb-3">
+          <h2 className="text-[11px] font-bold uppercase mb-1 text-gray-700">Serviços</h2>
+          <table className="w-full border-collapse" style={{ fontSize: "10px" }}>
+            <thead>
+              <tr className="bg-blue-50">
+                <th className="border border-gray-300 px-1.5 py-1 text-left">Código</th>
+                <th className="border border-gray-300 px-1.5 py-1 text-left">Descrição</th>
+                <th className="border border-gray-300 px-1.5 py-1 text-right">Qtd</th>
+                <th className="border border-gray-300 px-1.5 py-1 text-right">Valor Unit.</th>
+                <th className="border border-gray-300 px-1.5 py-1 text-right">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {os.servicos.map((s, idx) => (
+                <tr key={idx}>
+                  <td className="border border-gray-300 px-1.5 py-1">{s.codigo}</td>
+                  <td className="border border-gray-300 px-1.5 py-1">{s.descricao}</td>
+                  <td className="border border-gray-300 px-1.5 py-1 text-right">{s.quantidade}</td>
+                  <td className="border border-gray-300 px-1.5 py-1 text-right">R$ {s.valorUnitario.toFixed(2)}</td>
+                  <td className="border border-gray-300 px-1.5 py-1 text-right font-semibold">R$ {s.valorTotal.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="font-semibold bg-blue-50/50">
+                <td colSpan={4} className="border border-gray-300 px-1.5 py-1 text-right">Total Serviços:</td>
+                <td className="border border-gray-300 px-1.5 py-1 text-right">R$ {os.servicos.reduce((sum, s) => sum + s.valorTotal, 0).toFixed(2)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
 
       {/* Assinatura + Rodapé */}
       <div className="flex items-end justify-between mt-4 pt-2">

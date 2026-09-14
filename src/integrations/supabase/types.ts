@@ -20,6 +20,7 @@ export type Database = {
           equipment_model: string
           fleet_number: string
           id: string
+          tank_capacity: number
           total_nozzles: number
           tractor_model: string | null
           updated_at: string
@@ -30,6 +31,7 @@ export type Database = {
           equipment_model: string
           fleet_number: string
           id?: string
+          tank_capacity?: number
           total_nozzles: number
           tractor_model?: string | null
           updated_at?: string
@@ -40,6 +42,7 @@ export type Database = {
           equipment_model?: string
           fleet_number?: string
           id?: string
+          tank_capacity?: number
           total_nozzles?: number
           tractor_model?: string | null
           updated_at?: string
@@ -55,7 +58,9 @@ export type Database = {
           id: string
           manufacturer: string
           name: string
+          package_size: number
           type: string
+          unit: string
           updated_at: string
           user_id: string
           withholding_period: string
@@ -67,7 +72,9 @@ export type Database = {
           id?: string
           manufacturer: string
           name: string
+          package_size?: number
           type: string
+          unit?: string
           updated_at?: string
           user_id: string
           withholding_period: string
@@ -79,7 +86,9 @@ export type Database = {
           id?: string
           manufacturer?: string
           name?: string
+          package_size?: number
           type?: string
+          unit?: string
           updated_at?: string
           user_id?: string
           withholding_period?: string
@@ -92,6 +101,9 @@ export type Database = {
           created_at: string
           full_name: string
           id: string
+          phone: string
+          role: string
+          status: string
           updated_at: string
         }
         Insert: {
@@ -99,6 +111,9 @@ export type Database = {
           created_at?: string
           full_name?: string
           id: string
+          phone?: string
+          role?: string
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -106,38 +121,137 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+          phone?: string
+          role?: string
+          status?: string
           updated_at?: string
         }
         Relationships: []
       }
       registered_products: {
         Row: {
+          aliquota_cofins: number
+          aliquota_icms: number
+          aliquota_ipi: number
+          aliquota_pis: number
+          base_calculo_iss: number
+          cest: string
+          cfop: string
+          codigo: string
           commercial_name: string
           created_at: string
+          cst_csosn: string
+          descricao: string
+          enquadramento_ipi: string
           formulation: string
           id: string
+          ncm: string
+          origem: string
           package_size: number
+          preco_unitario: number
           unit: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          aliquota_cofins?: number
+          aliquota_icms?: number
+          aliquota_ipi?: number
+          aliquota_pis?: number
+          base_calculo_iss?: number
+          cest?: string
+          cfop?: string
+          codigo?: string
           commercial_name: string
           created_at?: string
+          cst_csosn?: string
+          descricao?: string
+          enquadramento_ipi?: string
           formulation: string
           id?: string
+          ncm?: string
+          origem?: string
           package_size: number
+          preco_unitario?: number
           unit: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          aliquota_cofins?: number
+          aliquota_icms?: number
+          aliquota_ipi?: number
+          aliquota_pis?: number
+          base_calculo_iss?: number
+          cest?: string
+          cfop?: string
+          codigo?: string
           commercial_name?: string
           created_at?: string
+          cst_csosn?: string
+          descricao?: string
+          enquadramento_ipi?: string
           formulation?: string
           id?: string
+          ncm?: string
+          origem?: string
           package_size?: number
+          preco_unitario?: number
           unit?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      services: {
+        Row: {
+          aliquota_cofins: number
+          aliquota_iss: number
+          aliquota_pis: number
+          base_calculo_iss: number
+          cnae: string
+          cod_tributacao: string
+          codigo: string
+          created_at: string
+          descricao: string
+          id: string
+          item_lista_servico: string
+          preco_unitario: number
+          unidade: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          aliquota_cofins?: number
+          aliquota_iss?: number
+          aliquota_pis?: number
+          base_calculo_iss?: number
+          cnae?: string
+          cod_tributacao?: string
+          codigo: string
+          created_at?: string
+          descricao: string
+          id?: string
+          item_lista_servico?: string
+          preco_unitario: number
+          unidade?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          aliquota_cofins?: number
+          aliquota_iss?: number
+          aliquota_pis?: number
+          base_calculo_iss?: number
+          cnae?: string
+          cod_tributacao?: string
+          codigo?: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          item_lista_servico?: string
+          preco_unitario?: number
+          unidade?: string
           updated_at?: string
           user_id?: string
         }

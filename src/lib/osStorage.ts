@@ -7,6 +7,15 @@ export interface ProdutoDose {
   packageSize?: number;  // tamanho da embalagem
 }
 
+export interface ServicoOS {
+  servicoId: string;
+  codigo: string;
+  descricao: string;
+  quantidade: number;
+  valorUnitario: number;
+  valorTotal: number;
+}
+
 export interface TalhaoData {
   nome: string;
   area: string;
@@ -70,6 +79,8 @@ export interface OrdemServico {
   // Cliente vinculado
   clienteId?: string;
   clienteNome?: string;
+  // Serviços vinculados
+  servicos?: ServicoOS[];
   // Valores financeiros
   valorHerbicidas?: number;
   valorServico?: number;

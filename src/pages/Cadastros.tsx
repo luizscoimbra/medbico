@@ -26,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Settings, FlaskConical, Plus, Trash2, Tractor, Hash, Truck, Map, MapPin, Activity, Pencil, RefreshCcw, Users, Download, Upload } from "lucide-react";
+import { Settings, FlaskConical, Plus, Trash2, Tractor, Hash, Truck, Map, MapPin, Activity, Pencil, RefreshCcw, Users, Download, Upload, FileText } from "lucide-react";
 import { saveTipoAplicacao, getAllTiposAplicacao, deleteTipoAplicacao, TipoAplicacao } from "@/lib/applicationTypeStorage";
 import { saveEquipment, getAllEquipments, deleteEquipment, Equipment } from "@/lib/equipmentStorage";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +44,37 @@ interface RegisteredProduct {
   formulation: string;
   unit: string;
   package_size: number;
+  codigo: string;
+  descricao: string;
+  ncm: string;
+  cfop: string;
+  cst_csosn: string;
+  origem: string;
+  cest: string;
+  preco_unitario: number;
+  aliquota_icms: number;
+  aliquota_ipi: number;
+  enquadramento_ipi: string;
+  aliquota_pis: number;
+  aliquota_cofins: number;
+}
+
+interface Servico {
+  id: string;
+  user_id: string;
+  codigo: string;
+  descricao: string;
+  unidade: string;
+  preco_unitario: number;
+  cnae: string;
+  item_lista_servico: string;
+  cod_tributacao: string;
+  aliquota_iss: number;
+  base_calculo_iss: number;
+  aliquota_pis: number;
+  aliquota_cofins: number;
+  created_at: string;
+  updated_at: string;
 }
 
 interface WaterTruck {
@@ -74,6 +105,19 @@ export default function Cadastros() {
     formulation: "SL",
     unit: "L",
     package_size: "",
+    codigo: "",
+    descricao: "",
+    ncm: "",
+    cfop: "",
+    cst_csosn: "",
+    origem: "0",
+    cest: "",
+    preco_unitario: "",
+    aliquota_icms: "",
+    aliquota_ipi: "",
+    enquadramento_ipi: "",
+    aliquota_pis: "",
+    aliquota_cofins: "",
   });
 
   // Water Trucks state
@@ -165,6 +209,23 @@ export default function Cadastros() {
   });
   const [editingClienteId, setEditingClienteId] = useState<string | null>(null);
 
+  // Serviços state
+  const [servicos, setServicos] = useState<Servico[]>([]);
+  const [servicoForm, setServicoForm] = useState({
+    codigo: "",
+    descricao: "",
+    unidade: "UN",
+    preco_unitario: "",
+    cnae: "",
+    item_lista_servico: "",
+    cod_tributacao: "",
+    aliquota_iss: "",
+    base_calculo_iss: "",
+    aliquota_pis: "",
+    aliquota_cofins: "",
+  });
+  const [editingServicoId, setEditingServicoId] = useState<string | null>(null);
+
   const allFormulations = [...defaultFormulations, ...customFormulations];
 
   const handleAddFormulation = () => {
@@ -216,6 +277,19 @@ export default function Cadastros() {
       formulation: prod.formulation,
       unit: prod.unit,
       package_size: prod.package_size.toString(),
+      codigo: prod.codigo || "",
+      descricao: prod.descricao || "",
+      ncm: prod.ncm || "",
+      cfop: prod.cfop || "",
+      cst_csosn: prod.cst_csosn || "",
+      origem: prod.origem || "0",
+      cest: prod.cest || "",
+      preco_unitario: prod.preco_unitario?.toString() || "",
+      aliquota_icms: prod.aliquota_icms?.toString() || "",
+      aliquota_ipi: prod.aliquota_ipi?.toString() || "",
+      enquadramento_ipi: prod.enquadramento_ipi || "",
+      aliquota_pis: prod.aliquota_pis?.toString() || "",
+      aliquota_cofins: prod.aliquota_cofins?.toString() || "",
     });
     const el = document.getElementById("form-produto");
     if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -223,7 +297,12 @@ export default function Cadastros() {
 
   const handleCancelEditProduct = () => {
     setEditingProductId(null);
-    setProdForm({ commercial_name: "", formulation: "SL", unit: "L", package_size: "" });
+    setProdForm({
+      commercial_name: "", formulation: "SL", unit: "L", package_size: "",
+      codigo: "", descricao: "", ncm: "", cfop: "", cst_csosn: "", origem: "0", cest: "",
+      preco_unitario: "", aliquota_icms: "", aliquota_ipi: "", enquadramento_ipi: "",
+      aliquota_pis: "", aliquota_cofins: "",
+    });
   };
 
   useEffect(() => {
@@ -247,6 +326,7 @@ export default function Cadastros() {
     fetchTiposAplicacaoList();
     fetchOperadoresList();
     fetchClientesList();
+    fetchServicosList();
   }, [userId]);
 
   const fetchOperadoresList = async () => {
@@ -328,6 +408,19 @@ export default function Cadastros() {
       formulation: prodForm.formulation,
       unit: prodForm.unit,
       package_size: size,
+      codigo: prodForm.codigo.trim(),
+      descricao: prodForm.descricao.trim(),
+      ncm: prodForm.ncm.trim(),
+      cfop: prodForm.cfop.trim(),
+      cst_csosn: prodForm.cst_csosn.trim(),
+      origem: prodForm.origem,
+      cest: prodForm.cest.trim(),
+      preco_unitario: parseFloat(prodForm.preco_unitario) || 0,
+      aliquota_icms: parseFloat(prodForm.aliquota_icms) || 0,
+      aliquota_ipi: parseFloat(prodForm.aliquota_ipi) || 0,
+      enquadramento_ipi: prodForm.enquadramento_ipi.trim(),
+      aliquota_pis: parseFloat(prodForm.aliquota_pis) || 0,
+      aliquota_cofins: parseFloat(prodForm.aliquota_cofins) || 0,
     };
 
     if (editingProductId) {
@@ -351,7 +444,12 @@ export default function Cadastros() {
     }
     
     setEditingProductId(null);
-    setProdForm({ commercial_name: "", formulation: "SL", unit: "L", package_size: "" });
+    setProdForm({
+      commercial_name: "", formulation: "SL", unit: "L", package_size: "",
+      codigo: "", descricao: "", ncm: "", cfop: "", cst_csosn: "", origem: "0", cest: "",
+      preco_unitario: "", aliquota_icms: "", aliquota_ipi: "", enquadramento_ipi: "",
+      aliquota_pis: "", aliquota_cofins: "",
+    });
     fetchProducts();
   };
 
@@ -546,6 +644,14 @@ export default function Cadastros() {
     setClientes(list);
   };
 
+  const fetchServicosList = async () => {
+    const { data } = await supabase
+      .from("services")
+      .select("*")
+      .order("descricao");
+    if (data) setServicos(data as Servico[]);
+  };
+
   const handleEditCliente = (cli: Cliente) => {
     setEditingClienteId(cli.id);
     setClienteForm({
@@ -627,6 +733,97 @@ export default function Cadastros() {
     await deleteCliente(id);
     toast.success("Cliente removido");
     fetchClientesList();
+  };
+
+  // Serviços handlers
+  const handleEditServico = (s: Servico) => {
+    setEditingServicoId(s.id);
+    setServicoForm({
+      codigo: s.codigo,
+      descricao: s.descricao,
+      unidade: s.unidade,
+      preco_unitario: s.preco_unitario?.toString() || "",
+      cnae: s.cnae || "",
+      item_lista_servico: s.item_lista_servico || "",
+      cod_tributacao: s.cod_tributacao || "",
+      aliquota_iss: s.aliquota_iss?.toString() || "",
+      base_calculo_iss: s.base_calculo_iss?.toString() || "",
+      aliquota_pis: s.aliquota_pis?.toString() || "",
+      aliquota_cofins: s.aliquota_cofins?.toString() || "",
+    });
+    const el = document.getElementById("form-servico");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleCancelEditServico = () => {
+    setEditingServicoId(null);
+    setServicoForm({
+      codigo: "", descricao: "", unidade: "UN", preco_unitario: "",
+      cnae: "", item_lista_servico: "", cod_tributacao: "",
+      aliquota_iss: "", base_calculo_iss: "", aliquota_pis: "", aliquota_cofins: "",
+    });
+  };
+
+  const handleAddServico = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userId) return;
+    if (!servicoForm.codigo.trim() || !servicoForm.descricao.trim()) {
+      toast.error("Preencha código e descrição do serviço");
+      return;
+    }
+    const preco = parseFloat(servicoForm.preco_unitario) || 0;
+    if (preco <= 0) {
+      toast.error("Informe o valor unitário do serviço");
+      return;
+    }
+
+    const servicoData = {
+      user_id: userId,
+      codigo: servicoForm.codigo.trim(),
+      descricao: servicoForm.descricao.trim(),
+      unidade: servicoForm.unidade,
+      preco_unitario: preco,
+      cnae: servicoForm.cnae.trim(),
+      item_lista_servico: servicoForm.item_lista_servico.trim(),
+      cod_tributacao: servicoForm.cod_tributacao.trim(),
+      aliquota_iss: parseFloat(servicoForm.aliquota_iss) || 0,
+      base_calculo_iss: parseFloat(servicoForm.base_calculo_iss) || 0,
+      aliquota_pis: parseFloat(servicoForm.aliquota_pis) || 0,
+      aliquota_cofins: parseFloat(servicoForm.aliquota_cofins) || 0,
+    };
+
+    if (editingServicoId) {
+      const { error } = await supabase
+        .from("services")
+        .update(servicoData)
+        .eq("id", editingServicoId);
+      if (error) {
+        toast.error("Erro ao atualizar serviço");
+        return;
+      }
+      toast.success("Serviço atualizado!");
+    } else {
+      const { error } = await supabase.from("services").insert(servicoData);
+      if (error) {
+        toast.error("Erro ao cadastrar serviço");
+        return;
+      }
+      toast.success("Serviço cadastrado!");
+    }
+
+    setEditingServicoId(null);
+    setServicoForm({
+      codigo: "", descricao: "", unidade: "UN", preco_unitario: "",
+      cnae: "", item_lista_servico: "", cod_tributacao: "",
+      aliquota_iss: "", base_calculo_iss: "", aliquota_pis: "", aliquota_cofins: "",
+    });
+    fetchServicosList();
+  };
+
+  const handleDeleteServico = async (id: string) => {
+    await supabase.from("services").delete().eq("id", id);
+    toast.success("Serviço removido");
+    fetchServicosList();
   };
 
   const handleDownloadCSV = (type: 'equipamentos' | 'areas' | 'operadores' | 'produtos') => {
@@ -838,7 +1035,7 @@ export default function Cadastros() {
       </div>
 
       <Tabs defaultValue="equipamentos" className="animate-slide-up">
-        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-7 h-auto">
+        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 h-auto">
           <TabsTrigger value="equipamentos" className="flex items-center gap-2 py-3 h-full whitespace-nowrap">
             <Settings className="h-4 w-4" />
             Equipamentos
@@ -850,6 +1047,10 @@ export default function Cadastros() {
           <TabsTrigger value="produtos" className="flex items-center gap-2 py-3 h-full whitespace-nowrap">
             <FlaskConical className="h-4 w-4" />
             Produtos
+          </TabsTrigger>
+          <TabsTrigger value="servicos" className="flex items-center gap-2 py-3 h-full whitespace-nowrap">
+            <FileText className="h-4 w-4" />
+            Serviços
           </TabsTrigger>
           <TabsTrigger value="areas" className="flex items-center gap-2 py-3 h-full whitespace-nowrap">
             <Map className="h-4 w-4" />
@@ -1315,7 +1516,167 @@ export default function Cadastros() {
                       Peso (KG) ou Volume (L) da embalagem
                     </p>
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="prod_codigo">Código Interno</Label>
+                    <Input
+                      id="prod_codigo"
+                      placeholder="Ex: PROD-001"
+                      value={prodForm.codigo}
+                      onChange={(e) => setProdForm((p) => ({ ...p, codigo: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="prod_preco">Preço Unitário (R$)</Label>
+                    <Input
+                      id="prod_preco"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="Ex: 45.90"
+                      value={prodForm.preco_unitario}
+                      onChange={(e) => setProdForm((p) => ({ ...p, preco_unitario: e.target.value }))}
+                    />
+                  </div>
                 </div>
+
+                {/* Dados Fiscais NF-e */}
+                <div className="border rounded-lg p-4 bg-muted/10 space-y-4">
+                  <h4 className="text-sm font-semibold text-primary">Dados Fiscais (NF-e)</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="prod_ncm">NCM</Label>
+                      <Input
+                        id="prod_ncm"
+                        placeholder="Ex: 3808.91.19"
+                        maxLength={10}
+                        value={prodForm.ncm}
+                        onChange={(e) => setProdForm((p) => ({ ...p, ncm: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="prod_cfop">CFOP</Label>
+                      <Input
+                        id="prod_cfop"
+                        placeholder="Ex: 5.102"
+                        maxLength={5}
+                        value={prodForm.cfop}
+                        onChange={(e) => setProdForm((p) => ({ ...p, cfop: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="prod_cst">CST/CSOSN</Label>
+                      <Input
+                        id="prod_cst"
+                        placeholder="Ex: 000 ou 102"
+                        maxLength={3}
+                        value={prodForm.cst_csosn}
+                        onChange={(e) => setProdForm((p) => ({ ...p, cst_csosn: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="prod_origem">Origem</Label>
+                      <Select
+                        value={prodForm.origem}
+                        onValueChange={(v) => setProdForm((p) => ({ ...p, origem: v }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">0 - Nacional</SelectItem>
+                          <SelectItem value="1">1 - Estrangeira (Importação direta)</SelectItem>
+                          <SelectItem value="2">2 - Estrangeira (Adq. mercado interno)</SelectItem>
+                          <SelectItem value="3">3 - Nacional (Conteúdo importação &gt;40%)</SelectItem>
+                          <SelectItem value="4">4 - Nacional (Conteúdo importação ≤40%)</SelectItem>
+                          <SelectItem value="5">5 - Nacional (Processo básico)</SelectItem>
+                          <SelectItem value="6">6 - Estrangeira (Importação direta, sem similar)</SelectItem>
+                          <SelectItem value="7">7 - Estrangeira (Adq. mercado interno, sem similar)</SelectItem>
+                          <SelectItem value="8">8 - Nacional (Conteúdo importação &gt;70%)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="prod_cest">CEST</Label>
+                      <Input
+                        id="prod_cest"
+                        placeholder="Opcional"
+                        maxLength={7}
+                        value={prodForm.cest}
+                        onChange={(e) => setProdForm((p) => ({ ...p, cest: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tributação */}
+                <div className="border rounded-lg p-4 bg-muted/10 space-y-4">
+                  <h4 className="text-sm font-semibold text-primary">Tributação</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="prod_icms">ICMS (%)</Label>
+                      <Input
+                        id="prod_icms"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        placeholder="Ex: 18"
+                        value={prodForm.aliquota_icms}
+                        onChange={(e) => setProdForm((p) => ({ ...p, aliquota_icms: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="prod_ipi">IPI (%)</Label>
+                      <Input
+                        id="prod_ipi"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        placeholder="Ex: 5"
+                        value={prodForm.aliquota_ipi}
+                        onChange={(e) => setProdForm((p) => ({ ...p, aliquota_ipi: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="prod_enq_ipi">Enquadramento IPI</Label>
+                      <Input
+                        id="prod_enq_ipi"
+                        placeholder="Ex: 999"
+                        maxLength={3}
+                        value={prodForm.enquadramento_ipi}
+                        onChange={(e) => setProdForm((p) => ({ ...p, enquadramento_ipi: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="prod_pis">PIS (%)</Label>
+                      <Input
+                        id="prod_pis"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        placeholder="Ex: 1.65"
+                        value={prodForm.aliquota_pis}
+                        onChange={(e) => setProdForm((p) => ({ ...p, aliquota_pis: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="prod_cofins">COFINS (%)</Label>
+                      <Input
+                        id="prod_cofins"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        placeholder="Ex: 7.6"
+                        value={prodForm.aliquota_cofins}
+                        onChange={(e) => setProdForm((p) => ({ ...p, aliquota_cofins: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex justify-end gap-2">
                   {editingProductId && (
                     <Button type="button" variant="outline" onClick={handleCancelEditProduct}>
@@ -1354,6 +1715,9 @@ export default function Cadastros() {
                         <TableHead>Formulação</TableHead>
                         <TableHead>Unidade</TableHead>
                         <TableHead>Embalagem</TableHead>
+                        <TableHead>Preço</TableHead>
+                        <TableHead>NCM</TableHead>
+                        <TableHead>CFOP</TableHead>
                         <TableHead className="w-12"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1364,6 +1728,9 @@ export default function Cadastros() {
                           <TableCell>{p.formulation}</TableCell>
                           <TableCell>{p.unit}</TableCell>
                           <TableCell>{p.package_size} {p.unit}</TableCell>
+                          <TableCell>{p.preco_unitario ? `R$ ${p.preco_unitario.toFixed(2)}` : "—"}</TableCell>
+                          <TableCell>{p.ncm || "—"}</TableCell>
+                          <TableCell>{p.cfop || "—"}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Button
@@ -1917,6 +2284,255 @@ export default function Cadastros() {
                                 size="icon"
                                 className="h-8 w-8 text-destructive"
                                 onClick={() => handleDeleteOperador(o.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* SERVIÇOS TAB */}
+        <TabsContent value="servicos">
+          <Card className="shadow-lg">
+            <CardHeader className="border-b border-border" id="form-servico">
+              <CardTitle className="text-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  {editingServicoId ? "Editar Serviço" : "Cadastrar Serviço"}
+                </div>
+                {editingServicoId && (
+                  <Button variant="ghost" size="sm" onClick={handleCancelEditServico}>
+                    Cancelar Edição
+                  </Button>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <form onSubmit={handleAddServico} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="srv_codigo">Código do Serviço *</Label>
+                    <Input
+                      id="srv_codigo"
+                      placeholder="Ex: SERV-001"
+                      value={servicoForm.codigo}
+                      onChange={(e) => setServicoForm((p) => ({ ...p, codigo: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="srv_desc">Descrição *</Label>
+                    <Input
+                      id="srv_desc"
+                      placeholder="Ex: Pulverização Terrestre"
+                      value={servicoForm.descricao}
+                      onChange={(e) => setServicoForm((p) => ({ ...p, descricao: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="srv_unidade">Unidade *</Label>
+                    <Select
+                      value={servicoForm.unidade}
+                      onValueChange={(v) => setServicoForm((p) => ({ ...p, unidade: v }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="UN">Unidade (UN)</SelectItem>
+                        <SelectItem value="HA">Hectare (HA)</SelectItem>
+                        <SelectItem value="M2">Metro Quadrado (M²)</SelectItem>
+                        <SelectItem value="HORA">Hora (H)</SelectItem>
+                        <SelectItem value="KM">Quilômetro (KM)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="srv_preco">Valor Unitário (R$) *</Label>
+                    <Input
+                      id="srv_preco"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      placeholder="Ex: 150.00"
+                      value={servicoForm.preco_unitario}
+                      onChange={(e) => setServicoForm((p) => ({ ...p, preco_unitario: e.target.value }))}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Dados Fiscais NFSE */}
+                <div className="border rounded-lg p-4 bg-muted/10 space-y-4">
+                  <h4 className="text-sm font-semibold text-primary">Dados Fiscais (NFSE)</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="srv_cnae">CNAE</Label>
+                      <Input
+                        id="srv_cnae"
+                        placeholder="Ex: 0161-3/00"
+                        maxLength={10}
+                        value={servicoForm.cnae}
+                        onChange={(e) => setServicoForm((p) => ({ ...p, cnae: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="srv_item_lista">Item Lista Serviço (LC116)</Label>
+                      <Input
+                        id="srv_item_lista"
+                        placeholder="Ex: 01.01"
+                        maxLength={5}
+                        value={servicoForm.item_lista_servico}
+                        onChange={(e) => setServicoForm((p) => ({ ...p, item_lista_servico: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="srv_cod_trib">Código Tributação</Label>
+                      <Input
+                        id="srv_cod_trib"
+                        placeholder="Ex: 1.05"
+                        maxLength={5}
+                        value={servicoForm.cod_tributacao}
+                        onChange={(e) => setServicoForm((p) => ({ ...p, cod_tributacao: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="srv_iss_base">Base Cálculo ISS (R$)</Label>
+                      <Input
+                        id="srv_iss_base"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="Ex: 150.00"
+                        value={servicoForm.base_calculo_iss}
+                        onChange={(e) => setServicoForm((p) => ({ ...p, base_calculo_iss: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tributação Serviço */}
+                <div className="border rounded-lg p-4 bg-muted/10 space-y-4">
+                  <h4 className="text-sm font-semibold text-primary">Tributação</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="srv_iss">ISS (%)</Label>
+                      <Input
+                        id="srv_iss"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        placeholder="Ex: 5"
+                        value={servicoForm.aliquota_iss}
+                        onChange={(e) => setServicoForm((p) => ({ ...p, aliquota_iss: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="srv_pis">PIS (%)</Label>
+                      <Input
+                        id="srv_pis"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        placeholder="Ex: 1.65"
+                        value={servicoForm.aliquota_pis}
+                        onChange={(e) => setServicoForm((p) => ({ ...p, aliquota_pis: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="srv_cofins">COFINS (%)</Label>
+                      <Input
+                        id="srv_cofins"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        placeholder="Ex: 7.6"
+                        value={servicoForm.aliquota_cofins}
+                        onChange={(e) => setServicoForm((p) => ({ ...p, aliquota_cofins: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  {editingServicoId && (
+                    <Button type="button" variant="outline" onClick={handleCancelEditServico}>
+                      Cancelar
+                    </Button>
+                  )}
+                  <Button type="submit">
+                    {editingServicoId ? (
+                      <>
+                        <RefreshCcw className="h-4 w-4 mr-2" />
+                        Atualizar
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Cadastrar
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          {servicos.length > 0 && (
+            <Card className="mt-6 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-lg">Serviços Cadastrados ({servicos.length})</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Código</TableHead>
+                        <TableHead>Descrição</TableHead>
+                        <TableHead>Unidade</TableHead>
+                        <TableHead>Valor Unit.</TableHead>
+                        <TableHead>ISS</TableHead>
+                        <TableHead>CNAE</TableHead>
+                        <TableHead className="w-12"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {servicos.map((s) => (
+                        <TableRow key={s.id}>
+                          <TableCell className="font-medium">{s.codigo}</TableCell>
+                          <TableCell>{s.descricao}</TableCell>
+                          <TableCell>{s.unidade}</TableCell>
+                          <TableCell>R$ {s.preco_unitario?.toFixed(2)}</TableCell>
+                          <TableCell>{s.aliquota_iss ? `${s.aliquota_iss}%` : "—"}</TableCell>
+                          <TableCell>{s.cnae || "—"}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-primary"
+                                onClick={() => handleEditServico(s)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive"
+                                onClick={() => handleDeleteServico(s.id)}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
