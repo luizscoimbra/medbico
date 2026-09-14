@@ -100,8 +100,12 @@ export function OSForm({
   useEffect(() => {
     supabase
       .from("registered_products")
-      .select("commercial_name, unit, package_size, preco_unitario, ncm, cfop")
-      .then(({ data }) => {
+      .select("*")
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Erro ao buscar produtos:", error.message);
+          return;
+        }
         if (data) setProdutosDB(data as ProdutoDB[]);
       });
 
