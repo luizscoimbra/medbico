@@ -12,6 +12,7 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { Link } from "react-router-dom";
 import { getAllEquipments, Equipment } from "@/lib/equipmentStorage";
+import { getAllClientes, Cliente } from "@/lib/clienteStorage";
 
 type View = "form" | "preview" | "history" | "apontamento" | "apontamento-preview";
 
@@ -34,12 +35,16 @@ export default function OrdemServico() {
   const [volumeCaldaHa, setVolumeCaldaHa] = useState("");
   const [coordenadas, setCoordenadas] = useState("");
   const [selectedEquipments, setSelectedEquipments] = useState<string[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [selectedClienteId, setSelectedClienteId] = useState("");
+  const [selectedClienteNome, setSelectedClienteNome] = useState("");
   const [talhoes, setTalhoes] = useState<TalhaoData[]>([
     { nome: "", area: "", produtos: [{ produto: "", dose: "" }], testemunho: false, testemunhoArea: "", testeProduto: false, produtoTeste: "", produtoTesteQtd: "" },
   ]);
 
   useEffect(() => {
     getAllEquipments().then(setEquipments);
+    getAllClientes().then(setClientes);
   }, []);
 
   const handleGenerate = async () => {
@@ -64,6 +69,8 @@ export default function OrdemServico() {
       coordenadas,
       status: "aberta",
       equipamentos: selectedEquipments,
+      clienteId: selectedClienteId || undefined,
+      clienteNome: selectedClienteNome || undefined,
     };
     await saveOS(os);
     setCurrentOS(os);
@@ -151,6 +158,8 @@ export default function OrdemServico() {
     setCoordenadas("");
     setTalhoes([{ nome: "", area: "", produtos: [{ produto: "", dose: "" }], testemunho: false, testemunhoArea: "", testeProduto: false, produtoTeste: "", produtoTesteQtd: "" }]);
     setSelectedEquipments([]);
+    setSelectedClienteId("");
+    setSelectedClienteNome("");
     setCurrentOS(null);
     setView("form");
   };
@@ -204,6 +213,9 @@ export default function OrdemServico() {
           coordenadas={coordenadas} setCoordenadas={setCoordenadas}
           equipamentos={selectedEquipments} setEquipamentos={setSelectedEquipments}
           availableEquipments={equipments}
+          clientes={clientes}
+          selectedClienteId={selectedClienteId} setSelectedClienteId={setSelectedClienteId}
+          selectedClienteNome={selectedClienteNome} setSelectedClienteNome={setSelectedClienteNome}
           onGenerate={handleGenerate}
         />
       )}

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Copy, Plus, Minus, X, History as HistoryIcon, Clock, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { TalhaoData, ProdutoDose, OrdemServico } from "@/lib/osStorage";
+import type { Cliente } from "@/lib/clienteStorage";
 import { getAllOS, MOTIVO_PARADA_LABELS } from "@/lib/osStorage";
 import { getAllAreas, AreaCadastro } from "@/lib/areaStorage";
 import { getAllTiposAplicacao, TipoAplicacao } from "@/lib/applicationTypeStorage";
@@ -37,6 +38,11 @@ interface OSFormProps {
   equipamentos?: string[];
   setEquipamentos: (v: string[]) => void;
   availableEquipments: any[];
+  clientes: Cliente[];
+  selectedClienteId: string;
+  setSelectedClienteId: (v: string) => void;
+  selectedClienteNome: string;
+  setSelectedClienteNome: (v: string) => void;
   onGenerate: () => void;
 }
 
@@ -72,6 +78,9 @@ export function OSForm({
   coordenadas, setCoordenadas,
   equipamentos = [], setEquipamentos,
   availableEquipments,
+  clientes,
+  selectedClienteId, setSelectedClienteId,
+  selectedClienteNome, setSelectedClienteNome,
   onGenerate,
 }: OSFormProps) {
   const [produtosDB, setProdutosDB] = useState<ProdutoDB[]>([]);
@@ -172,6 +181,32 @@ export function OSForm({
           <CardTitle className="text-lg">Dados da Propriedade</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="sm:col-span-2">
+            <Label>Cliente (Opcional)</Label>
+            <Select
+              value={selectedClienteId}
+              onValueChange={(val) => {
+                setSelectedClienteId(val);
+                const cliente = clientes.find(c => c.id === val);
+                setSelectedClienteNome(cliente ? (cliente.tipo === "pessoa_fisica" ? cliente.nomeCompleto || "" : cliente.nomeFantasia || cliente.razaoSocial || "") : "");
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o cliente..." />
+              </SelectTrigger>
+              <SelectContent>
+                {clientes.length === 0 && <SelectItem value="nenhum" disabled>Nenhum cliente cadastrado</SelectItem>}
+                {clientes.map(c => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.tipo === "pessoa_fisica" ? c.nomeCompleto : (c.nomeFantasia || c.razaoSocial)}
+                    <span className="text-xs text-muted-foreground ml-2">
+                      ({c.tipo === "pessoa_fisica" ? "PF" : "PJ"})
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div>
             <Label>Área / Propriedade</Label>
             <Select 

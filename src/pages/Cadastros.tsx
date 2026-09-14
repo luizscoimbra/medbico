@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { saveArea, getAllAreas, deleteArea, AreaCadastro, AreaTalhao } from "@/lib/areaStorage";
 import { saveOperador, getAllOperadores, deleteOperador, deleteAllOperadores, Operador } from "@/lib/operatorStorage";
+import { saveCliente, getAllClientes, deleteCliente, Cliente } from "@/lib/clienteStorage";
 
 
 
@@ -146,6 +147,24 @@ export default function Cadastros() {
   });
   const [editingOperadorId, setEditingOperadorId] = useState<string | null>(null);
 
+  // Clientes state
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [clienteForm, setClienteForm] = useState<Omit<Cliente, "id" | "createdAt">>({
+    tipo: "pessoa_fisica",
+    nomeCompleto: "",
+    cpf: "",
+    razaoSocial: "",
+    nomeFantasia: "",
+    cnpj: "",
+    telefone: "",
+    email: "",
+    endereco: "",
+    cidade: "",
+    estado: "",
+    observacoes: "",
+  });
+  const [editingClienteId, setEditingClienteId] = useState<string | null>(null);
+
   const allFormulations = [...defaultFormulations, ...customFormulations];
 
   const handleAddFormulation = () => {
@@ -227,6 +246,7 @@ export default function Cadastros() {
     fetchAreasList();
     fetchTiposAplicacaoList();
     fetchOperadoresList();
+    fetchClientesList();
   }, [userId]);
 
   const fetchOperadoresList = async () => {
@@ -520,6 +540,95 @@ export default function Cadastros() {
     fetchOperadoresList();
   };
 
+  // Clientes handlers
+  const fetchClientesList = async () => {
+    const list = await getAllClientes();
+    setClientes(list);
+  };
+
+  const handleEditCliente = (cli: Cliente) => {
+    setEditingClienteId(cli.id);
+    setClienteForm({
+      tipo: cli.tipo,
+      nomeCompleto: cli.nomeCompleto || "",
+      cpf: cli.cpf || "",
+      razaoSocial: cli.razaoSocial || "",
+      nomeFantasia: cli.nomeFantasia || "",
+      cnpj: cli.cnpj || "",
+      telefone: cli.telefone || "",
+      email: cli.email || "",
+      endereco: cli.endereco || "",
+      cidade: cli.cidade || "",
+      estado: cli.estado || "",
+      observacoes: cli.observacoes || "",
+    });
+    const el = document.getElementById("form-cliente");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleCancelEditCliente = () => {
+    setEditingClienteId(null);
+    setClienteForm({
+      tipo: "pessoa_fisica",
+      nomeCompleto: "",
+      cpf: "",
+      razaoSocial: "",
+      nomeFantasia: "",
+      cnpj: "",
+      telefone: "",
+      email: "",
+      endereco: "",
+      cidade: "",
+      estado: "",
+      observacoes: "",
+    });
+  };
+
+  const handleAddCliente = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (clienteForm.tipo === "pessoa_fisica" && !clienteForm.nomeCompleto?.trim()) {
+      toast.error("Preencha o nome completo do cliente.");
+      return;
+    }
+    if (clienteForm.tipo === "pessoa_juridica" && !clienteForm.razaoSocial?.trim()) {
+      toast.error("Preencha a razão social do cliente.");
+      return;
+    }
+
+    const newCliente: Cliente = {
+      id: editingClienteId || crypto.randomUUID(),
+      ...clienteForm,
+      createdAt: editingClienteId
+        ? clientes.find(c => c.id === editingClienteId)?.createdAt || new Date().toISOString()
+        : new Date().toISOString(),
+    };
+
+    await saveCliente(newCliente);
+    toast.success(editingClienteId ? "Cliente atualizado!" : "Cliente cadastrado!");
+    setEditingClienteId(null);
+    setClienteForm({
+      tipo: "pessoa_fisica",
+      nomeCompleto: "",
+      cpf: "",
+      razaoSocial: "",
+      nomeFantasia: "",
+      cnpj: "",
+      telefone: "",
+      email: "",
+      endereco: "",
+      cidade: "",
+      estado: "",
+      observacoes: "",
+    });
+    fetchClientesList();
+  };
+
+  const handleDeleteCliente = async (id: string) => {
+    await deleteCliente(id);
+    toast.success("Cliente removido");
+    fetchClientesList();
+  };
+
   const handleDownloadCSV = (type: 'equipamentos' | 'areas' | 'operadores' | 'produtos') => {
     let headers = "";
     let example = "";
@@ -729,7 +838,7 @@ export default function Cadastros() {
       </div>
 
       <Tabs defaultValue="equipamentos" className="animate-slide-up">
-        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto">
+        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-7 h-auto">
           <TabsTrigger value="equipamentos" className="flex items-center gap-2 py-3 h-full whitespace-nowrap">
             <Settings className="h-4 w-4" />
             Equipamentos
@@ -753,6 +862,10 @@ export default function Cadastros() {
           <TabsTrigger value="operadores" className="flex items-center gap-2 py-3 h-full whitespace-nowrap">
             <Users className="h-4 w-4" />
             Operadores
+          </TabsTrigger>
+          <TabsTrigger value="clientes" className="flex items-center gap-2 py-3 h-full whitespace-nowrap">
+            <Users className="h-4 w-4" />
+            Clientes
           </TabsTrigger>
         </TabsList>
 
@@ -1804,6 +1917,242 @@ export default function Cadastros() {
                                 size="icon"
                                 className="h-8 w-8 text-destructive"
                                 onClick={() => handleDeleteOperador(o.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* CLIENTES TAB */}
+        <TabsContent value="clientes">
+          <Card className="shadow-lg">
+            <CardHeader className="border-b border-border" id="form-cliente">
+              <CardTitle className="text-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  {editingClienteId ? "Editar Cliente" : "Cadastrar Cliente"}
+                </div>
+                {editingClienteId && (
+                  <Button variant="ghost" size="sm" onClick={handleCancelEditCliente}>
+                    Cancelar Edição
+                  </Button>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <form onSubmit={handleAddCliente} className="space-y-4">
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold">Tipo de Pessoa *</Label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="tipo_pessoa"
+                        value="pessoa_fisica"
+                        checked={clienteForm.tipo === "pessoa_fisica"}
+                        onChange={() => setClienteForm(p => ({ ...p, tipo: "pessoa_fisica" }))}
+                        className="accent-primary"
+                      />
+                      <span className="text-sm">Pessoa Física</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="tipo_pessoa"
+                        value="pessoa_juridica"
+                        checked={clienteForm.tipo === "pessoa_juridica"}
+                        onChange={() => setClienteForm(p => ({ ...p, tipo: "pessoa_juridica" }))}
+                        className="accent-primary"
+                      />
+                      <span className="text-sm">Pessoa Jurídica</span>
+                    </label>
+                  </div>
+                </div>
+
+                {clienteForm.tipo === "pessoa_fisica" ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="cli_nome">Nome Completo *</Label>
+                      <Input
+                        id="cli_nome"
+                        placeholder="Ex: João da Silva"
+                        value={clienteForm.nomeCompleto || ""}
+                        onChange={(e) => setClienteForm(p => ({ ...p, nomeCompleto: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="cli_cpf">CPF</Label>
+                      <Input
+                        id="cli_cpf"
+                        placeholder="000.000.000-00"
+                        value={clienteForm.cpf || ""}
+                        onChange={(e) => setClienteForm(p => ({ ...p, cpf: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="cli_razao">Razão Social *</Label>
+                      <Input
+                        id="cli_razao"
+                        placeholder="Ex: Agropecuária Silva Ltda"
+                        value={clienteForm.razaoSocial || ""}
+                        onChange={(e) => setClienteForm(p => ({ ...p, razaoSocial: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="cli_fantasia">Nome Fantasia</Label>
+                      <Input
+                        id="cli_fantasia"
+                        placeholder="Ex: Silva Agro"
+                        value={clienteForm.nomeFantasia || ""}
+                        onChange={(e) => setClienteForm(p => ({ ...p, nomeFantasia: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="cli_cnpj">CNPJ</Label>
+                      <Input
+                        id="cli_cnpj"
+                        placeholder="00.000.000/0000-00"
+                        value={clienteForm.cnpj || ""}
+                        onChange={(e) => setClienteForm(p => ({ ...p, cnpj: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="cli_tel">Telefone</Label>
+                    <Input
+                      id="cli_tel"
+                      placeholder="(00) 00000-0000"
+                      value={clienteForm.telefone || ""}
+                      onChange={(e) => setClienteForm(p => ({ ...p, telefone: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cli_email">E-mail</Label>
+                    <Input
+                      id="cli_email"
+                      type="email"
+                      placeholder="email@exemplo.com"
+                      value={clienteForm.email || ""}
+                      onChange={(e) => setClienteForm(p => ({ ...p, email: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cli_cidade">Cidade</Label>
+                    <Input
+                      id="cli_cidade"
+                      placeholder="Ex: Ribeirão Preto - SP"
+                      value={clienteForm.cidade || ""}
+                      onChange={(e) => setClienteForm(p => ({ ...p, cidade: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2 lg:col-span-1">
+                    <Label htmlFor="cli_end">Endereço</Label>
+                    <Input
+                      id="cli_end"
+                      placeholder="Rua, número, bairro"
+                      value={clienteForm.endereco || ""}
+                      onChange={(e) => setClienteForm(p => ({ ...p, endereco: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cli_obs">Observações</Label>
+                    <Input
+                      id="cli_obs"
+                      placeholder="Informações adicionais"
+                      value={clienteForm.observacoes || ""}
+                      onChange={(e) => setClienteForm(p => ({ ...p, observacoes: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  {editingClienteId && (
+                    <Button type="button" variant="outline" onClick={handleCancelEditCliente}>
+                      Cancelar
+                    </Button>
+                  )}
+                  <Button type="submit">
+                    {editingClienteId ? (
+                      <>
+                        <RefreshCcw className="h-4 w-4 mr-2" />
+                        Atualizar
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Cadastrar
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          {clientes.length > 0 && (
+            <Card className="mt-6 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-lg">Clientes Cadastrados ({clientes.length})</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Nome / Razão Social</TableHead>
+                        <TableHead>CPF / CNPJ</TableHead>
+                        <TableHead>Telefone</TableHead>
+                        <TableHead>Cidade</TableHead>
+                        <TableHead className="w-12"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {clientes.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell>
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
+                              c.tipo === "pessoa_fisica" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"
+                            }`}>
+                              {c.tipo === "pessoa_fisica" ? "PF" : "PJ"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {c.tipo === "pessoa_fisica" ? c.nomeCompleto : (c.nomeFantasia || c.razaoSocial)}
+                          </TableCell>
+                          <TableCell>{c.cpf || c.cnpj || "—"}</TableCell>
+                          <TableCell>{c.telefone || "—"}</TableCell>
+                          <TableCell>{c.cidade || "—"}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-primary"
+                                onClick={() => handleEditCliente(c)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive"
+                                onClick={() => handleDeleteCliente(c.id)}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>

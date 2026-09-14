@@ -52,6 +52,8 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
   const [showCloseOSDialog, setShowCloseOSDialog] = useState(false);
   const [editingProdutos, setEditingProdutos] = useState<{ globalIdx: number; produtos: ProdutoDose[] } | null>(null);
   const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [valorHerbicidas, setValorHerbicidas] = useState(os.valorHerbicidas?.toString() || "");
+  const [valorServico, setValorServico] = useState(os.valorServico?.toString() || "");
 
   useEffect(() => {
     getAllOperadores().then(setOperadores);
@@ -288,6 +290,9 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
       ...os,
       apontamentos,
       status: totalAreaFaltante <= 0 ? "concluida" : "em_andamento",
+      valorHerbicidas: parseFloat(valorHerbicidas) || os.valorHerbicidas,
+      valorServico: parseFloat(valorServico) || os.valorServico,
+      valorTotal: ((parseFloat(valorHerbicidas) || 0) + (parseFloat(valorServico) || 0)) || os.valorTotal,
     };
     await saveOS(updatedOS);
     toast.success("Apontamento salvo!");
@@ -995,6 +1000,43 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                 <p className="text-xs text-emerald-600 mt-1">Nenhuma área pendente detectada.</p>
               </div>
             )}
+
+            {/* Valores Financeiros */}
+            <div className="border border-gray-200 rounded-lg p-4 space-y-3 bg-gray-50">
+              <p className="text-xs font-bold text-gray-700 uppercase">Valores da Prestação de Serviço</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Valor com Insumos (R$)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0,00"
+                    value={valorHerbicidas}
+                    onChange={(e) => setValorHerbicidas(e.target.value)}
+                  />
+                  <p className="text-[10px] text-muted-foreground">Herbicidas e fungicidas</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Valor do Serviço (R$)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0,00"
+                    value={valorServico}
+                    onChange={(e) => setValorServico(e.target.value)}
+                  />
+                  <p className="text-[10px] text-muted-foreground">Mão de obra / aplicação</p>
+                </div>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-gray-300">
+                <span className="text-sm font-bold text-gray-700">VALOR TOTAL:</span>
+                <span className="text-lg font-heading text-emerald-700">
+                  R$ {((parseFloat(valorHerbicidas) || 0) + (parseFloat(valorServico) || 0)).toFixed(2)}
+                </span>
+              </div>
+            </div>
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
@@ -1008,6 +1050,9 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                   ...os,
                   apontamentos,
                   status: "concluida",
+                  valorHerbicidas: parseFloat(valorHerbicidas) || undefined,
+                  valorServico: parseFloat(valorServico) || undefined,
+                  valorTotal: ((parseFloat(valorHerbicidas) || 0) + (parseFloat(valorServico) || 0)) || undefined,
                 };
                 await saveOS(updatedOS);
                 toast.success("Ordem de Serviço encerrada com sucesso!");

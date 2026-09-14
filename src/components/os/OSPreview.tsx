@@ -78,6 +78,12 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
 
       {/* Dados da Propriedade */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        {os.clienteNome && (
+          <div className="border border-gray-300 rounded p-3">
+            <p className="text-xs text-gray-500 uppercase font-semibold">Cliente</p>
+            <p className="font-medium">{os.clienteNome}</p>
+          </div>
+        )}
         <div className="border border-gray-300 rounded p-3">
           <p className="text-xs text-gray-500 uppercase font-semibold">Propriedade</p>
           <p className="font-medium">{os.propriedade}</p>
@@ -239,6 +245,33 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Resumo Financeiro */}
+      {(os.valorHerbicidas || os.valorServico) && (
+        <div className="mb-6">
+          <h2 className="text-sm font-bold uppercase mb-2 text-gray-700">Resumo Financeiro</h2>
+          <div className="border border-gray-300 rounded p-4 max-w-sm">
+            {os.valorHerbicidas ? (
+              <div className="flex justify-between text-sm py-1">
+                <span className="text-gray-600">Herbicidas / Insumos:</span>
+                <span className="font-medium">R$ {os.valorHerbicidas.toFixed(2)}</span>
+              </div>
+            ) : null}
+            {os.valorServico ? (
+              <div className="flex justify-between text-sm py-1">
+                <span className="text-gray-600">Prestação de Serviço:</span>
+                <span className="font-medium">R$ {os.valorServico.toFixed(2)}</span>
+              </div>
+            ) : null}
+            <div className="flex justify-between text-sm py-1 border-t border-gray-300 mt-2 pt-2">
+              <span className="font-bold text-gray-800">VALOR TOTAL:</span>
+              <span className="font-bold text-gray-800">
+                R$ {((os.valorHerbicidas || 0) + (os.valorServico || 0)).toFixed(2)}
+              </span>
+            </div>
+          </div>
         </div>
       )}
 

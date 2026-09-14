@@ -67,6 +67,13 @@ export interface OrdemServico {
   apontamentos?: ApontamentoTalhao[];
   status?: "aberta" | "em_andamento" | "concluida";
   equipamentos?: string[];
+  // Cliente vinculado
+  clienteId?: string;
+  clienteNome?: string;
+  // Valores financeiros
+  valorHerbicidas?: number;
+  valorServico?: number;
+  valorTotal?: number;
 }
 
 function getTodayPrefix(): string {
