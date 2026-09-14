@@ -402,7 +402,7 @@ export default function Cadastros() {
       return;
     }
     
-    const prodData: Record<string, any> = {
+    const coreData: Record<string, any> = {
       user_id: userId,
       commercial_name: prodForm.commercial_name.trim(),
       formulation: prodForm.formulation,
@@ -410,39 +410,62 @@ export default function Cadastros() {
       package_size: size,
     };
 
-    // Incluir colunas fiscais apenas se tiverem valor (evita 400 se migration não rodou)
-    const fiscalFields: Record<string, string | number> = {
-      codigo: prodForm.codigo.trim(),
-      descricao: prodForm.descricao.trim(),
-      ncm: prodForm.ncm.trim(),
-      cfop: prodForm.cfop.trim(),
-      cst_csosn: prodForm.cst_csosn.trim(),
-      origem: prodForm.origem,
-      cest: prodForm.cest.trim(),
-      preco_unitario: parseFloat(prodForm.preco_unitario) || 0,
-      aliquota_icms: parseFloat(prodForm.aliquota_icms) || 0,
-      aliquota_ipi: parseFloat(prodForm.aliquota_ipi) || 0,
-      enquadramento_ipi: prodForm.enquadramento_ipi.trim(),
-      aliquota_pis: parseFloat(prodForm.aliquota_pis) || 0,
-      aliquota_cofins: parseFloat(prodForm.aliquota_cofins) || 0,
-    };
-    Object.entries(fiscalFields).forEach(([k, v]) => {
-      if (v !== "" && v !== 0) prodData[k] = v;
-    });
+    const fiscalData: Record<string, any> = {};
+    if (prodForm.codigo.trim()) fiscalData.codigo = prodForm.codigo.trim();
+    if (prodForm.descricao.trim()) fiscalData.descricao = prodForm.descricao.trim();
+    if (prodForm.ncm.trim()) fiscalData.ncm = prodForm.ncm.trim();
+    if (prodForm.cfop.trim()) fiscalData.cfop = prodForm.cfop.trim();
+    if (prodForm.cst_csosn.trim()) fiscalData.cst_csosn = prodForm.cst_csosn.trim();
+    if (prodForm.origem && prodForm.origem !== "0") fiscalData.origem = prodForm.origem;
+    if (prodForm.cest.trim()) fiscalData.cest = prodForm.cest.trim();
+    const preco = parseFloat(prodForm.preco_unitario);
+    if (!isNaN(preco) && preco > 0) fiscalData.preco_unitario = preco;
+    const icms = parseFloat(prodForm.aliquota_icms);
+    if (!isNaN(icms) && icms > 0) fiscalData.aliquota_icms = icms;
+    const ipi = parseFloat(prodForm.aliquota_ipi);
+    if (!isNaN(ipi) && ipi > 0) fiscalData.aliquota_ipi = ipi;
+    if (prodForm.enquadramento_ipi.trim()) fiscalData.enquadramento_ipi = prodForm.enquadramento_ipi.trim();
+    const pis = parseFloat(prodForm.aliquota_pis);
+    if (!isNaN(pis) && pis > 0) fiscalData.aliquota_pis = pis;
+    const cofins = parseFloat(prodForm.aliquota_cofins);
+    if (!isNaN(cofins) && cofins > 0) fiscalData.aliquota_cofins = cofins;
+
+    const hasFiscalData = Object.keys(fiscalData).length > 0;
+    const fullData = { ...coreData, ...fiscalData };
 
     if (editingProductId) {
-      const { error } = await supabase
+      let { error } = await supabase
         .from("registered_products")
-        .update(prodData)
+        .update(fullData)
         .eq("id", editingProductId);
-      
+
+      if (error && hasFiscalData) {
+        const retry = await supabase
+          .from("registered_products")
+          .update(coreData)
+          .eq("id", editingProductId);
+        error = retry.error;
+        if (!retry.error) {
+          toast.warning("Campos básicos salvos. Rodar a migration para campos fiscais.");
+        }
+      }
+
       if (error) {
         toast.error("Erro ao atualizar produto");
         return;
       }
       toast.success("Produto atualizado!");
     } else {
-      const { error } = await supabase.from("registered_products").insert(prodData);
+      let { error } = await supabase.from("registered_products").insert(fullData);
+
+      if (error && hasFiscalData) {
+        const retry = await supabase.from("registered_products").insert(coreData);
+        error = retry.error;
+        if (!retry.error) {
+          toast.warning("Campos básicos salvos. Rodar a migration para campos fiscais.");
+        }
+      }
+
       if (error) {
         toast.error("Erro ao cadastrar produto");
         return;
