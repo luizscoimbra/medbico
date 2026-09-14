@@ -26,7 +26,7 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
         if (t.testemunhoArea) {
           appliedArea = Math.max(0, totalArea - (parseFloat(t.testemunhoArea) / 10000));
         } else {
-          appliedArea = 0; // se marcou mas deixou vazio, assume testemunho total
+          appliedArea = 0;
         }
       }
 
@@ -62,99 +62,101 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
     return result;
   }, [os]);
 
+  const temValores = (os.valorHerbicidas || 0) + (os.valorServico || 0) > 0;
+
   return (
-    <div ref={ref} className="bg-white text-black p-4 sm:p-8 w-full lg:max-w-[210mm] mx-auto print-area" id="os-print">
+    <div ref={ref} className="bg-white text-black p-4 sm:p-6 w-full lg:max-w-[210mm] mx-auto print-area" id="os-print" style={{ fontSize: "11px", lineHeight: "1.3" }}>
       {/* Header */}
-      <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
+      <div className="flex items-center justify-between border-b-2 border-black pb-2 mb-3">
         <div className="flex items-center">
-          <img src="/herbilog_logo.png" alt="HerbiLog" className="h-12 w-auto object-contain" />
+          <img src="/herbilog_logo.png" alt="HerbiLog" className="h-8 w-auto object-contain" />
         </div>
         <div className="text-right">
-          <p className="text-lg font-bold font-mono">OS nº {os.id}</p>
-          {os.osExterna && <p className="text-sm font-semibold text-gray-700">OS Externa: {os.osExterna}</p>}
-          <p className="text-sm text-gray-600">{new Date(os.data).toLocaleDateString("pt-BR")}</p>
+          <p className="text-base font-bold font-mono">OS nº {os.id}</p>
+          {os.osExterna && <p className="text-xs font-semibold text-gray-700">OS Externa: {os.osExterna}</p>}
+          <p className="text-xs text-gray-600">{new Date(os.data).toLocaleDateString("pt-BR")}</p>
         </div>
       </div>
 
-      {/* Dados da Propriedade */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+      {/* Dados Compactos */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1.5 mb-3 border border-gray-300 rounded p-2">
         {os.clienteNome && (
-          <div className="border border-gray-300 rounded p-3">
-            <p className="text-xs text-gray-500 uppercase font-semibold">Cliente</p>
-            <p className="font-medium">{os.clienteNome}</p>
+          <div>
+            <p className="text-[9px] text-gray-500 uppercase font-semibold">Cliente</p>
+            <p className="font-medium text-[11px]">{os.clienteNome}</p>
           </div>
         )}
-        <div className="border border-gray-300 rounded p-3">
-          <p className="text-xs text-gray-500 uppercase font-semibold">Propriedade</p>
-          <p className="font-medium">{os.propriedade}</p>
+        <div>
+          <p className="text-[9px] text-gray-500 uppercase font-semibold">Propriedade</p>
+          <p className="font-medium text-[11px]">{os.propriedade}</p>
         </div>
-        <div className="border border-gray-300 rounded p-3">
-          <p className="text-xs text-gray-500 uppercase font-semibold">Código da Área</p>
-          <p className="font-medium">{os.codigoArea}</p>
+        <div>
+          <p className="text-[9px] text-gray-500 uppercase font-semibold">Código Área</p>
+          <p className="font-medium text-[11px]">{os.codigoArea || "—"}</p>
         </div>
-        <div className="border border-gray-300 rounded p-3">
-          <p className="text-xs text-gray-500 uppercase font-semibold">Responsável Técnico</p>
-          <p className="font-medium">{os.responsavelTecnico}</p>
+        <div>
+          <p className="text-[9px] text-gray-500 uppercase font-semibold">Resp. Técnico</p>
+          <p className="font-medium text-[11px]">{os.responsavelTecnico}</p>
         </div>
         {os.tipoAplicacao && (
-          <div className="border border-gray-300 rounded p-3">
-            <p className="text-xs text-gray-500 uppercase font-semibold">Tipo de Aplicação</p>
-            <p className="font-medium">{os.tipoAplicacao}</p>
+          <div>
+            <p className="text-[9px] text-gray-500 uppercase font-semibold">Tipo Aplicação</p>
+            <p className="font-medium text-[11px]">{os.tipoAplicacao}</p>
           </div>
         )}
         {os.codigoAplicacao && (
-          <div className="border border-gray-300 rounded p-3">
-            <p className="text-xs text-gray-500 uppercase font-semibold">Código da Aplicação</p>
-            <p className="font-medium">{os.codigoAplicacao}</p>
+          <div>
+            <p className="text-[9px] text-gray-500 uppercase font-semibold">Cód. Aplicação</p>
+            <p className="font-medium text-[11px]">{os.codigoAplicacao}</p>
           </div>
         )}
         {os.volumeCaldaHa && (
-          <div className={`border border-gray-300 rounded p-3 ${os.coordenadas ? "" : "col-span-2"}`}>
-            <p className="text-xs text-gray-500 uppercase font-semibold">Volume de Calda</p>
-            <p className="font-medium">{os.volumeCaldaHa} L/ha</p>
-          </div>
-        )}
-        {os.coordenadas && (
-          <div className={`border border-gray-300 rounded p-3 ${!os.volumeCaldaHa ? "col-span-2" : ""}`}>
-            <p className="text-xs text-gray-500 uppercase font-semibold">Coordenadas</p>
-            <div className="flex items-center justify-between">
-              <p className="font-medium text-sm truncate mr-2" title={os.coordenadas}>{os.coordenadas}</p>
-              <a
-                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(os.coordenadas)}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center px-2 py-1 bg-green-600 text-white font-semibold text-xs rounded hover:bg-green-700 transition-colors no-print shrink-0"
-              >
-                <MapPin className="h-3 w-3 mr-1" /> Ver Rota
-              </a>
-            </div>
+          <div>
+            <p className="text-[9px] text-gray-500 uppercase font-semibold">Volume Calda</p>
+            <p className="font-medium text-[11px]">{os.volumeCaldaHa} L/ha</p>
           </div>
         )}
         {os.equipamentos && os.equipamentos.length > 0 && (
-          <div className="border border-gray-300 rounded p-3 col-span-2">
-            <p className="text-xs text-gray-500 uppercase font-semibold">Equipamentos Vinculados</p>
-            <div className="flex flex-wrap gap-2 mt-1">
+          <div className={os.coordenadas ? "" : "col-span-2 sm:col-span-4"}>
+            <p className="text-[9px] text-gray-500 uppercase font-semibold">Equipamentos</p>
+            <div className="flex flex-wrap gap-1 mt-0.5">
               {os.equipamentos.map((eq, idx) => (
-                <span key={idx} className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded border border-gray-200 font-medium">
+                <span key={idx} className="bg-gray-100 text-gray-800 text-[10px] px-1.5 py-0.5 rounded border border-gray-200 font-medium">
                   {eq}
                 </span>
               ))}
             </div>
           </div>
         )}
+        {os.coordenadas && (
+          <div className="col-span-2 sm:col-span-4">
+            <p className="text-[9px] text-gray-500 uppercase font-semibold">Coordenadas</p>
+            <div className="flex items-center gap-2">
+              <p className="font-medium text-[11px] truncate">{os.coordenadas}</p>
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(os.coordenadas)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white font-semibold text-[9px] rounded no-print shrink-0"
+              >
+                <MapPin className="h-2.5 w-2.5 mr-0.5" /> Rota
+              </a>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tabela de Talhões */}
-      <div className="mb-6 overflow-x-auto">
-        <h2 className="text-sm font-bold uppercase mb-2 text-gray-700">Detalhamento por Talhão</h2>
-        <table className="w-full border-collapse text-sm min-w-[600px]">
+      <div className="mb-3">
+        <h2 className="text-[11px] font-bold uppercase mb-1 text-gray-700">Detalhamento por Talhão</h2>
+        <table className="w-full border-collapse" style={{ fontSize: "10px" }}>
           <thead>
             <tr className="bg-gray-100">
-              <th className="border border-gray-300 px-3 py-2 text-left">Talhão</th>
-              <th className="border border-gray-300 px-3 py-2 text-right">Área (ha)</th>
-              <th className="border border-gray-300 px-3 py-2 text-left">Produto(s)</th>
-              <th className="border border-gray-300 px-3 py-2 text-right">Dose (L/ha)</th>
-              <th className="border border-gray-300 px-3 py-2 text-left">Observações</th>
+              <th className="border border-gray-300 px-1.5 py-1 text-left" style={{ width: "60px" }}>Talhão</th>
+              <th className="border border-gray-300 px-1.5 py-1 text-right" style={{ width: "50px" }}>Área (ha)</th>
+              <th className="border border-gray-300 px-1.5 py-1 text-left">Produto(s)</th>
+              <th className="border border-gray-300 px-1.5 py-1 text-right" style={{ width: "55px" }}>Dose</th>
+              <th className="border border-gray-300 px-1.5 py-1 text-left">Obs</th>
             </tr>
           </thead>
           <tbody>
@@ -163,7 +165,7 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
               
               let observacao = [];
               if (t.testemunho) {
-                observacao.push(t.testemunhoArea ? `Testemunho: ${t.testemunhoArea}m² s/ aplic.` : "Testemunho Total");
+                observacao.push(t.testemunhoArea ? `Test. ${t.testemunhoArea}m²` : "Test. Total");
               }
               if (t.testeProduto) {
                 observacao.push(`Teste: ${t.produtoTeste} (${t.produtoTesteQtd || "—"})`);
@@ -174,29 +176,29 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
 
               return isTestemunhoTotal && (!t.produtos || t.produtos.length === 0 || !t.produtos[0].produto) ? (
                 <tr key={i} className="bg-yellow-50">
-                  <td className="border border-gray-300 px-3 py-2">{t.nome || `T-${i + 1}`}</td>
-                  <td className="border border-gray-300 px-3 py-2 text-right">{t.area || "—"}</td>
-                  <td className="border border-gray-300 px-3 py-2">—</td>
-                  <td className="border border-gray-300 px-3 py-2 text-right">0</td>
-                  <td className="border border-gray-300 px-3 py-2 text-xs">{obsText}</td>
+                  <td className="border border-gray-300 px-1.5 py-1">{t.nome || `T-${i + 1}`}</td>
+                  <td className="border border-gray-300 px-1.5 py-1 text-right">{t.area || "—"}</td>
+                  <td className="border border-gray-300 px-1.5 py-1">—</td>
+                  <td className="border border-gray-300 px-1.5 py-1 text-right">0</td>
+                  <td className="border border-gray-300 px-1.5 py-1">{obsText}</td>
                 </tr>
               ) : (
                 t.produtos.map((p, j) => (
                   <tr key={`${i}-${j}`} className={t.testemunho ? "bg-yellow-50/30" : ""}>
                     {j === 0 && (
                       <>
-                        <td className="border border-gray-300 px-3 py-2" rowSpan={rowSpan}>
+                        <td className="border border-gray-300 px-1.5 py-1 font-medium" rowSpan={rowSpan}>
                           {t.nome || `T-${i + 1}`}
                         </td>
-                        <td className="border border-gray-300 px-3 py-2 text-right" rowSpan={rowSpan}>
+                        <td className="border border-gray-300 px-1.5 py-1 text-right" rowSpan={rowSpan}>
                           {t.area || "—"}
                         </td>
                       </>
                     )}
-                    <td className="border border-gray-300 px-3 py-2">{p.produto || "—"}</td>
-                    <td className="border border-gray-300 px-3 py-2 text-right">{p.dose || "—"}</td>
+                    <td className="border border-gray-300 px-1.5 py-1">{p.produto || "—"}</td>
+                    <td className="border border-gray-300 px-1.5 py-1 text-right">{p.dose || "—"}{p.unit ? ` ${p.unit}` : ""}</td>
                     {j === 0 && (
-                      <td className="border border-gray-300 px-3 py-2 text-xs" rowSpan={rowSpan}>
+                      <td className="border border-gray-300 px-1.5 py-1" rowSpan={rowSpan}>
                         {obsText}
                       </td>
                     )}
@@ -207,87 +209,89 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
           </tbody>
           <tfoot>
             <tr className="font-semibold bg-gray-50">
-              <td className="border border-gray-300 px-3 py-2">TOTAL</td>
-              <td className="border border-gray-300 px-3 py-2 text-right">{areaTotal.toFixed(2)}</td>
-              <td colSpan={3} className="border border-gray-300 px-3 py-2"></td>
+              <td className="border border-gray-300 px-1.5 py-1">TOTAL</td>
+              <td className="border border-gray-300 px-1.5 py-1 text-right">{areaTotal.toFixed(2)}</td>
+              <td colSpan={3} className="border border-gray-300 px-1.5 py-1"></td>
             </tr>
           </tfoot>
         </table>
       </div>
 
-      {/* Resumo de Insumos */}
-      {resumoInsumos.length > 0 && (
-        <div className="mb-6 overflow-x-auto">
-          <h2 className="text-sm font-bold uppercase mb-2 text-gray-700">Resumo de Insumos</h2>
-          <table className="w-full border-collapse text-sm min-w-[500px]">
-            <thead>
-              <tr className="bg-green-50">
-                <th className="border border-gray-300 px-3 py-2 text-left">Produto</th>
-                <th className="border border-gray-300 px-3 py-2 text-right">Total Necessário</th>
-                <th className="border border-gray-300 px-3 py-2 text-center">Unidade</th>
-                <th className="border border-gray-300 px-3 py-2 text-right">Embalagem</th>
-                <th className="border border-gray-300 px-3 py-2 text-right">Qtd Embalagens</th>
-              </tr>
-            </thead>
-            <tbody>
-              {resumoInsumos.map((item, idx) => (
-                <tr key={idx}>
-                  <td className="border border-gray-300 px-3 py-2">{item.produto}</td>
-                  <td className="border border-gray-300 px-3 py-2 text-right">{(item.totalNecessario % 1 === 0 ? item.totalNecessario.toFixed(0) : item.totalNecessario.toFixed(3))}</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">{item.unit}</td>
-                  <td className="border border-gray-300 px-3 py-2 text-right">
-                    {item.packageSize > 0 ? `${item.packageSize} ${item.unit}` : "—"}
-                  </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right font-semibold">
-                    {item.qtdEmbalagens > 0 ? item.qtdEmbalagens : "—"}
-                  </td>
+      {/* Resumo de Insumos + Financeiro lado a lado */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+        {/* Insumos - ocupa 2 colunas */}
+        {resumoInsumos.length > 0 && (
+          <div className="sm:col-span-2">
+            <h2 className="text-[11px] font-bold uppercase mb-1 text-gray-700">Resumo de Insumos</h2>
+            <table className="w-full border-collapse" style={{ fontSize: "10px" }}>
+              <thead>
+                <tr className="bg-green-50">
+                  <th className="border border-gray-300 px-1.5 py-1 text-left">Produto</th>
+                  <th className="border border-gray-300 px-1.5 py-1 text-right">Total</th>
+                  <th className="border border-gray-300 px-1.5 py-1 text-center">Unid.</th>
+                  <th className="border border-gray-300 px-1.5 py-1 text-right">Embal.</th>
+                  <th className="border border-gray-300 px-1.5 py-1 text-right">Qtd</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {resumoInsumos.map((item, idx) => (
+                  <tr key={idx}>
+                    <td className="border border-gray-300 px-1.5 py-1">{item.produto}</td>
+                    <td className="border border-gray-300 px-1.5 py-1 text-right">{(item.totalNecessario % 1 === 0 ? item.totalNecessario.toFixed(0) : item.totalNecessario.toFixed(3))}</td>
+                    <td className="border border-gray-300 px-1.5 py-1 text-center">{item.unit}</td>
+                    <td className="border border-gray-300 px-1.5 py-1 text-right">
+                      {item.packageSize > 0 ? `${item.packageSize} ${item.unit}` : "—"}
+                    </td>
+                    <td className="border border-gray-300 px-1.5 py-1 text-right font-semibold">
+                      {item.qtdEmbalagens > 0 ? item.qtdEmbalagens : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-      {/* Resumo Financeiro */}
-      {(os.valorHerbicidas || os.valorServico) && (
-        <div className="mb-6">
-          <h2 className="text-sm font-bold uppercase mb-2 text-gray-700">Resumo Financeiro</h2>
-          <div className="border border-gray-300 rounded p-4 max-w-sm">
-            {os.valorHerbicidas ? (
-              <div className="flex justify-between text-sm py-1">
-                <span className="text-gray-600">Herbicidas / Insumos:</span>
-                <span className="font-medium">R$ {os.valorHerbicidas.toFixed(2)}</span>
+        {/* Resumo Financeiro */}
+        {temValores && (
+          <div>
+            <h2 className="text-[11px] font-bold uppercase mb-1 text-gray-700">Resumo Financeiro</h2>
+            <div className="border border-gray-300 rounded p-2 h-full">
+              {os.valorHerbicidas ? (
+                <div className="flex justify-between py-0.5" style={{ fontSize: "10px" }}>
+                  <span className="text-gray-600">Insumos:</span>
+                  <span className="font-medium">R$ {os.valorHerbicidas.toFixed(2)}</span>
+                </div>
+              ) : null}
+              {os.valorServico ? (
+                <div className="flex justify-between py-0.5" style={{ fontSize: "10px" }}>
+                  <span className="text-gray-600">Serviço:</span>
+                  <span className="font-medium">R$ {os.valorServico.toFixed(2)}</span>
+                </div>
+              ) : null}
+              <div className="flex justify-between py-0.5 border-t border-gray-300 mt-1 pt-1" style={{ fontSize: "11px" }}>
+                <span className="font-bold text-gray-800">TOTAL:</span>
+                <span className="font-bold text-gray-800">
+                  R$ {((os.valorHerbicidas || 0) + (os.valorServico || 0)).toFixed(2)}
+                </span>
               </div>
-            ) : null}
-            {os.valorServico ? (
-              <div className="flex justify-between text-sm py-1">
-                <span className="text-gray-600">Prestação de Serviço:</span>
-                <span className="font-medium">R$ {os.valorServico.toFixed(2)}</span>
-              </div>
-            ) : null}
-            <div className="flex justify-between text-sm py-1 border-t border-gray-300 mt-2 pt-2">
-              <span className="font-bold text-gray-800">VALOR TOTAL:</span>
-              <span className="font-bold text-gray-800">
-                R$ {((os.valorHerbicidas || 0) + (os.valorServico || 0)).toFixed(2)}
-              </span>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Assinaturas */}
-      <div className="grid grid-cols-1 gap-12 mt-16 max-w-sm mx-auto">
-        <div className="text-center">
-          <div className="border-t border-black pt-2">
-            <p className="text-sm font-medium">Responsável Técnico</p>
-            <p className="text-xs text-gray-500">{os.responsavelTecnico}</p>
+      {/* Assinatura + Rodapé */}
+      <div className="flex items-end justify-between mt-4 pt-2">
+        <p className="text-[8px] text-gray-400">
+          Doc. gerado por HerbiLog em {new Date().toLocaleDateString("pt-BR")}
+        </p>
+        <div className="text-center" style={{ minWidth: "180px" }}>
+          <div className="border-t border-black pt-1">
+            <p className="text-[10px] font-medium">Responsável Técnico</p>
+            <p className="text-[9px] text-gray-500">{os.responsavelTecnico}</p>
           </div>
         </div>
       </div>
-
-      <p className="text-center text-[10px] text-gray-400 mt-8">
-        Documento gerado por HerbiLog em {new Date().toLocaleDateString("pt-BR")}
-      </p>
     </div>
   );
 });
