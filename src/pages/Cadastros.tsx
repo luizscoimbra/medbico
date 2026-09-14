@@ -402,12 +402,16 @@ export default function Cadastros() {
       return;
     }
     
-    const prodData = {
+    const prodData: Record<string, any> = {
       user_id: userId,
       commercial_name: prodForm.commercial_name.trim(),
       formulation: prodForm.formulation,
       unit: prodForm.unit,
       package_size: size,
+    };
+
+    // Incluir colunas fiscais apenas se tiverem valor (evita 400 se migration não rodou)
+    const fiscalFields: Record<string, string | number> = {
       codigo: prodForm.codigo.trim(),
       descricao: prodForm.descricao.trim(),
       ncm: prodForm.ncm.trim(),
@@ -422,6 +426,9 @@ export default function Cadastros() {
       aliquota_pis: parseFloat(prodForm.aliquota_pis) || 0,
       aliquota_cofins: parseFloat(prodForm.aliquota_cofins) || 0,
     };
+    Object.entries(fiscalFields).forEach(([k, v]) => {
+      if (v !== "" && v !== 0) prodData[k] = v;
+    });
 
     if (editingProductId) {
       const { error } = await supabase
