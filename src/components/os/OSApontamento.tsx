@@ -4,8 +4,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, Eye, AlertTriangle, Droplets, Clock, Settings, AlertCircle, History as HistoryIcon, ArrowRightLeft, CheckCircle2, Search, FlaskConical, Trash2, Plus } from "lucide-react";
-import type { OrdemServico, ApontamentoTalhao, MotivoParada, ProdutoDose } from "@/lib/osStorage";
+import { Save, Eye, AlertTriangle, Droplets, Clock, Settings, AlertCircle, History as HistoryIcon, ArrowRightLeft, CheckCircle2, Search, FlaskConical, Trash2, Plus, Pencil } from "lucide-react";
+import type { OrdemServico, ApontamentoTalhao, MotivoParada, ProdutoDose, ServicoOS } from "@/lib/osStorage";
 import { saveOS, MOTIVO_PARADA_LABELS } from "@/lib/osStorage";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -25,6 +25,17 @@ interface OSApontamentoProps {
   os: OrdemServico;
   onSaved: (os: OrdemServico) => void;
   onViewReport: () => void;
+}
+
+interface ItemFinanceiro {
+  id: string;
+  tipo: "produto" | "servico";
+  codigo: string;
+  nome: string;
+  quantidade: number;
+  unidade: string;
+  valorUnitario: number;
+  valorTotal: number;
 }
 
 export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps) {
@@ -52,6 +63,8 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
   const [showCloseOSDialog, setShowCloseOSDialog] = useState(false);
   const [editingProdutos, setEditingProdutos] = useState<{ globalIdx: number; produtos: ProdutoDose[] } | null>(null);
   const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [registeredProducts, setRegisteredProducts] = useState<any[]>([]);
+  const [itensFinanceiro, setItensFinanceiro] = useState<ItemFinanceiro[]>([]);
   const [valorHerbicidas, setValorHerbicidas] = useState(os.valorHerbicidas?.toString() || "");
   const [valorServico, setValorServico] = useState(os.valorServico?.toString() || "");
 
@@ -60,6 +73,9 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
     getAllEquipments().then(setEquipamentos);
     supabase.from("products").select("*").order("name").then(({ data }) => {
       if (data) setAllProducts(data);
+    });
+    supabase.from("registered_products").select("commercial_name, unit, package_size, preco_unitario").then(({ data }) => {
+      if (data) setRegisteredProducts(data);
     });
   }, []);
 
@@ -284,6 +300,93 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
   const totalAreaPlanejada = calculosTotais.reduce((s, c) => s + c.areaPlanejada, 0);
   const totalAreaAplicada = calculosTotais.reduce((s, c) => s + c.areaAplicada, 0);
   const totalAreaFaltante = calculosTotais.reduce((s, c) => s + c.areaFaltante, 0);
+
+  const calcularItensFinanceiro = () => {
+    const itens: ItemFinanceiro[] = [];
+
+    // Calcular total de cada produto utilizado na OS
+    const produtosTotais = new Map<string, { total: number; unit: string }>();
+    os.talhoes.forEach((t, i) => {
+      const totalArea = parseFloat(t.area) || 0;
+      let appliedArea = totalArea;
+      if (t.testemunho) {
+        if (t.testemunhoArea) {
+          appliedArea = Math.max(0, totalArea - (parseFloat(t.testemunhoArea) / 10000));
+        } else {
+          appliedArea = 0;
+        }
+      }
+      if (appliedArea <= 0) return;
+
+      t.produtos.forEach((p) => {
+        if (!p.produto || !p.dose) return;
+        const dose = parseFloat(p.dose) || 0;
+        const key = p.produto;
+        const existing = produtosTotais.get(key);
+        if (existing) {
+          existing.total += dose * appliedArea;
+        } else {
+          produtosTotais.set(key, { total: dose * appliedArea, unit: p.unit || "L" });
+        }
+      });
+    });
+
+    // Mapear para itens financeiros com preços do cadastro
+    let idx = 0;
+    produtosTotais.forEach((v, nome) => {
+      const prod = registeredProducts.find(p => p.commercial_name === nome);
+      const preco = prod?.preco_unitario || 0;
+      itens.push({
+        id: `prod-${idx++}`,
+        tipo: "produto",
+        codigo: "",
+        nome,
+        quantidade: v.total,
+        unidade: v.unit,
+        valorUnitario: preco,
+        valorTotal: v.total * preco,
+      });
+    });
+
+    // Adicionar serviços da OS
+    if (os.servicos && os.servicos.length > 0) {
+      os.servicos.forEach((s) => {
+        itens.push({
+          id: `srv-${idx++}`,
+          tipo: "servico",
+          codigo: s.codigo,
+          nome: s.descricao,
+          quantidade: s.quantidade,
+          unidade: "UN",
+          valorUnitario: s.valorUnitario,
+          valorTotal: s.valorTotal,
+        });
+      });
+    }
+
+    setItensFinanceiro(itens);
+
+    // Atualizar valores herbicidas/serviço baseado no calculado
+    const totalProdutos = itens.filter(i => i.tipo === "produto").reduce((s, i) => s + i.valorTotal, 0);
+    const totalServicos = itens.filter(i => i.tipo === "servico").reduce((s, i) => s + i.valorTotal, 0);
+    if (totalProdutos > 0) setValorHerbicidas(totalProdutos.toFixed(2));
+    if (totalServicos > 0) setValorServico(totalServicos.toFixed(2));
+  };
+
+  const atualizarItemFinanceiro = (id: string, field: keyof ItemFinanceiro, value: any) => {
+    setItensFinanceiro(prev => prev.map(item => {
+      if (item.id !== id) return item;
+      const updated = { ...item, [field]: value };
+      if (field === "quantidade" || field === "valorUnitario") {
+        updated.valorTotal = updated.quantidade * updated.valorUnitario;
+      }
+      return updated;
+    }));
+  };
+
+  const subtotalProdutos = itensFinanceiro.filter(i => i.tipo === "produto").reduce((s, i) => s + i.valorTotal, 0);
+  const subtotalServicos = itensFinanceiro.filter(i => i.tipo === "servico").reduce((s, i) => s + i.valorTotal, 0);
+  const totalGeral = subtotalProdutos + subtotalServicos;
 
   const handleSave = async () => {
     const updatedOS: OrdemServico = {
@@ -951,8 +1054,11 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showCloseOSDialog} onOpenChange={setShowCloseOSDialog}>
-        <DialogContent className="sm:max-w-lg">
+      <Dialog open={showCloseOSDialog} onOpenChange={(open) => {
+        setShowCloseOSDialog(open);
+        if (open) calcularItensFinanceiro();
+      }}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Settings className="h-5 w-5 text-emerald-600" />
@@ -966,7 +1072,7 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
           </DialogHeader>
 
           <div className="py-4 space-y-4">
-            {totalAreaFaltante > 0.01 ? (
+            {totalAreaFaltante > 0.01 && (
               <div className="space-y-3">
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                   <p className="text-xs font-bold text-red-800 uppercase mb-2">Talhões Incompletos</p>
@@ -986,54 +1092,148 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                     })}
                   </div>
                 </div>
-                <div className="flex justify-between items-center px-2">
-                  <span className="text-sm font-bold text-gray-600">Área Total Pendente:</span>
-                  <span className="text-lg font-heading text-red-700">{totalAreaFaltante.toFixed(2)} ha</span>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6 text-center">
-                <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3">
-                  <CheckCircle2 className="h-6 w-6 text-emerald-600" />
-                </div>
-                <p className="text-sm font-bold text-emerald-800">100% Concluído</p>
-                <p className="text-xs text-emerald-600 mt-1">Nenhuma área pendente detectada.</p>
               </div>
             )}
 
-            {/* Valores Financeiros */}
-            <div className="border border-gray-200 rounded-lg p-4 space-y-3 bg-gray-50">
-              <p className="text-xs font-bold text-gray-700 uppercase">Valores da Prestação de Serviço</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Valor com Insumos (R$)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0,00"
-                    value={valorHerbicidas}
-                    onChange={(e) => setValorHerbicidas(e.target.value)}
-                  />
-                  <p className="text-[10px] text-muted-foreground">Herbicidas e fungicidas</p>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Valor do Serviço (R$)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0,00"
-                    value={valorServico}
-                    onChange={(e) => setValorServico(e.target.value)}
-                  />
-                  <p className="text-[10px] text-muted-foreground">Mão de obra / aplicação</p>
-                </div>
+            {/* Tabela de Itens Financeiros */}
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="bg-gray-100 px-3 py-2 border-b border-gray-200">
+                <p className="text-xs font-bold text-gray-700 uppercase">Detalhamento de Custos</p>
               </div>
-              <div className="flex justify-between items-center pt-2 border-t border-gray-300">
-                <span className="text-sm font-bold text-gray-700">VALOR TOTAL:</span>
+
+              {/* Produtos */}
+              {itensFinanceiro.filter(i => i.tipo === "produto").length > 0 && (
+                <div>
+                  <div className="bg-green-50 px-3 py-1.5 border-b border-gray-200">
+                    <p className="text-[10px] font-bold text-green-800 uppercase flex items-center gap-1">
+                      <FlaskConical className="h-3 w-3" /> Insumos / Produtos
+                    </p>
+                  </div>
+                  <table className="w-full text-xs" style={{ fontSize: "11px" }}>
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                        <th className="px-3 py-1.5 text-left font-semibold">Produto</th>
+                        <th className="px-3 py-1.5 text-right font-semibold">Qtd Total</th>
+                        <th className="px-3 py-1.5 text-center font-semibold">Unid.</th>
+                        <th className="px-3 py-1.5 text-right font-semibold">Valor Unit.</th>
+                        <th className="px-3 py-1.5 text-right font-semibold">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itensFinanceiro.filter(i => i.tipo === "produto").map((item) => (
+                        <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="px-3 py-1.5 font-medium">{item.nome}</td>
+                          <td className="px-3 py-1.5 text-right">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={item.quantidade || ""}
+                              onChange={(e) => atualizarItemFinanceiro(item.id, "quantidade", parseFloat(e.target.value) || 0)}
+                              className="h-6 w-20 text-right text-[11px] inline-block"
+                            />
+                          </td>
+                          <td className="px-3 py-1.5 text-center text-muted-foreground">{item.unidade}</td>
+                          <td className="px-3 py-1.5 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <span className="text-muted-foreground text-[10px]">R$</span>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={item.valorUnitario || ""}
+                                onChange={(e) => atualizarItemFinanceiro(item.id, "valorUnitario", parseFloat(e.target.value) || 0)}
+                                className="h-6 w-20 text-right text-[11px] inline-block"
+                              />
+                            </div>
+                          </td>
+                          <td className="px-3 py-1.5 text-right font-semibold text-green-700">
+                            R$ {item.valorTotal.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-green-50/50 border-t border-green-200 font-bold">
+                        <td colSpan={4} className="px-3 py-1.5 text-right text-green-800">Subtotal Insumos:</td>
+                        <td className="px-3 py-1.5 text-right text-green-800">R$ {subtotalProdutos.toFixed(2)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+
+              {/* Serviços */}
+              {itensFinanceiro.filter(i => i.tipo === "servico").length > 0 && (
+                <div>
+                  <div className="bg-blue-50 px-3 py-1.5 border-b border-gray-200">
+                    <p className="text-[10px] font-bold text-blue-800 uppercase">Serviços</p>
+                  </div>
+                  <table className="w-full text-xs" style={{ fontSize: "11px" }}>
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                        <th className="px-3 py-1.5 text-left font-semibold">Código</th>
+                        <th className="px-3 py-1.5 text-left font-semibold">Descrição</th>
+                        <th className="px-3 py-1.5 text-right font-semibold">Qtd</th>
+                        <th className="px-3 py-1.5 text-right font-semibold">Valor Unit.</th>
+                        <th className="px-3 py-1.5 text-right font-semibold">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itensFinanceiro.filter(i => i.tipo === "servico").map((item) => (
+                        <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="px-3 py-1.5 text-muted-foreground">{item.codigo}</td>
+                          <td className="px-3 py-1.5 font-medium">{item.nome}</td>
+                          <td className="px-3 py-1.5 text-right">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={item.quantidade || ""}
+                              onChange={(e) => atualizarItemFinanceiro(item.id, "quantidade", parseFloat(e.target.value) || 0)}
+                              className="h-6 w-16 text-right text-[11px] inline-block"
+                            />
+                          </td>
+                          <td className="px-3 py-1.5 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <span className="text-muted-foreground text-[10px]">R$</span>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={item.valorUnitario || ""}
+                                onChange={(e) => atualizarItemFinanceiro(item.id, "valorUnitario", parseFloat(e.target.value) || 0)}
+                                className="h-6 w-20 text-right text-[11px] inline-block"
+                              />
+                            </div>
+                          </td>
+                          <td className="px-3 py-1.5 text-right font-semibold text-blue-700">
+                            R$ {item.valorTotal.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-blue-50/50 border-t border-blue-200 font-bold">
+                        <td colSpan={4} className="px-3 py-1.5 text-right text-blue-800">Subtotal Serviços:</td>
+                        <td className="px-3 py-1.5 text-right text-blue-800">R$ {subtotalServicos.toFixed(2)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+
+              {itensFinanceiro.length === 0 && (
+                <div className="p-4 text-center text-sm text-muted-foreground italic">
+                  Nenhum insumo ou serviço registrado nesta OS.
+                </div>
+              )}
+
+              {/* Total Geral */}
+              <div className="bg-gray-100 px-3 py-2 border-t border-gray-300 flex justify-between items-center">
+                <span className="text-sm font-bold text-gray-800">VALOR TOTAL:</span>
                 <span className="text-lg font-heading text-emerald-700">
-                  R$ {((parseFloat(valorHerbicidas) || 0) + (parseFloat(valorServico) || 0)).toFixed(2)}
+                  R$ {totalGeral.toFixed(2)}
                 </span>
               </div>
             </div>
@@ -1050,9 +1250,10 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                   ...os,
                   apontamentos,
                   status: "concluida",
-                  valorHerbicidas: parseFloat(valorHerbicidas) || undefined,
-                  valorServico: parseFloat(valorServico) || undefined,
-                  valorTotal: ((parseFloat(valorHerbicidas) || 0) + (parseFloat(valorServico) || 0)) || undefined,
+                  servicos: os.servicos,
+                  valorHerbicidas: subtotalProdutos || undefined,
+                  valorServico: subtotalServicos || undefined,
+                  valorTotal: totalGeral || undefined,
                 };
                 await saveOS(updatedOS);
                 toast.success("Ordem de Serviço encerrada com sucesso!");
