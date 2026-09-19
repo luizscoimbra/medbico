@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Supabase temp
+supabase/.temp/
+
+# Sensitive data
+KEY\ ACCES\ DATABASE.txt
