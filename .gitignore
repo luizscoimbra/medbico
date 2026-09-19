@@ -28,3 +28,6 @@ supabase/.temp/
 
 # Sensitive data
 KEY\ ACCES\ DATABASE.txt
+
+# Backup folders
+medbico-51fa845b/
