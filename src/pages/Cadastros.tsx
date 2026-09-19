@@ -273,10 +273,10 @@ export default function Cadastros() {
   const handleEditProduct = (prod: RegisteredProduct) => {
     setEditingProductId(prod.id);
     setProdForm({
-      commercial_name: prod.commercial_name,
-      formulation: prod.formulation,
-      unit: prod.unit,
-      package_size: prod.package_size.toString(),
+      commercial_name: prod.commercial_name || "",
+      formulation: prod.formulation || "SL",
+      unit: prod.unit || "L",
+      package_size: prod.package_size?.toString() || "",
       codigo: prod.codigo || "",
       descricao: prod.descricao || "",
       ncm: prod.ncm || "",
@@ -350,10 +350,14 @@ export default function Cadastros() {
   };
 
   const fetchProducts = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("registered_products")
       .select("*")
       .order("commercial_name");
+    if (error) {
+      toast.error("Erro ao carregar produtos");
+      return;
+    }
     if (data) setProducts(data as RegisteredProduct[]);
   };
 
@@ -401,78 +405,55 @@ export default function Cadastros() {
       toast.error("Preencha os campos obrigatórios");
       return;
     }
-    
-    const coreData: Record<string, any> = {
-      user_id: userId,
+
+    const preco = parseFloat(prodForm.preco_unitario);
+    const icms = parseFloat(prodForm.aliquota_icms);
+    const ipi = parseFloat(prodForm.aliquota_ipi);
+    const pis = parseFloat(prodForm.aliquota_pis);
+    const cofins = parseFloat(prodForm.aliquota_cofins);
+
+    const productData: Record<string, any> = {
       commercial_name: prodForm.commercial_name.trim(),
       formulation: prodForm.formulation,
       unit: prodForm.unit,
       package_size: size,
+      codigo: prodForm.codigo.trim() || null,
+      descricao: prodForm.descricao.trim() || null,
+      ncm: prodForm.ncm.trim() || null,
+      cfop: prodForm.cfop.trim() || null,
+      cst_csosn: prodForm.cst_csosn.trim() || null,
+      origem: prodForm.origem || "0",
+      cest: prodForm.cest.trim() || null,
+      preco_unitario: !isNaN(preco) && preco > 0 ? preco : null,
+      aliquota_icms: !isNaN(icms) && icms > 0 ? icms : null,
+      aliquota_ipi: !isNaN(ipi) && ipi > 0 ? ipi : null,
+      enquadramento_ipi: prodForm.enquadramento_ipi.trim() || null,
+      aliquota_pis: !isNaN(pis) && pis > 0 ? pis : null,
+      aliquota_cofins: !isNaN(cofins) && cofins > 0 ? cofins : null,
     };
 
-    const fiscalData: Record<string, any> = {};
-    if (prodForm.codigo.trim()) fiscalData.codigo = prodForm.codigo.trim();
-    if (prodForm.descricao.trim()) fiscalData.descricao = prodForm.descricao.trim();
-    if (prodForm.ncm.trim()) fiscalData.ncm = prodForm.ncm.trim();
-    if (prodForm.cfop.trim()) fiscalData.cfop = prodForm.cfop.trim();
-    if (prodForm.cst_csosn.trim()) fiscalData.cst_csosn = prodForm.cst_csosn.trim();
-    if (prodForm.origem && prodForm.origem !== "0") fiscalData.origem = prodForm.origem;
-    if (prodForm.cest.trim()) fiscalData.cest = prodForm.cest.trim();
-    const preco = parseFloat(prodForm.preco_unitario);
-    if (!isNaN(preco) && preco > 0) fiscalData.preco_unitario = preco;
-    const icms = parseFloat(prodForm.aliquota_icms);
-    if (!isNaN(icms) && icms > 0) fiscalData.aliquota_icms = icms;
-    const ipi = parseFloat(prodForm.aliquota_ipi);
-    if (!isNaN(ipi) && ipi > 0) fiscalData.aliquota_ipi = ipi;
-    if (prodForm.enquadramento_ipi.trim()) fiscalData.enquadramento_ipi = prodForm.enquadramento_ipi.trim();
-    const pis = parseFloat(prodForm.aliquota_pis);
-    if (!isNaN(pis) && pis > 0) fiscalData.aliquota_pis = pis;
-    const cofins = parseFloat(prodForm.aliquota_cofins);
-    if (!isNaN(cofins) && cofins > 0) fiscalData.aliquota_cofins = cofins;
-
-    const hasFiscalData = Object.keys(fiscalData).length > 0;
-    const fullData = { ...coreData, ...fiscalData };
-
     if (editingProductId) {
-      let { error } = await supabase
+      const { error } = await supabase
         .from("registered_products")
-        .update(fullData)
+        .update(productData)
         .eq("id", editingProductId);
 
-      if (error && hasFiscalData) {
-        const retry = await supabase
-          .from("registered_products")
-          .update(coreData)
-          .eq("id", editingProductId);
-        error = retry.error;
-        if (!retry.error) {
-          toast.warning("Campos básicos salvos. Rodar a migration para campos fiscais.");
-        }
-      }
-
       if (error) {
-        toast.error("Erro ao atualizar produto");
+        toast.error("Erro ao atualizar produto: " + (error.message || "Erro desconhecido"));
         return;
       }
-      toast.success("Produto atualizado!");
+      toast.success("Produto atualizado com sucesso!");
     } else {
-      let { error } = await supabase.from("registered_products").insert(fullData);
-
-      if (error && hasFiscalData) {
-        const retry = await supabase.from("registered_products").insert(coreData);
-        error = retry.error;
-        if (!retry.error) {
-          toast.warning("Campos básicos salvos. Rodar a migration para campos fiscais.");
-        }
-      }
+      productData.user_id = userId;
+      const { error } = await supabase.from("registered_products").insert(productData);
 
       if (error) {
-        toast.error("Erro ao cadastrar produto");
+        toast.error("Erro ao cadastrar produto: " + (error.message || "Erro desconhecido"));
         return;
       }
-      toast.success("Produto cadastrado!");
+      toast.success("Produto cadastrado com sucesso!");
     }
-    
+
     setEditingProductId(null);
     setProdForm({
       commercial_name: "", formulation: "SL", unit: "L", package_size: "",
@@ -484,8 +465,16 @@ export default function Cadastros() {
   };
 
   const handleDeleteProduct = async (id: string) => {
-    await supabase.from("registered_products").delete().eq("id", id);
-    toast.success("Produto removido");
+    if (!confirm("Deseja realmente excluir este produto?")) return;
+    const { error } = await supabase.from("registered_products").delete().eq("id", id);
+    if (error) {
+      toast.error("Erro ao excluir produto");
+      return;
+    }
+    toast.success("Produto removido com sucesso!");
+    if (editingProductId === id) {
+      handleCancelEditProduct();
+    }
     fetchProducts();
   };
 
@@ -1553,6 +1542,15 @@ export default function Cadastros() {
                       placeholder="Ex: PROD-001"
                       value={prodForm.codigo}
                       onChange={(e) => setProdForm((p) => ({ ...p, codigo: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="prod_desc">Descrição</Label>
+                    <Input
+                      id="prod_desc"
+                      placeholder="Descrição do produto"
+                      value={prodForm.descricao}
+                      onChange={(e) => setProdForm((p) => ({ ...p, descricao: e.target.value }))}
                     />
                   </div>
                   <div className="space-y-2">
