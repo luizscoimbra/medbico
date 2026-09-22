@@ -130,23 +130,10 @@ export type Database = {
       }
       registered_products: {
         Row: {
-          aliquota_cofins: number
-          aliquota_icms: number
-          aliquota_ipi: number
-          aliquota_pis: number
-          base_calculo_iss: number
-          cest: string
-          cfop: string
-          codigo: string
           commercial_name: string
           created_at: string
-          cst_csosn: string
-          descricao: string
-          enquadramento_ipi: string
           formulation: string
           id: string
-          ncm: string
-          origem: string
           package_size: number
           preco_unitario: number
           unit: string
@@ -154,23 +141,10 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          aliquota_cofins?: number
-          aliquota_icms?: number
-          aliquota_ipi?: number
-          aliquota_pis?: number
-          base_calculo_iss?: number
-          cest?: string
-          cfop?: string
-          codigo?: string
           commercial_name: string
           created_at?: string
-          cst_csosn?: string
-          descricao?: string
-          enquadramento_ipi?: string
           formulation: string
           id?: string
-          ncm?: string
-          origem?: string
           package_size: number
           preco_unitario?: number
           unit: string
@@ -178,23 +152,10 @@ export type Database = {
           user_id: string
         }
         Update: {
-          aliquota_cofins?: number
-          aliquota_icms?: number
-          aliquota_ipi?: number
-          aliquota_pis?: number
-          base_calculo_iss?: number
-          cest?: string
-          cfop?: string
-          codigo?: string
           commercial_name?: string
           created_at?: string
-          cst_csosn?: string
-          descricao?: string
-          enquadramento_ipi?: string
           formulation?: string
           id?: string
-          ncm?: string
-          origem?: string
           package_size?: number
           preco_unitario?: number
           unit?: string

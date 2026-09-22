@@ -44,19 +44,7 @@ interface RegisteredProduct {
   formulation: string;
   unit: string;
   package_size: number;
-  codigo: string;
-  descricao: string;
-  ncm: string;
-  cfop: string;
-  cst_csosn: string;
-  origem: string;
-  cest: string;
   preco_unitario: number;
-  aliquota_icms: number;
-  aliquota_ipi: number;
-  enquadramento_ipi: string;
-  aliquota_pis: number;
-  aliquota_cofins: number;
 }
 
 interface Servico {
@@ -105,19 +93,7 @@ export default function Cadastros() {
     formulation: "SL",
     unit: "L",
     package_size: "",
-    codigo: "",
-    descricao: "",
-    ncm: "",
-    cfop: "",
-    cst_csosn: "",
-    origem: "0",
-    cest: "",
     preco_unitario: "",
-    aliquota_icms: "",
-    aliquota_ipi: "",
-    enquadramento_ipi: "",
-    aliquota_pis: "",
-    aliquota_cofins: "",
   });
 
   // Water Trucks state
@@ -277,19 +253,7 @@ export default function Cadastros() {
       formulation: prod.formulation || "SL",
       unit: prod.unit || "L",
       package_size: prod.package_size?.toString() || "",
-      codigo: prod.codigo || "",
-      descricao: prod.descricao || "",
-      ncm: prod.ncm || "",
-      cfop: prod.cfop || "",
-      cst_csosn: prod.cst_csosn || "",
-      origem: prod.origem || "0",
-      cest: prod.cest || "",
       preco_unitario: prod.preco_unitario?.toString() || "",
-      aliquota_icms: prod.aliquota_icms?.toString() || "",
-      aliquota_ipi: prod.aliquota_ipi?.toString() || "",
-      enquadramento_ipi: prod.enquadramento_ipi || "",
-      aliquota_pis: prod.aliquota_pis?.toString() || "",
-      aliquota_cofins: prod.aliquota_cofins?.toString() || "",
     });
     const el = document.getElementById("form-produto");
     if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -298,10 +262,7 @@ export default function Cadastros() {
   const handleCancelEditProduct = () => {
     setEditingProductId(null);
     setProdForm({
-      commercial_name: "", formulation: "SL", unit: "L", package_size: "",
-      codigo: "", descricao: "", ncm: "", cfop: "", cst_csosn: "", origem: "0", cest: "",
-      preco_unitario: "", aliquota_icms: "", aliquota_ipi: "", enquadramento_ipi: "",
-      aliquota_pis: "", aliquota_cofins: "",
+      commercial_name: "", formulation: "SL", unit: "L", package_size: "", preco_unitario: "",
     });
   };
 
@@ -406,36 +367,18 @@ export default function Cadastros() {
       return;
     }
 
-    const preco = parseFloat(prodForm.preco_unitario);
-    const icms = parseFloat(prodForm.aliquota_icms);
-    const ipi = parseFloat(prodForm.aliquota_ipi);
-    const pis = parseFloat(prodForm.aliquota_pis);
-    const cofins = parseFloat(prodForm.aliquota_cofins);
-
-    const productData: Record<string, any> = {
+    const baseData: Record<string, any> = {
       commercial_name: prodForm.commercial_name.trim(),
       formulation: prodForm.formulation,
       unit: prodForm.unit,
       package_size: size,
-      codigo: prodForm.codigo.trim() || null,
-      descricao: prodForm.descricao.trim() || null,
-      ncm: prodForm.ncm.trim() || null,
-      cfop: prodForm.cfop.trim() || null,
-      cst_csosn: prodForm.cst_csosn.trim() || null,
-      origem: prodForm.origem || "0",
-      cest: prodForm.cest.trim() || null,
-      preco_unitario: !isNaN(preco) && preco > 0 ? preco : null,
-      aliquota_icms: !isNaN(icms) && icms > 0 ? icms : null,
-      aliquota_ipi: !isNaN(ipi) && ipi > 0 ? ipi : null,
-      enquadramento_ipi: prodForm.enquadramento_ipi.trim() || null,
-      aliquota_pis: !isNaN(pis) && pis > 0 ? pis : null,
-      aliquota_cofins: !isNaN(cofins) && cofins > 0 ? cofins : null,
+      preco_unitario: parseFloat(prodForm.preco_unitario) || 0,
     };
 
     if (editingProductId) {
       const { error } = await supabase
         .from("registered_products")
-        .update(productData)
+        .update(baseData)
         .eq("id", editingProductId);
 
       if (error) {
@@ -444,8 +387,8 @@ export default function Cadastros() {
       }
       toast.success("Produto atualizado com sucesso!");
     } else {
-      productData.user_id = userId;
-      const { error } = await supabase.from("registered_products").insert(productData);
+      baseData.user_id = userId;
+      const { error } = await supabase.from("registered_products").insert(baseData);
 
       if (error) {
         toast.error("Erro ao cadastrar produto: " + (error.message || "Erro desconhecido"));
@@ -456,10 +399,7 @@ export default function Cadastros() {
 
     setEditingProductId(null);
     setProdForm({
-      commercial_name: "", formulation: "SL", unit: "L", package_size: "",
-      codigo: "", descricao: "", ncm: "", cfop: "", cst_csosn: "", origem: "0", cest: "",
-      preco_unitario: "", aliquota_icms: "", aliquota_ipi: "", enquadramento_ipi: "",
-      aliquota_pis: "", aliquota_cofins: "",
+      commercial_name: "", formulation: "SL", unit: "L", package_size: "", preco_unitario: "",
     });
     fetchProducts();
   };
@@ -1536,25 +1476,7 @@ export default function Cadastros() {
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="prod_codigo">Código Interno</Label>
-                    <Input
-                      id="prod_codigo"
-                      placeholder="Ex: PROD-001"
-                      value={prodForm.codigo}
-                      onChange={(e) => setProdForm((p) => ({ ...p, codigo: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="prod_desc">Descrição</Label>
-                    <Input
-                      id="prod_desc"
-                      placeholder="Descrição do produto"
-                      value={prodForm.descricao}
-                      onChange={(e) => setProdForm((p) => ({ ...p, descricao: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="prod_preco">Preço Unitário (R$)</Label>
+                    <Label htmlFor="prod_preco">Valor do Produto (R$)</Label>
                     <Input
                       id="prod_preco"
                       type="number"
@@ -1564,144 +1486,6 @@ export default function Cadastros() {
                       value={prodForm.preco_unitario}
                       onChange={(e) => setProdForm((p) => ({ ...p, preco_unitario: e.target.value }))}
                     />
-                  </div>
-                </div>
-
-                {/* Dados Fiscais NF-e */}
-                <div className="border rounded-lg p-4 bg-muted/10 space-y-4">
-                  <h4 className="text-sm font-semibold text-primary">Dados Fiscais (NF-e)</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="prod_ncm">NCM</Label>
-                      <Input
-                        id="prod_ncm"
-                        placeholder="Ex: 3808.91.19"
-                        maxLength={10}
-                        value={prodForm.ncm}
-                        onChange={(e) => setProdForm((p) => ({ ...p, ncm: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="prod_cfop">CFOP</Label>
-                      <Input
-                        id="prod_cfop"
-                        placeholder="Ex: 5.102"
-                        maxLength={5}
-                        value={prodForm.cfop}
-                        onChange={(e) => setProdForm((p) => ({ ...p, cfop: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="prod_cst">CST/CSOSN</Label>
-                      <Input
-                        id="prod_cst"
-                        placeholder="Ex: 000 ou 102"
-                        maxLength={3}
-                        value={prodForm.cst_csosn}
-                        onChange={(e) => setProdForm((p) => ({ ...p, cst_csosn: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="prod_origem">Origem</Label>
-                      <Select
-                        value={prodForm.origem}
-                        onValueChange={(v) => setProdForm((p) => ({ ...p, origem: v }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="0">0 - Nacional</SelectItem>
-                          <SelectItem value="1">1 - Estrangeira (Importação direta)</SelectItem>
-                          <SelectItem value="2">2 - Estrangeira (Adq. mercado interno)</SelectItem>
-                          <SelectItem value="3">3 - Nacional (Conteúdo importação &gt;40%)</SelectItem>
-                          <SelectItem value="4">4 - Nacional (Conteúdo importação ≤40%)</SelectItem>
-                          <SelectItem value="5">5 - Nacional (Processo básico)</SelectItem>
-                          <SelectItem value="6">6 - Estrangeira (Importação direta, sem similar)</SelectItem>
-                          <SelectItem value="7">7 - Estrangeira (Adq. mercado interno, sem similar)</SelectItem>
-                          <SelectItem value="8">8 - Nacional (Conteúdo importação &gt;70%)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="prod_cest">CEST</Label>
-                      <Input
-                        id="prod_cest"
-                        placeholder="Opcional"
-                        maxLength={7}
-                        value={prodForm.cest}
-                        onChange={(e) => setProdForm((p) => ({ ...p, cest: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Tributação */}
-                <div className="border rounded-lg p-4 bg-muted/10 space-y-4">
-                  <h4 className="text-sm font-semibold text-primary">Tributação</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="prod_icms">ICMS (%)</Label>
-                      <Input
-                        id="prod_icms"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="100"
-                        placeholder="Ex: 18"
-                        value={prodForm.aliquota_icms}
-                        onChange={(e) => setProdForm((p) => ({ ...p, aliquota_icms: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="prod_ipi">IPI (%)</Label>
-                      <Input
-                        id="prod_ipi"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="100"
-                        placeholder="Ex: 5"
-                        value={prodForm.aliquota_ipi}
-                        onChange={(e) => setProdForm((p) => ({ ...p, aliquota_ipi: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="prod_enq_ipi">Enquadramento IPI</Label>
-                      <Input
-                        id="prod_enq_ipi"
-                        placeholder="Ex: 999"
-                        maxLength={3}
-                        value={prodForm.enquadramento_ipi}
-                        onChange={(e) => setProdForm((p) => ({ ...p, enquadramento_ipi: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="prod_pis">PIS (%)</Label>
-                      <Input
-                        id="prod_pis"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="100"
-                        placeholder="Ex: 1.65"
-                        value={prodForm.aliquota_pis}
-                        onChange={(e) => setProdForm((p) => ({ ...p, aliquota_pis: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="prod_cofins">COFINS (%)</Label>
-                      <Input
-                        id="prod_cofins"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="100"
-                        placeholder="Ex: 7.6"
-                        value={prodForm.aliquota_cofins}
-                        onChange={(e) => setProdForm((p) => ({ ...p, aliquota_cofins: e.target.value }))}
-                      />
-                    </div>
                   </div>
                 </div>
 
@@ -1743,9 +1527,7 @@ export default function Cadastros() {
                         <TableHead>Formulação</TableHead>
                         <TableHead>Unidade</TableHead>
                         <TableHead>Embalagem</TableHead>
-                        <TableHead>Preço</TableHead>
-                        <TableHead>NCM</TableHead>
-                        <TableHead>CFOP</TableHead>
+                        <TableHead>Valor</TableHead>
                         <TableHead className="w-12"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1757,8 +1539,6 @@ export default function Cadastros() {
                           <TableCell>{p.unit}</TableCell>
                           <TableCell>{p.package_size} {p.unit}</TableCell>
                           <TableCell>{p.preco_unitario ? `R$ ${p.preco_unitario.toFixed(2)}` : "—"}</TableCell>
-                          <TableCell>{p.ncm || "—"}</TableCell>
-                          <TableCell>{p.cfop || "—"}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Button

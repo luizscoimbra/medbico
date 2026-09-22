@@ -54,8 +54,6 @@ interface ProdutoDB {
   unit: string;
   package_size: number;
   preco_unitario?: number;
-  ncm?: string;
-  cfop?: string;
 }
 
 const emptyProduto = (): ProdutoDose => ({ produto: "", dose: "" });
