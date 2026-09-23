@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -26,15 +26,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Settings, FlaskConical, Plus, Trash2, Tractor, Hash, Truck, Map, MapPin, Activity, Pencil, RefreshCcw, Users, Download, Upload, FileText } from "lucide-react";
+import { Settings, FlaskConical, Plus, Trash2, Tractor, Hash, Truck, Map, MapPin, Activity, Pencil, RefreshCcw, Users, Download, Upload, FileText, ArrowLeft } from "lucide-react";
 import { saveTipoAplicacao, getAllTiposAplicacao, deleteTipoAplicacao, TipoAplicacao } from "@/lib/applicationTypeStorage";
 import { saveEquipment, getAllEquipments, deleteEquipment, Equipment } from "@/lib/equipmentStorage";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { saveArea, getAllAreas, deleteArea, AreaCadastro, AreaTalhao } from "@/lib/areaStorage";
 import { saveOperador, getAllOperadores, deleteOperador, deleteAllOperadores, Operador } from "@/lib/operatorStorage";
 import { saveCliente, getAllClientes, deleteCliente, Cliente } from "@/lib/clienteStorage";
+import { formatBRL } from "@/lib/utils";
 
 
 
@@ -74,7 +75,9 @@ interface WaterTruck {
 
 export default function Cadastros() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [userId, setUserId] = useState<string | null>(null);
+  const defaultTab = searchParams.get("tab") || "equipamentos";
 
   // Equipment state
   const [equipments, setEquipments] = useState<Equipment[]>([]);
@@ -94,6 +97,7 @@ export default function Cadastros() {
     unit: "L",
     package_size: "",
     preco_unitario: "",
+    preco_galao: "",
   });
 
   // Water Trucks state
@@ -248,12 +252,15 @@ export default function Cadastros() {
 
   const handleEditProduct = (prod: RegisteredProduct) => {
     setEditingProductId(prod.id);
+    const precoUnit = prod.preco_unitario || 0;
+    const pkgSize = prod.package_size || 0;
     setProdForm({
       commercial_name: prod.commercial_name || "",
       formulation: prod.formulation || "SL",
       unit: prod.unit || "L",
       package_size: prod.package_size?.toString() || "",
       preco_unitario: prod.preco_unitario?.toString() || "",
+      preco_galao: pkgSize > 0 && precoUnit > 0 ? (precoUnit * pkgSize).toString() : "",
     });
     const el = document.getElementById("form-produto");
     if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -262,7 +269,7 @@ export default function Cadastros() {
   const handleCancelEditProduct = () => {
     setEditingProductId(null);
     setProdForm({
-      commercial_name: "", formulation: "SL", unit: "L", package_size: "", preco_unitario: "",
+      commercial_name: "", formulation: "SL", unit: "L", package_size: "", preco_unitario: "", preco_galao: "",
     });
   };
 
@@ -399,7 +406,7 @@ export default function Cadastros() {
 
     setEditingProductId(null);
     setProdForm({
-      commercial_name: "", formulation: "SL", unit: "L", package_size: "", preco_unitario: "",
+      commercial_name: "", formulation: "SL", unit: "L", package_size: "", preco_unitario: "", preco_galao: "",
     });
     fetchProducts();
   };
@@ -987,47 +994,23 @@ export default function Cadastros() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="mb-8 animate-fade-in">
-        <h1 className="text-3xl font-heading text-foreground mb-2">Cadastros</h1>
-        <p className="text-muted-foreground">
+        <div className="flex items-center gap-3 mb-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/visao-geral")}
+            className="h-8 w-8 p-0"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="text-3xl font-heading text-foreground">Cadastros</h1>
+        </div>
+        <p className="text-muted-foreground ml-11">
           Gerencie seus equipamentos e produtos para uso rápido nas medições e cálculos.
         </p>
       </div>
 
-      <Tabs defaultValue="equipamentos" className="animate-slide-up">
-        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 h-auto">
-          <TabsTrigger value="equipamentos" className="flex items-center gap-2 py-3 h-full whitespace-nowrap">
-            <Settings className="h-4 w-4" />
-            Equipamentos
-          </TabsTrigger>
-          <TabsTrigger value="caminhoes_pipa" className="flex items-center gap-2 py-3 h-full whitespace-nowrap">
-            <Truck className="h-4 w-4" />
-            Caminhão Pipa
-          </TabsTrigger>
-          <TabsTrigger value="produtos" className="flex items-center gap-2 py-3 h-full whitespace-nowrap">
-            <FlaskConical className="h-4 w-4" />
-            Produtos
-          </TabsTrigger>
-          <TabsTrigger value="servicos" className="flex items-center gap-2 py-3 h-full whitespace-nowrap">
-            <FileText className="h-4 w-4" />
-            Serviços
-          </TabsTrigger>
-          <TabsTrigger value="areas" className="flex items-center gap-2 py-3 h-full whitespace-nowrap">
-            <Map className="h-4 w-4" />
-            Áreas
-          </TabsTrigger>
-          <TabsTrigger value="tipos_aplicacao" className="flex items-center gap-2 py-3 h-full whitespace-nowrap">
-            <Activity className="h-4 w-4" />
-            Tipos Aplic.
-          </TabsTrigger>
-          <TabsTrigger value="operadores" className="flex items-center gap-2 py-3 h-full whitespace-nowrap">
-            <Users className="h-4 w-4" />
-            Operadores
-          </TabsTrigger>
-          <TabsTrigger value="clientes" className="flex items-center gap-2 py-3 h-full whitespace-nowrap">
-            <Users className="h-4 w-4" />
-            Clientes
-          </TabsTrigger>
-        </TabsList>
+      <Tabs defaultValue={defaultTab} className="animate-slide-up">
 
         {/* EQUIPAMENTOS TAB */}
         <TabsContent value="equipamentos">
@@ -1476,16 +1459,49 @@ export default function Cadastros() {
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="prod_preco">Valor do Produto (R$)</Label>
+                    <Label htmlFor="prod_preco">Valor por Litro/KG (R$)</Label>
                     <Input
                       id="prod_preco"
                       type="number"
                       step="0.01"
                       min="0"
-                      placeholder="Ex: 45.90"
+                      placeholder="Ex: 9.18"
                       value={prodForm.preco_unitario}
-                      onChange={(e) => setProdForm((p) => ({ ...p, preco_unitario: e.target.value }))}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const pkg = parseFloat(prodForm.package_size) || 0;
+                        const numVal = parseFloat(val) || 0;
+                        setProdForm((p) => ({
+                          ...p,
+                          preco_unitario: val,
+                          preco_galao: val && pkg > 0 ? (numVal * pkg).toFixed(2) : "",
+                        }));
+                      }}
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="prod_galao">Valor do Galão (R$)</Label>
+                    <Input
+                      id="prod_galao"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="Ex: 45.90"
+                      value={prodForm.preco_galao}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const pkg = parseFloat(prodForm.package_size) || 0;
+                        const numVal = parseFloat(val) || 0;
+                        setProdForm((p) => ({
+                          ...p,
+                          preco_galao: val,
+                          preco_unitario: val && pkg > 0 ? (numVal / pkg).toFixed(4) : "",
+                        }));
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Preenchimento automático baseado no tamanho da embalagem
+                    </p>
                   </div>
                 </div>
 
@@ -1527,7 +1543,8 @@ export default function Cadastros() {
                         <TableHead>Formulação</TableHead>
                         <TableHead>Unidade</TableHead>
                         <TableHead>Embalagem</TableHead>
-                        <TableHead>Valor</TableHead>
+                        <TableHead>Valor/Unit</TableHead>
+                        <TableHead>Valor Galão</TableHead>
                         <TableHead className="w-12"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1538,7 +1555,8 @@ export default function Cadastros() {
                           <TableCell>{p.formulation}</TableCell>
                           <TableCell>{p.unit}</TableCell>
                           <TableCell>{p.package_size} {p.unit}</TableCell>
-                          <TableCell>{p.preco_unitario ? `R$ ${p.preco_unitario.toFixed(2)}` : "—"}</TableCell>
+                            <TableCell>{p.preco_unitario ? formatBRL(p.preco_unitario) : "—"}</TableCell>
+                            <TableCell>{p.preco_unitario && p.package_size ? formatBRL(p.preco_unitario * p.package_size) : "—"}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Button
@@ -2323,7 +2341,7 @@ export default function Cadastros() {
                           <TableCell className="font-medium">{s.codigo}</TableCell>
                           <TableCell>{s.descricao}</TableCell>
                           <TableCell>{s.unidade}</TableCell>
-                          <TableCell>R$ {s.preco_unitario?.toFixed(2)}</TableCell>
+                          <TableCell>{s.preco_unitario ? formatBRL(s.preco_unitario) : "—"}</TableCell>
                           <TableCell>{s.aliquota_iss ? `${s.aliquota_iss}%` : "—"}</TableCell>
                           <TableCell>{s.cnae || "—"}</TableCell>
                           <TableCell>

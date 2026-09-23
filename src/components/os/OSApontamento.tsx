@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Save, Eye, AlertTriangle, Droplets, Clock, Settings, AlertCircle, History as HistoryIcon, ArrowRightLeft, CheckCircle2, Search, FlaskConical, Trash2, Plus, Pencil } from "lucide-react";
 import type { OrdemServico, ApontamentoTalhao, MotivoParada, ProdutoDose, ServicoOS } from "@/lib/osStorage";
 import { saveOS, MOTIVO_PARADA_LABELS } from "@/lib/osStorage";
+import { formatBRL } from "@/lib/utils";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAllOperadores, Operador } from "@/lib/operatorStorage";
@@ -447,7 +448,10 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
             </Button>
             <Button 
               size="sm"
-              onClick={() => setShowCloseOSDialog(true)} 
+              onClick={() => {
+                calcularItensFinanceiro();
+                setShowCloseOSDialog(true);
+              }}
               className="bg-emerald-600 hover:bg-emerald-700 text-white h-9"
             >
               <CheckCircle2 className="h-4 w-4 mr-2" /> Encerrar OS
@@ -1130,7 +1134,7 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                               min="0"
                               value={item.quantidade || ""}
                               onChange={(e) => atualizarItemFinanceiro(item.id, "quantidade", parseFloat(e.target.value) || 0)}
-                              className="h-6 w-20 text-right text-[11px] inline-block"
+                              className="h-7 w-28 text-right text-[12px] px-2 inline-block [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
                             />
                           </td>
                           <td className="px-3 py-1.5 text-center text-muted-foreground">{item.unidade}</td>
@@ -1143,12 +1147,12 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                                 min="0"
                                 value={item.valorUnitario || ""}
                                 onChange={(e) => atualizarItemFinanceiro(item.id, "valorUnitario", parseFloat(e.target.value) || 0)}
-                                className="h-6 w-20 text-right text-[11px] inline-block"
+                                className="h-7 w-32 text-right text-[12px] px-2 inline-block [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
                               />
                             </div>
                           </td>
                           <td className="px-3 py-1.5 text-right font-semibold text-green-700">
-                            R$ {item.valorTotal.toFixed(2)}
+                            {formatBRL(item.valorTotal)}
                           </td>
                         </tr>
                       ))}
@@ -1156,7 +1160,7 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                     <tfoot>
                       <tr className="bg-green-50/50 border-t border-green-200 font-bold">
                         <td colSpan={4} className="px-3 py-1.5 text-right text-green-800">Subtotal Insumos:</td>
-                        <td className="px-3 py-1.5 text-right text-green-800">R$ {subtotalProdutos.toFixed(2)}</td>
+                        <td className="px-3 py-1.5 text-right text-green-800">{formatBRL(subtotalProdutos)}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -1191,7 +1195,7 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                               min="0"
                               value={item.quantidade || ""}
                               onChange={(e) => atualizarItemFinanceiro(item.id, "quantidade", parseFloat(e.target.value) || 0)}
-                              className="h-6 w-16 text-right text-[11px] inline-block"
+                              className="h-7 w-24 text-right text-[12px] px-2 inline-block [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
                             />
                           </td>
                           <td className="px-3 py-1.5 text-right">
@@ -1203,12 +1207,12 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                                 min="0"
                                 value={item.valorUnitario || ""}
                                 onChange={(e) => atualizarItemFinanceiro(item.id, "valorUnitario", parseFloat(e.target.value) || 0)}
-                                className="h-6 w-20 text-right text-[11px] inline-block"
+                                className="h-7 w-32 text-right text-[12px] px-2 inline-block [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
                               />
                             </div>
                           </td>
                           <td className="px-3 py-1.5 text-right font-semibold text-blue-700">
-                            R$ {item.valorTotal.toFixed(2)}
+                            {formatBRL(item.valorTotal)}
                           </td>
                         </tr>
                       ))}
@@ -1216,7 +1220,7 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                     <tfoot>
                       <tr className="bg-blue-50/50 border-t border-blue-200 font-bold">
                         <td colSpan={4} className="px-3 py-1.5 text-right text-blue-800">Subtotal Serviços:</td>
-                        <td className="px-3 py-1.5 text-right text-blue-800">R$ {subtotalServicos.toFixed(2)}</td>
+                        <td className="px-3 py-1.5 text-right text-blue-800">{formatBRL(subtotalServicos)}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -1233,7 +1237,7 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
               <div className="bg-gray-100 px-3 py-2 border-t border-gray-300 flex justify-between items-center">
                 <span className="text-sm font-bold text-gray-800">VALOR TOTAL:</span>
                 <span className="text-lg font-heading text-emerald-700">
-                  R$ {totalGeral.toFixed(2)}
+                  {formatBRL(totalGeral)}
                 </span>
               </div>
             </div>

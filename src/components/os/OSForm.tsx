@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,8 @@ import { getAllAreas, AreaCadastro } from "@/lib/areaStorage";
 import { getAllTiposAplicacao, TipoAplicacao } from "@/lib/applicationTypeStorage";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { getAllDrones, Drone } from "@/lib/droneStorage";
+import { Plane } from "lucide-react";
 
 interface OSFormProps {
   propriedade: string;
@@ -58,6 +60,10 @@ interface ProdutoDB {
 
 const emptyProduto = (): ProdutoDose => ({ produto: "", dose: "" });
 
+function formatBRL(value: number): string {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
 const emptyTalhao = (): TalhaoData => ({
   nome: "",
   area: "",
@@ -94,6 +100,7 @@ export function OSForm({
   const [tiposAplicacaoDB, setTiposAplicacaoDB] = useState<TipoAplicacao[]>([]);
   const [allPastOS, setAllPastOS] = useState<OrdemServico[]>([]);
   const [historyTalhaoIndex, setHistoryTalhaoIndex] = useState<number | null>(null);
+  const [dronesDB, setDronesDB] = useState<Drone[]>([]);
 
   useEffect(() => {
     supabase
@@ -110,7 +117,55 @@ export function OSForm({
     getAllAreas().then(setAreasDB);
     getAllTiposAplicacao().then(setTiposAplicacaoDB);
     getAllOS().then(setAllPastOS);
+    getAllDrones().then(setDronesDB).catch(() => {});
   }, []);
+
+  // Auto-calculate HA services when talhões areas change
+  useEffect(() => {
+    const totalHectares = talhoes.reduce((sum, t) => sum + (parseFloat(t.area) || 0), 0);
+    const hasHAServices = servicosOS.some(s => s.unidade === "HA");
+    if (!hasHAServices) return;
+
+    const updated = servicosOS.map(s => {
+      if (s.unidade === "HA") {
+        return { ...s, quantidade: totalHectares, valorTotal: totalHectares * s.valorUnitario };
+      }
+      return s;
+    });
+
+    const changed = updated.some((s, i) => s.quantidade !== servicosOS[i].quantidade);
+    if (changed) setServicosOS(updated);
+  }, [talhoes, servicosOS]);
+
+  // Product value calculations per talhão and total
+  const productValues = useMemo(() => {
+    const perTalhao: number[] = [];
+    let totalGeral = 0;
+
+    talhoes.forEach((t) => {
+      const totalArea = parseFloat(t.area) || 0;
+      let appliedArea = totalArea;
+      if (t.testemunho) {
+        appliedArea = t.testemunhoArea
+          ? Math.max(0, totalArea - parseFloat(t.testemunhoArea) / 10000)
+          : 0;
+      }
+
+      let subtotal = 0;
+      t.produtos.forEach((p) => {
+        if (!p.produto || !p.dose) return;
+        const found = produtosDB.find((db) => db.commercial_name === p.produto);
+        const preco = found?.preco_unitario || 0;
+        const dose = parseFloat(p.dose) || 0;
+        subtotal += dose * appliedArea * preco;
+      });
+
+      perTalhao.push(subtotal);
+      totalGeral += subtotal;
+    });
+
+    return { perTalhao, totalGeral };
+  }, [talhoes, produtosDB]);
 
   const updateTalhao = (index: number, field: keyof TalhaoData, value: any) => {
     const updated = [...talhoes];
@@ -131,6 +186,9 @@ export function OSForm({
       if (found) {
         prods[prodIdx].unit = found.unit;
         prods[prodIdx].packageSize = found.package_size;
+        prods[prodIdx].preco_unitario = found.preco_unitario || 0;
+      } else {
+        prods[prodIdx].preco_unitario = 0;
       }
     }
 
@@ -322,16 +380,46 @@ export function OSForm({
                     htmlFor={`eq-${eq.id}`} 
                     className="text-xs font-medium leading-none cursor-pointer"
                   >
-                    {eq.fleet_number}
+                    <span className="flex items-center gap-1">
+                      <span className="text-muted-foreground">🚜</span>
+                      {eq.fleet_number}
+                    </span>
                     <span className="block text-[9px] text-muted-foreground font-normal">
                       {eq.equipment_model}
                     </span>
                   </label>
                 </div>
               ))}
-              {availableEquipments.length === 0 && (
+              {dronesDB.filter(d => d.status === "ativo").map((drone) => (
+                <div key={`drone-${drone.id}`} className="flex items-center space-x-2">
+                  <Checkbox 
+                    id={`drone-${drone.id}`} 
+                    checked={equipamentos.includes(`DRONE-${drone.numero_serie}`)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setEquipamentos([...equipamentos, `DRONE-${drone.numero_serie}`]);
+                      } else {
+                        setEquipamentos(equipamentos.filter(id => id !== `DRONE-${drone.numero_serie}`));
+                      }
+                    }}
+                  />
+                  <label 
+                    htmlFor={`drone-${drone.id}`} 
+                    className="text-xs font-medium leading-none cursor-pointer"
+                  >
+                    <span className="flex items-center gap-1">
+                      <Plane className="h-3 w-3 text-blue-500" />
+                      {drone.modelo}
+                    </span>
+                    <span className="block text-[9px] text-muted-foreground font-normal">
+                      {drone.numero_serie}
+                    </span>
+                  </label>
+                </div>
+              ))}
+              {availableEquipments.length === 0 && dronesDB.length === 0 && (
                 <p className="col-span-full text-xs text-muted-foreground italic py-2">
-                  Nenhum equipamento cadastrado.
+                  Nenhum equipamento ou drone cadastrado.
                 </p>
               )}
             </div>
@@ -441,6 +529,14 @@ export function OSForm({
                   ))}
                 </div>
 
+                {productValues.perTalhao[i] > 0 && (
+                  <div className="flex justify-end pt-1 border-t border-dashed">
+                    <span className="text-xs text-muted-foreground">
+                      Subtotal Produtos: <span className="font-semibold text-foreground">{formatBRL(productValues.perTalhao[i])}</span>
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex flex-wrap gap-4">
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -502,12 +598,20 @@ export function OSForm({
         </CardContent>
       </Card>
 
+      {productValues.totalGeral > 0 && (
+        <div className="flex justify-end px-1">
+          <div className="text-sm">
+            Total Produtos: <span className="font-bold">{formatBRL(productValues.totalGeral)}</span>
+          </div>
+        </div>
+      )}
+
       {/* Serviços da OS */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Serviços</CardTitle>
           <Button type="button" variant="outline" size="sm" onClick={() => {
-            setServicosOS([...servicosOS, { servicoId: "", codigo: "", descricao: "", quantidade: 1, valorUnitario: 0, valorTotal: 0 }]);
+            setServicosOS([...servicosOS, { servicoId: "", codigo: "", descricao: "", unidade: "", quantidade: 1, valorUnitario: 0, valorTotal: 0 }]);
           }}>
             <Plus className="h-4 w-4 mr-1" /> Adicionar Serviço
           </Button>
@@ -527,16 +631,19 @@ export function OSForm({
                     const selected = servicosDisponiveis.find(srv => srv.id === e.target.value);
                     const updated = [...servicosOS];
                     if (selected) {
+                      const isHA = selected.unidade === "HA";
+                      const qty = isHA ? 0 : (updated[idx].quantidade || 1);
                       updated[idx] = {
                         servicoId: selected.id,
                         codigo: selected.codigo,
                         descricao: selected.descricao,
-                        quantidade: updated[idx].quantidade || 1,
+                        unidade: selected.unidade || "",
+                        quantidade: qty,
                         valorUnitario: selected.preco_unitario || 0,
-                        valorTotal: (updated[idx].quantidade || 1) * (selected.preco_unitario || 0),
+                        valorTotal: qty * (selected.preco_unitario || 0),
                       };
                     } else {
-                      updated[idx] = { servicoId: "", codigo: "", descricao: "", quantidade: 1, valorUnitario: 0, valorTotal: 0 };
+                      updated[idx] = { servicoId: "", codigo: "", descricao: "", unidade: "", quantidade: 1, valorUnitario: 0, valorTotal: 0 };
                     }
                     setServicosOS(updated);
                   }}
@@ -548,19 +655,37 @@ export function OSForm({
                 </select>
               </div>
               <div className="w-24">
-                <Label className="text-xs">Qtd.</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={s.quantidade || ""}
-                  onChange={(e) => {
-                    const qty = parseFloat(e.target.value) || 0;
-                    const updated = [...servicosOS];
-                    updated[idx] = { ...updated[idx], quantidade: qty, valorTotal: qty * updated[idx].valorUnitario };
-                    setServicosOS(updated);
-                  }}
-                />
+                <Label className="text-xs">
+                  Qtd. {s.unidade && s.unidade !== "HA" && (
+                    <span className="text-muted-foreground">({s.unidade})</span>
+                  )}
+                </Label>
+                {s.unidade === "HA" ? (
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      readOnly
+                      value={s.quantidade || ""}
+                      className="bg-muted/50 pr-8"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">ha</span>
+                  </div>
+                ) : (
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={s.quantidade || ""}
+                    onChange={(e) => {
+                      const qty = parseFloat(e.target.value) || 0;
+                      const updated = [...servicosOS];
+                      updated[idx] = { ...updated[idx], quantidade: qty, valorTotal: qty * updated[idx].valorUnitario };
+                      setServicosOS(updated);
+                    }}
+                  />
+                )}
               </div>
               <div className="w-28">
                 <Label className="text-xs">Valor Unit.</Label>
@@ -580,7 +705,7 @@ export function OSForm({
               <div className="w-28">
                 <Label className="text-xs">Subtotal</Label>
                 <div className="h-9 flex items-center text-sm font-semibold">
-                  R$ {(s.valorTotal || 0).toFixed(2)}
+                  {formatBRL(s.valorTotal || 0)}
                 </div>
               </div>
               <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => {
@@ -593,7 +718,7 @@ export function OSForm({
           {servicosOS.length > 0 && (
             <div className="flex justify-end pt-2 border-t">
               <div className="text-sm">
-                Total Serviços: <span className="font-bold">R$ {servicosOS.reduce((sum, s) => sum + (s.valorTotal || 0), 0).toFixed(2)}</span>
+                Total Serviços: <span className="font-bold">{formatBRL(servicosOS.reduce((sum, s) => sum + (s.valorTotal || 0), 0))}</span>
               </div>
             </div>
           )}

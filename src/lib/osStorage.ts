@@ -5,12 +5,14 @@ export interface ProdutoDose {
   dose: string;
   unit?: string;        // "L" ou "KG"
   packageSize?: number;  // tamanho da embalagem
+  preco_unitario?: number;
 }
 
 export interface ServicoOS {
   servicoId: string;
   codigo: string;
   descricao: string;
+  unidade: string;
   quantidade: number;
   valorUnitario: number;
   valorTotal: number;

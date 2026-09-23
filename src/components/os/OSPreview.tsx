@@ -62,6 +62,27 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
     return result;
   }, [os]);
 
+  // Product value calculation
+  const valorProdutos = useMemo(() => {
+    let total = 0;
+    os.talhoes.forEach((t) => {
+      const totalArea = parseFloat(t.area) || 0;
+      let appliedArea = totalArea;
+      if (t.testemunho) {
+        appliedArea = t.testemunhoArea
+          ? Math.max(0, totalArea - parseFloat(t.testemunhoArea) / 10000)
+          : 0;
+      }
+      t.produtos.forEach((p) => {
+        if (!p.produto || !p.dose) return;
+        const preco = p.preco_unitario || 0;
+        const dose = parseFloat(p.dose) || 0;
+        total += dose * appliedArea * preco;
+      });
+    });
+    return total;
+  }, [os]);
+
   const temValores = (os.valorHerbicidas || 0) + (os.valorServico || 0) > 0;
   const totalServicos = os.servicos?.reduce((sum, s) => sum + s.valorTotal, 0) || 0;
 
@@ -254,32 +275,38 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
         )}
 
         {/* Resumo Financeiro */}
-        {(temValores || totalServicos > 0) && (
+        {(temValores || totalServicos > 0 || valorProdutos > 0) && (
           <div>
             <h2 className="text-[11px] font-bold uppercase mb-1 text-gray-700">Resumo Financeiro</h2>
             <div className="border border-gray-300 rounded p-2 h-full">
+              {valorProdutos > 0 && (
+                <div className="flex justify-between py-0.5" style={{ fontSize: "10px" }}>
+                  <span className="text-gray-600">Produtos:</span>
+                  <span className="font-medium">R$ {valorProdutos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                </div>
+              )}
               {os.valorHerbicidas ? (
                 <div className="flex justify-between py-0.5" style={{ fontSize: "10px" }}>
                   <span className="text-gray-600">Insumos:</span>
-                  <span className="font-medium">R$ {os.valorHerbicidas.toFixed(2)}</span>
+                  <span className="font-medium">R$ {os.valorHerbicidas.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                 </div>
               ) : null}
               {os.valorServico ? (
                 <div className="flex justify-between py-0.5" style={{ fontSize: "10px" }}>
                   <span className="text-gray-600">Serviço:</span>
-                  <span className="font-medium">R$ {os.valorServico.toFixed(2)}</span>
+                  <span className="font-medium">R$ {os.valorServico.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                 </div>
               ) : null}
               {totalServicos > 0 && (
                 <div className="flex justify-between py-0.5" style={{ fontSize: "10px" }}>
                   <span className="text-gray-600">Serviços (NFSE):</span>
-                  <span className="font-medium">R$ {totalServicos.toFixed(2)}</span>
+                  <span className="font-medium">R$ {totalServicos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                 </div>
               )}
               <div className="flex justify-between py-0.5 border-t border-gray-300 mt-1 pt-1" style={{ fontSize: "11px" }}>
                 <span className="font-bold text-gray-800">TOTAL:</span>
                 <span className="font-bold text-gray-800">
-                  R$ {((os.valorHerbicidas || 0) + (os.valorServico || 0) + totalServicos).toFixed(2)}
+                  R$ {(valorProdutos + (os.valorHerbicidas || 0) + (os.valorServico || 0) + totalServicos).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
@@ -306,16 +333,16 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
                 <tr key={idx}>
                   <td className="border border-gray-300 px-1.5 py-1">{s.codigo}</td>
                   <td className="border border-gray-300 px-1.5 py-1">{s.descricao}</td>
-                  <td className="border border-gray-300 px-1.5 py-1 text-right">{s.quantidade}</td>
-                  <td className="border border-gray-300 px-1.5 py-1 text-right">R$ {s.valorUnitario.toFixed(2)}</td>
-                  <td className="border border-gray-300 px-1.5 py-1 text-right font-semibold">R$ {s.valorTotal.toFixed(2)}</td>
+                  <td className="border border-gray-300 px-1.5 py-1 text-right">{s.quantidade}{s.unidade && s.unidade !== "HA" ? ` ${s.unidade}` : s.unidade === "HA" ? " ha" : ""}</td>
+                  <td className="border border-gray-300 px-1.5 py-1 text-right">R$ {s.valorUnitario.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+                  <td className="border border-gray-300 px-1.5 py-1 text-right font-semibold">R$ {s.valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="font-semibold bg-blue-50/50">
                 <td colSpan={4} className="border border-gray-300 px-1.5 py-1 text-right">Total Serviços:</td>
-                <td className="border border-gray-300 px-1.5 py-1 text-right">R$ {os.servicos.reduce((sum, s) => sum + s.valorTotal, 0).toFixed(2)}</td>
+                <td className="border border-gray-300 px-1.5 py-1 text-right">R$ {os.servicos.reduce((sum, s) => sum + s.valorTotal, 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
               </tr>
             </tfoot>
           </table>

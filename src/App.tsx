@@ -17,11 +17,16 @@ import Cadastros from "./pages/Cadastros";
 import CalculadoraCalda from "./pages/CalculadoraCalda";
 import AferirVazao from "./pages/AferirVazao";
 import OrdemServico from "./pages/OrdemServico";
+import Drones from "./pages/Drones";
 import Frotas from "./pages/Frotas";
 import Acessos from "./pages/Acessos";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import AreaMotorista from "./pages/AreaMotorista";
+import BatteryManagement from "./pages/BatteryManagement";
+import FlightLog from "./pages/FlightLog";
+import MaintenanceDashboard from "./pages/MaintenanceDashboard";
+import VisaoGeral from "./pages/VisaoGeral";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -51,6 +56,7 @@ function AppLayout() {
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+            <Route path="/visao-geral" element={<ProtectedRoute><VisaoGeral /></ProtectedRoute>} />
             <Route path="/nova-medicao" element={<ProtectedRoute><NovaMedicao /></ProtectedRoute>} />
             <Route path="/entrada-dados" element={<ProtectedRoute><EntradaDados /></ProtectedRoute>} />
             <Route path="/resultados" element={<ProtectedRoute><Resultados /></ProtectedRoute>} />
@@ -63,6 +69,10 @@ function AppLayout() {
             <Route path="/ordem-servico" element={<ProtectedRoute><OrdemServico /></ProtectedRoute>} />
             <Route path="/area-motorista" element={<ProtectedRoute><AreaMotorista /></ProtectedRoute>} />
             <Route path="/frotas" element={<ProtectedRoute><Frotas /></ProtectedRoute>} />
+            <Route path="/drones" element={<ProtectedRoute><Drones /></ProtectedRoute>} />
+            <Route path="/battery-management" element={<ProtectedRoute><BatteryManagement /></ProtectedRoute>} />
+            <Route path="/flight-log" element={<ProtectedRoute><FlightLog /></ProtectedRoute>} />
+            <Route path="/maintenance" element={<ProtectedRoute><MaintenanceDashboard /></ProtectedRoute>} />
             <Route path="/acessos" element={<ProtectedRoute><Acessos /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
