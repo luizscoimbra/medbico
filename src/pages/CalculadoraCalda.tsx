@@ -21,6 +21,10 @@ import { supabase } from "@/integrations/supabase/client";
 
 type FormulacaoConhecida = "WP" | "WG" | "SC" | "EC" | "SL" | "ADJ";
 
+// Terrestre = cálculo tradicional (100–200 L/ha) · Drone = baixo volume (5–20 L/ha)
+type ModoAplicacao = "terrestre" | "drone";
+type GrupoPh = "neutro" | "acido" | "alcalino";
+
 interface Produto {
   id: string;
   nome: string;
@@ -29,6 +33,7 @@ interface Produto {
   unidade: "L/ha" | "kg/ha";
   packageSize?: number;
   packageUnit?: string;
+  phGrupo?: GrupoPh;
 }
 
 interface HistoricoCalda {
@@ -43,6 +48,7 @@ interface HistoricoCalda {
   tanquesCheios: number;
   volumeRestante: number;
   tanquesNecessarios: number;
+  modo?: ModoAplicacao;
 }
 
 // Categorias com cores semânticas
@@ -91,6 +97,53 @@ function getFormulacaoInfo(f: string) {
   return ORDEM_FORMULACAO[f] || DEFAULT_FORMULACAO_INFO;
 }
 
+// ── Parâmetros do modo Drone (aplicação em baixo volume) ──────────────
+const DRONE_V_MIN = 5;            // L/ha — início da faixa usual do drone
+const DRONE_V_MAX = 20;           // L/ha — fim da faixa usual do drone
+const FC_ALERTA = 15;             // % — concentração elevada (alerta amarelo)
+const FC_CRITICO = 20;            // % — alerta vermelho de alta concentração
+const AGUA_INICIAL_FRACAO = 0.7;  // 70% do tanque recebe água antes dos produtos
+const FATOR_DILUICAO_PRE = 10;    // 10× o volume de pós e óleos na pré-mistura
+
+const PH_GRUPO_LABEL: Record<GrupoPh, string> = {
+  neutro: "pH neutro / sem restrição",
+  acido: "Requer pH ácido (4,5–5,5)",
+  alcalino: "Alcalino (pH > 7,5)",
+};
+
+// Formulações sólidas (pós) e oleosas entram no cálculo do volume mínimo de pré-mistura (10×)
+const FORMULACOES_SOLIDAS = ["WP", "WG", "SG", "DF", "SP"];
+const FORMULACOES_OLEOSAS = ["EC", "EW", "ME", "SE", "OD", "EO", "ADJ", "ADJ_OLEO"];
+const FORMULACOES_SUSPENSAO = ["SC", "CS", "FS", "OD", "WP", "WG", "SG", "DF", "SP"];
+
+// Ordem oficial de adição em pré-mistura — Regra WALES/DARE (drone / baixo volume)
+const ORDEM_DRONE: Record<string, { grupo: number; etapa: string; instrucao: string }> = {
+  CORRETIVO:   { grupo: 1, etapa: "Água + Corretivos/Condicionadores", instrucao: "Preparar 50% a 70% do volume de água e corrigir pH/condutividade antes de qualquer produto" },
+  SG:          { grupo: 2, etapa: "Sólidos (WP / WG / SG / DF)", instrucao: "Exige pré-diluição vigorosa em água antes da junção ao tanque" },
+  WP:          { grupo: 2, etapa: "Sólidos (WP / WG / SG / DF)", instrucao: "Exige pré-diluição vigorosa em água antes da junção ao tanque" },
+  WG:          { grupo: 2, etapa: "Sólidos (WP / WG / SG / DF)", instrucao: "Exige pré-diluição vigorosa em água antes da junção ao tanque" },
+  SP:          { grupo: 4, etapa: "Concentrados Solúveis (SL / SP)", instrucao: "Pré-diluir e adicionar com agitação constante" },
+  CS:          { grupo: 3, etapa: "Suspensões (SC / CS / FS)", instrucao: "Partículas sólidas em meio líquido: adicionar com agitação constante" },
+  SC:          { grupo: 3, etapa: "Suspensões (SC / CS / FS)", instrucao: "Partículas sólidas em meio líquido: adicionar com agitação constante" },
+  OD:          { grupo: 3, etapa: "Suspensões (SC / CS / FS)", instrucao: "Partículas sólidas em meio líquido: adicionar com agitação constante" },
+  SE:          { grupo: 5, etapa: "Óleos e Emulsões (EC / EW / ME / SE)", instrucao: "Formulações oleosas: adicionar após as suspensões até formar emulsão estável" },
+  EC:          { grupo: 5, etapa: "Óleos e Emulsões (EC / EW / ME / SE)", instrucao: "Formulações oleosas: adicionar após as suspensões até formar emulsão estável" },
+  EO:          { grupo: 5, etapa: "Óleos e Emulsões (EC / EW / ME / SE)", instrucao: "Formulações oleosas: adicionar após as suspensões até formar emulsão estável" },
+  EW:          { grupo: 5, etapa: "Óleos e Emulsões (EC / EW / ME / SE)", instrucao: "Formulações oleosas: adicionar após as suspensões até formar emulsão estável" },
+  ME:          { grupo: 5, etapa: "Óleos e Emulsões (EC / EW / ME / SE)", instrucao: "Formulações oleosas: adicionar após as suspensões até formar emulsão estável" },
+  ADJ:         { grupo: 6, etapa: "Adjuvantes / Óleos", instrucao: "Adicionar por último para fixação e espalhamento" },
+  ADJ_OLEO:    { grupo: 6, etapa: "Adjuvantes / Óleos", instrucao: "Adicionar por último para fixação e espalhamento" },
+  SURFACTANTE: { grupo: 6, etapa: "Adjuvantes / Óleos", instrucao: "Adicionar por último para fixação e espalhamento" },
+  REDUTOR:     { grupo: 6, etapa: "Adjuvantes / Óleos", instrucao: "Adicionar por último (antiespuma) antes de completar o volume" },
+  FOLIARE:     { grupo: 4, etapa: "Concentrados Solúveis (SL / SP)", instrucao: "Adicionar com agitação — atenção ao pH do fertilizante" },
+};
+
+const DEFAULT_DRONE_INFO = { grupo: 4, etapa: "Concentrados Solúveis (SL / SP)", instrucao: "Pré-diluir e adicionar com agitação constante" };
+
+function getDroneInfo(f: string) {
+  return ORDEM_DRONE[f] || DEFAULT_DRONE_INFO;
+}
+
 const UNIDADE_PADRAO: Record<string, "L/ha" | "kg/ha"> = {
   CORRETIVO: "L/ha",
   SG: "kg/ha", SP: "kg/ha", WP: "kg/ha", WG: "kg/ha",
@@ -125,6 +178,7 @@ function saveHistorico(list: HistoricoCalda[]) {
 }
 
 export default function CalculadoraCalda() {
+  const [modo, setModo] = useState<ModoAplicacao>("terrestre");
   const [talhao, setTalhao] = useState("");
   const [areaTalhao, setAreaTalhao] = useState<number>(0);
   const [vazaoTrabalho, setVazaoTrabalho] = useState<number>(0);
@@ -188,7 +242,48 @@ export default function CalculadoraCalda() {
     setMostrarResultado(false);
   };
 
-  const handleSelectTalhao = (talhaoData: TalhaoData, idx: number) => {
+  // ── Cadastro de produtos (Supabase) ──────────────────────────────────
+  const obterCadastro = async (): Promise<ProdutoCadastrado[]> => {
+    if (produtosCadastrados.length > 0) return produtosCadastrados;
+    const { data } = await supabase
+      .from("registered_products")
+      .select("id, commercial_name, formulation, unit, package_size");
+    const lista = (data as ProdutoCadastrado[]) || [];
+    if (lista.length > 0) setProdutosCadastrados(lista);
+    return lista;
+  };
+
+  const normalizarNome = (nome: string) =>
+    (nome || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ");
+
+  // Devolve a formulação cadastrada para o produto (busca exata ou parcial), com fallback "SL"
+  const resolverFormulacao = (
+    nomeProduto: string,
+    cadastro: ProdutoCadastrado[]
+  ): { formulacao: string; encontrado: boolean } => {
+    const alvo = normalizarNome(nomeProduto);
+    if (!alvo) return { formulacao: "SL", encontrado: false };
+
+    const encontrado =
+      cadastro.find((p) => normalizarNome(p.commercial_name) === alvo) ||
+      (alvo.length >= 3
+        ? cadastro.find((p) => {
+            const nome = normalizarNome(p.commercial_name);
+            return nome.length >= 3 && (nome.includes(alvo) || alvo.includes(nome));
+          })
+        : undefined);
+
+    const codigo = (encontrado?.formulation || "").trim().toUpperCase();
+    if (codigo) return { formulacao: codigo, encontrado: true };
+    return { formulacao: "SL", encontrado: false };
+  };
+
+  const handleSelectTalhao = async (talhaoData: TalhaoData, idx: number) => {
     setSelectedTalhaoIdx(idx);
     setTalhao(talhaoData.nome);
     setAreaTalhao(parseFloat(talhaoData.area) || 0);
@@ -196,20 +291,36 @@ export default function CalculadoraCalda() {
     if (selectedOS?.volumeCaldaHa) {
       setVazaoTrabalho(parseFloat(selectedOS.volumeCaldaHa) || 0);
     }
-    // Importa produtos do talhão
-    const produtosImportados: Produto[] = talhaoData.produtos.map((p) => ({
-      id: Math.random().toString(36).substring(2, 11) + Date.now().toString(36),
+    // Importa produtos do talhão carregando a formulação do cadastro de produtos
+    const cadastro = await obterCadastro();
+    const resolvidos = talhaoData.produtos.map((p) => ({
+      produto: p,
+      ...resolverFormulacao(p.produto, cadastro),
+    }));
+    const produtosImportados: Produto[] = resolvidos.map(({ produto: p, formulacao }, i) => ({
+      id: Math.random().toString(36).substring(2, 11) + Date.now().toString(36) + i,
       nome: p.produto,
-      formulacao: "SL",
+      formulacao,
       dose: parseFloat(p.dose) || 0,
       unidade: (p.unit === "KG" ? "kg/ha" : "L/ha") as "L/ha" | "kg/ha",
     }));
+    const doCadastro = resolvidos.filter((r) => r.encontrado).length;
+    const semCadastro = resolvidos.length - doCadastro;
     setProdutos(produtosImportados);
     setMostrarResultado(false);
     toast.success(`Talhão "${talhaoData.nome}" carregado com ${produtosImportados.length} produto(s)!`);
+    if (doCadastro > 0) {
+      toast.info(`Formulação carregada do cadastro para ${doCadastro} produto(s).`);
+    }
+    if (semCadastro > 0) {
+      toast.warning(
+        `${semCadastro} produto(s) não encontrados no cadastro — formulação padrão "SL" aplicada. Verifique a lista abaixo.`
+      );
+    }
 
     // Lógica de capacidade do tanque baseada nos equipamentos vinculados
-    if (selectedOS?.equipamentos && selectedOS.equipamentos.length > 0) {
+    // (somente no modo terrestre — tanques de pulverizador não se aplicam a drones)
+    if (modo !== "drone" && selectedOS?.equipamentos && selectedOS.equipamentos.length > 0) {
       getAllEquipments().then((all) => {
         const linked = all.filter(e => selectedOS.equipamentos?.includes(e.fleet_number));
         const capacities = Array.from(new Set(linked.map(e => e.tank_capacity))).filter(c => !!c);
@@ -312,6 +423,101 @@ export default function CalculadoraCalda() {
     );
   }, [produtos]);
 
+  // Ordem de adição aplicada no relatório (drone usa a regra WALES/DARE, terrestre mantém a ordem tradicional)
+  const listaOrdem = useMemo(() => {
+    if (modo !== "drone") return produtosOrdenados;
+    return [...produtos].sort((a, b) => {
+      const ga = getDroneInfo(a.formulacao).grupo;
+      const gb = getDroneInfo(b.formulacao).grupo;
+      if (ga !== gb) return ga - gb;
+      return getFormulacaoInfo(a.formulacao).ordem - getFormulacaoInfo(b.formulacao).ordem;
+    });
+  }, [modo, produtos, produtosOrdenados]);
+
+  const atualizarProduto = (id: string, patch: Partial<Produto>) => {
+    setProdutos((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+    setMostrarResultado(false);
+  };
+
+  // ── Validações específicas do modo Drone ─────────────────────────────
+  const droneChecks = useMemo(() => {
+    const bloqueios: string[] = [];
+    const alertas: { nivel: "critico" | "atencao"; texto: string }[] = [];
+    const vazio = { bloqueios, alertas, fcTotal: 0, somaDoses: 0, volumeMinimoAgua: 0, aguaDisponivel: 0 };
+
+    if (modo !== "drone") return vazio;
+
+    const somaDoses = produtos.reduce((s, p) => s + (Number(p.dose) || 0), 0);
+    // FC_total = (Σ P_tanque / C_tanque) × 100  —  como P_tanque = D_ha × C / V, simplifica para (Σ D_ha / V) × 100
+    const fcTotal = vazaoTrabalho > 0 ? (somaDoses / vazaoTrabalho) * 100 : 0;
+    const aguaDisponivel = capacidadeTanque * AGUA_INICIAL_FRACAO;
+    const volumePosEOleos = produtos
+      .filter((p) => FORMULACOES_SOLIDAS.includes(p.formulacao) || FORMULACOES_OLEOSAS.includes(p.formulacao))
+      .reduce((s, p) => s + (Number(p.dose) || 0), 0);
+    const volumeMinimoAgua = volumePosEOleos * FATOR_DILUICAO_PRE;
+
+    // 1) Faixa de taxa de aplicação do drone
+    if (vazaoTrabalho > 0 && vazaoTrabalho < DRONE_V_MIN) {
+      alertas.push({
+        nivel: "critico",
+        texto: `Taxa de ${vazaoTrabalho} L/ha é inferior à faixa usual do drone (${DRONE_V_MIN}–${DRONE_V_MAX} L/ha): calda extremamente concentrada, risco de entupimento de bicos, precipitação e fitotoxicidade.`,
+      });
+    } else if (vazaoTrabalho > DRONE_V_MAX) {
+      alertas.push({
+        nivel: "atencao",
+        texto: `Taxa de ${vazaoTrabalho} L/ha está acima da faixa usual do drone (${DRONE_V_MIN}–${DRONE_V_MAX} L/ha). Verifique a recomendação do fabricante do equipamento.`,
+      });
+    }
+
+    // 2) Fator de Concentração (FC%)
+    if (fcTotal > FC_CRITICO) {
+      const vNecessaria = somaDoses / (FC_CRITICO / 100);
+      const fcEmVMax = (somaDoses / DRONE_V_MAX) * 100;
+      const passadas = Math.max(2, Math.ceil(fcEmVMax / FC_CRITICO));
+      const sugestao =
+        vNecessaria > vazaoTrabalho && vNecessaria <= DRONE_V_MAX
+          ? `Aumente a taxa de aplicação para ${Math.ceil(vNecessaria)} L/ha.`
+          : `Mesmo a ${DRONE_V_MAX} L/ha o FC seria ${fcEmVMax.toFixed(1)}%: aumente para ${DRONE_V_MAX} L/ha e fracione a aplicação em ${passadas} passadas de ${(areaTalhao / passadas).toFixed(1)} ha.`;
+      alertas.push({
+        nivel: "critico",
+        texto: `FC ${fcTotal.toFixed(1)}% (limite crítico ${FC_CRITICO}%): alta concentração com risco de floculação, empelotamento e entupimento. ${sugestao}`,
+      });
+    } else if (fcTotal > FC_ALERTA) {
+      alertas.push({
+        nivel: "atencao",
+        texto: `FC ${fcTotal.toFixed(1)}% (alerta a partir de ${FC_ALERTA}%): concentração elevada. Considere aumentar a taxa de aplicação para ${Math.ceil(somaDoses / (FC_CRITICO / 100))} L/ha ou fracionar em duas passadas.`,
+      });
+    }
+
+    // 3) Choque de pH (ácido vs. alcalino)
+    const temAcido = produtos.some((p) => p.phGrupo === "acido");
+    const temAlcalino = produtos.some((p) => p.phGrupo === "alcalino");
+    if (temAcido && temAlcalino) {
+      bloqueios.push(
+        "Choque de pH: produtos que exigem pH ácido (4,5–5,5) — ex.: inseticidas organofosforados — não devem ser misturados com produtos alcalinos (pH > 7,5) — ex.: fertilizantes foliares. Risco de hidrólise alcalina imediata. Bloqueada a mistura direta no mesmo tanque."
+      );
+    }
+
+    // 4) Volume mínimo de água na pré-mistura: no mínimo 10× a soma de pós e óleos
+    if (volumeMinimoAgua > 0 && aguaDisponivel < volumeMinimoAgua) {
+      bloqueios.push(
+        `Pré-mistura insuficiente: o volume de pós e óleos soma ${volumePosEOleos.toFixed(2)} e exige no mínimo ${volumeMinimoAgua.toFixed(1)} L de água (10×) na pré-mistura, mas há apenas ${aguaDisponivel.toFixed(1)} L iniciais no tanque de ${capacidadeTanque} L. Faça a pré-diluição em recipiente externo ou reduza o número de produtos.`
+      );
+    }
+
+    // 5) EC + SC / WDG em baixo volume tende a quebrar a emulsão
+    const temOleo = produtos.some((p) => FORMULACOES_OLEOSAS.includes(p.formulacao));
+    const temSuspensao = produtos.some((p) => FORMULACOES_SUSPENSAO.includes(p.formulacao));
+    if (temOleo && temSuspensao) {
+      alertas.push({
+        nivel: "atencao",
+        texto: "Mistura de Concentrados Emulsionáveis (EC) com Suspensões Concentradas (SC) / pós em baixo volume: risco de quebra da emulsão e grumo no fundo do tanque. Adicione os sólidos antes, garanta o volume mínimo de água da pré-mistura e só então os produtos oleosos.",
+      });
+    }
+
+    return { bloqueios, alertas, fcTotal, somaDoses, volumeMinimoAgua, aguaDisponivel };
+  }, [modo, produtos, vazaoTrabalho, capacidadeTanque, areaTalhao]);
+
   const handleAdicionarProduto = () => {
     if (!novoNome.trim() || novaDose <= 0) return;
     const novoProduto: Produto = {
@@ -341,7 +547,18 @@ export default function CalculadoraCalda() {
     setNovaUnidade(UNIDADE_PADRAO[val] || "L/ha");
   };
 
-  const podeCalcular = produtos.length > 0 && vazaoTrabalho > 0 && capacidadeTanque > 0 && areaTalhao > 0;
+  const trocarModo = (novo: ModoAplicacao) => {
+    if (novo === modo) return;
+    setModo(novo);
+    setMostrarResultado(false);
+  };
+
+  const podeCalcular =
+    produtos.length > 0 &&
+    vazaoTrabalho > 0 &&
+    capacidadeTanque > 0 &&
+    areaTalhao > 0 &&
+    droneChecks.bloqueios.length === 0;
 
   const handleCalcular = () => {
     setMostrarResultado(true);
@@ -358,6 +575,7 @@ export default function CalculadoraCalda() {
       tanquesCheios,
       volumeRestante,
       tanquesNecessarios,
+      modo,
     };
     const updated = [entry, ...historico];
     setHistorico(updated);
@@ -365,24 +583,32 @@ export default function CalculadoraCalda() {
   };
 
   const handleShare = async () => {
+    const cabecalhoDrone =
+      modo === "drone"
+        ? `🛸 *MODO DRONE (baixo volume)*\n` +
+          `🧮 *Fórmula:* P_tanque = (D_ha × ${capacidadeTanque} L) / ${vazaoTrabalho} L/ha\n` +
+          (droneChecks.fcTotal > 0 ? `⚖️ *FC (concentração):* ${droneChecks.fcTotal.toFixed(1)}%\n` : "")
+        : "";
     const text = `📋 *RELATÓRIO DE MISTURA - MedBico*\n\n` +
       `📌 *Talhão:* ${talhao || "Não informado"}\n` +
       `📏 *Área:* ${areaTalhao} ha\n` +
-      `💧 *Vazão:* ${vazaoTrabalho} L/ha\n` +
-      `🚜 *Capacidade Tanque:* ${capacidadeTanque.toLocaleString("pt-BR")} L\n\n` +
-      `📋 *PLANO DE ABASTECIMENTO:*\n` +
+      `💧 *${modo === "drone" ? "Taxa de aplicação" : "Vazão"}:* ${vazaoTrabalho} L/ha\n` +
+      `🚜 *Capacidade Tanque:* ${capacidadeTanque.toLocaleString("pt-BR")} L\n` +
+      cabecalhoDrone +
+      `\n📋 *PLANO DE ABASTECIMENTO:*\n` +
       (tanquesCheios > 0 ? `👉 *${tanquesCheios}x* tanques cheios (${areaPorTanque.toFixed(1)} ha cada)\n` : "") +
       (volumeRestante > 0 ? `👉 *1x* tanque parcial com *${volumeRestante.toLocaleString("pt-BR")} L* (${(volumeRestante / vazaoTrabalho).toFixed(1)} ha)\n` : "") +
       `Total: ${tanquesNecessarios} abastecimento(s)\n\n` +
       `🧪 *ORDEM DE ADIÇÃO (por tanque cheio):*\n` +
-      `1. Água (70%): ${(capacidadeTanque * 0.7).toLocaleString("pt-BR")} L\n` +
-      produtosOrdenados.map((p, i) => {
+      `1. Água (70%): ${(capacidadeTanque * AGUA_INICIAL_FRACAO).toLocaleString("pt-BR")} L\n` +
+      listaOrdem.map((p, i) => {
         const doseCheio = areaPorTanque * p.dose;
         const un = p.unidade === "L/ha" ? "L" : "kg";
         return `${i + 2}. ${p.nome} (${p.formulacao}): *${(doseCheio % 1 === 0 ? doseCheio.toFixed(0) : doseCheio.toFixed(3))} ${un}*`;
       }).join("\n") +
-      `\n${produtosOrdenados.length + 2}. Completar até ${capacidadeTanque.toLocaleString("pt-BR")} L\n\n` +
-      `⚠ *Mantenha a agitação ligada!*`;
+      `\n${listaOrdem.length + 2}. Completar até ${capacidadeTanque.toLocaleString("pt-BR")} L\n\n` +
+      `⚠ *Mantenha a agitação ligada!*` +
+      (modo === "drone" ? `\n🛸 *Pré-dilua sólidos em recipiente externo e agite 30–60 s entre adições.*` : "");
 
     if (navigator.share) {
       try {
@@ -408,6 +634,7 @@ export default function CalculadoraCalda() {
   };
 
   const handleCarregarHistorico = (h: HistoricoCalda) => {
+    setModo(h.modo || "terrestre");
     setTalhao(h.talhao);
     setAreaTalhao(h.areaTalhao);
     setVazaoTrabalho(h.vazaoTrabalho);
@@ -446,6 +673,53 @@ export default function CalculadoraCalda() {
           </p>
         </div>
       </div>
+
+      {/* ── Modo de aplicação: Terrestre × Drone ── */}
+      <Card className="mb-6 print:hidden">
+        <CardContent className="pt-6 space-y-3">
+          <p className="text-xs font-medium text-muted-foreground">Modo de aplicação</p>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => trocarModo("terrestre")}
+              className={`rounded-lg border p-3 text-left transition-all hover:border-primary/50 hover:bg-primary/5 ${
+                modo === "terrestre" ? "border-primary bg-primary/10" : "border-border bg-muted/30"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-heading text-sm">🚜 Terrestre</p>
+                  <p className="text-xs text-muted-foreground">100 a 200 L/ha</p>
+                </div>
+                {modo === "terrestre" && <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />}
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => trocarModo("drone")}
+              className={`rounded-lg border p-3 text-left transition-all hover:border-primary/50 hover:bg-primary/5 ${
+                modo === "drone" ? "border-primary bg-primary/10" : "border-border bg-muted/30"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-heading text-sm">🛸 Drone</p>
+                  <p className="text-xs text-muted-foreground">5 a 20 L/ha (baixo volume)</p>
+                </div>
+                {modo === "drone" && <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />}
+              </div>
+            </button>
+          </div>
+          {modo === "drone" && (
+            <div className="rounded-lg bg-warning/10 border border-warning/20 p-3 text-xs text-foreground space-y-0.5">
+              <p className="font-medium">⚠️ Volume de calda 5 a 10× menor que no terrestre — a concentração de defensivos na calda fica de 5 a 10 vezes maior.</p>
+              <p className="text-muted-foreground">
+                Isso aumenta o risco de incompatibilidade física e química (floculação, empelotamento, separação de fases, cristalização e entupimento de bicos). O sistema calcula a dosagem por tanque pela fórmula P = (D<sub>ha</sub> × C<sub>tanque</sub>) / V, valida o Índice de Saturação (FC%) e gera a ordem de mistura.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* ── Importar de OS em Aberto ── */}
       <Card className="mb-6 print:hidden border-primary/30">
@@ -599,33 +873,68 @@ export default function CalculadoraCalda() {
               {/* Campos de vazão + tanque + botão Calcular — aparecem após talhão selecionado */}
               {selectedTalhaoIdx !== null && (
                 <div className="space-y-3 pt-2 border-t border-border animate-fade-in">
-                  <p className="text-xs font-medium text-muted-foreground">Parâmetros do equipamento:</p>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {modo === "drone" ? "Parâmetros do drone:" : "Parâmetros do equipamento:"}
+                  </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <Label htmlFor="vazao-os" className="text-xs">Vazão de trabalho (L/ha)</Label>
+                      <Label htmlFor="vazao-os" className="text-xs">
+                        {modo === "drone" ? "Taxa de aplicação (L/ha)" : "Vazão de trabalho (L/ha)"}
+                      </Label>
                       <Input
                         id="vazao-os"
                         type="number"
                         min={0}
-                        step={1}
-                        placeholder="Ex: 100"
+                        step={modo === "drone" ? 1 : 100}
+                        placeholder={modo === "drone" ? "Ex: 10" : "Ex: 100"}
                         value={vazaoTrabalho || ""}
                         onChange={(e) => setVazaoTrabalho(Number(e.target.value))}
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label htmlFor="tanque-os" className="text-xs">Capacidade do tanque (L)</Label>
+                      <Label htmlFor="tanque-os" className="text-xs">
+                        {modo === "drone" ? "Tanque do drone (L)" : "Capacidade do tanque (L)"}
+                      </Label>
                       <Input
                         id="tanque-os"
                         type="number"
                         min={0}
-                        step={100}
-                        placeholder="Ex: 2000"
+                        step={modo === "drone" ? 10 : 100}
+                        placeholder={modo === "drone" ? "Ex: 30" : "Ex: 2000"}
                         value={capacidadeTanque || ""}
                         onChange={(e) => setCapacidadeTanque(Number(e.target.value))}
                       />
                     </div>
                   </div>
+
+                  {/* Dicas do modo Drone */}
+                  {modo === "drone" && (
+                    <div className="rounded-lg bg-warning/10 border border-warning/20 p-3 text-xs space-y-1.5">
+                      <p className="text-foreground">
+                        Faixa usual do drone: <span className="font-mono font-bold">{DRONE_V_MIN}–{DRONE_V_MAX} L/ha</span> · Tanques comuns: <span className="font-mono font-bold">5–50 L</span>
+                        {" "}(terrestre: 100–200 L/ha).
+                      </p>
+                      {vazaoTrabalho > 0 && (vazaoTrabalho < DRONE_V_MIN || vazaoTrabalho > DRONE_V_MAX) && (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-amber-700">
+                            {vazaoTrabalho} L/ha está fora da faixa usual do drone.
+                          </span>
+                          <button
+                            type="button"
+                            className="rounded-full border border-warning/40 bg-background px-2 py-0.5 font-medium text-warning hover:bg-warning/10 transition-colors"
+                            onClick={() => setVazaoTrabalho(10)}
+                          >
+                            Usar 10 L/ha
+                          </button>
+                        </div>
+                      )}
+                      {capacidadeTanque > 200 && (
+                        <p className="text-amber-700">
+                          Tanque de {capacidadeTanque.toLocaleString("pt-BR")} L parece ser de pulverizador terrestre — informe a capacidade real do drone.
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {/* Prévia de volumes */}
                   {areaPorTanque > 0 && volumeTotal > 0 && (
@@ -643,20 +952,102 @@ export default function CalculadoraCalda() {
                   {produtos.length > 0 && (
                     <div className="space-y-1">
                       <p className="text-xs font-medium text-muted-foreground">Produtos da OS ({produtos.length}):</p>
-                      <div className="space-y-1 max-h-40 overflow-y-auto">
+                      <div className="space-y-1 max-h-64 overflow-y-auto">
                         {produtos.map((p) => (
-                          <div key={p.id} className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-1.5 text-sm">
-                            <div className="min-w-0 flex-1">
-                              <span className="font-medium text-foreground">{p.nome}</span>
-                              <span className="ml-2 text-xs rounded-full px-1.5 py-0.5 bg-primary/10 text-primary font-mono">{p.formulacao}</span>
-                              <span className="ml-2 text-xs text-muted-foreground">{p.dose} {p.unidade}</span>
+                          <div key={p.id} className="rounded-md border border-border bg-muted/30 px-3 py-1.5 text-sm">
+                            <div className="flex items-center justify-between">
+                              <div className="min-w-0 flex-1">
+                                <span className="font-medium text-foreground">{p.nome}</span>
+                                <span className="ml-2 text-xs rounded-full px-1.5 py-0.5 bg-primary/10 text-primary font-mono">{p.formulacao}</span>
+                                <span className="ml-2 text-xs text-muted-foreground">{p.dose} {p.unidade}</span>
+                              </div>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => handleRemoverProduto(p.id)}>
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
                             </div>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => handleRemoverProduto(p.id)}>
-                              <Trash2 className="h-3 w-3 text-destructive" />
-                            </Button>
+
+                            {/* Modo drone: código de formulação + pH (base da validação de compatibilidade) */}
+                            {modo === "drone" && (
+                              <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-border/50">
+                                <div className="space-y-0.5">
+                                  <span className="text-[10px] text-muted-foreground">Formulação</span>
+                                  <Select value={p.formulacao} onValueChange={(v) => atualizarProduto(p.id, { formulacao: v })}>
+                                    <SelectTrigger className="h-8 text-xs">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {FORMULACAO_OPTIONS.map(([key, info]) => (
+                                        <SelectItem key={key} value={key} className="text-xs">
+                                          {key} — {info.descricao}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-0.5">
+                                  <span className="text-[10px] text-muted-foreground">pH / compatibilidade</span>
+                                  <Select
+                                    value={p.phGrupo || "neutro"}
+                                    onValueChange={(v) => atualizarProduto(p.id, { phGrupo: v as GrupoPh })}
+                                  >
+                                    <SelectTrigger className="h-8 text-xs">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {(Object.keys(PH_GRUPO_LABEL) as GrupoPh[]).map((g) => (
+                                        <SelectItem key={g} value={g} className="text-xs">
+                                          {PH_GRUPO_LABEL[g]}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Pré-validação drone: bloqueios de compatibilidade */}
+                  {modo === "drone" && droneChecks.bloqueios.length > 0 && (
+                    <div className="rounded-lg bg-destructive/10 border border-destructive/40 p-3 flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                      <div className="text-xs text-destructive">
+                        <p className="font-bold mb-1">Bloqueio de compatibilidade — mistura direta proibida:</p>
+                        <ul className="list-disc list-inside space-y-1">
+                          {droneChecks.bloqueios.map((b, i) => (
+                            <li key={`blk-${i}`}>{b}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Pré-validação drone: FC% e alertas de concentração */}
+                  {modo === "drone" && vazaoTrabalho > 0 && (droneChecks.alertas.length > 0 || droneChecks.fcTotal > 0) && (
+                    <div
+                      className={`rounded-lg border p-3 text-xs space-y-1 ${
+                        droneChecks.fcTotal > FC_CRITICO
+                          ? "bg-destructive/10 border-destructive/40"
+                          : droneChecks.fcTotal > FC_ALERTA
+                          ? "bg-amber-50 border-amber-200"
+                          : "bg-success/10 border-success/30"
+                      }`}
+                    >
+                      <p className="font-bold text-foreground flex items-center gap-1.5">
+                        <Beaker className="h-3.5 w-3.5" />
+                        Índice de Saturação: FC {droneChecks.fcTotal.toFixed(1)}% (crítico acima de {FC_CRITICO}%)
+                      </p>
+                      {droneChecks.alertas.map((a, i) => (
+                        <p key={`al-${i}`} className={a.nivel === "critico" ? "text-destructive" : "text-amber-700"}>
+                          • {a.texto}
+                        </p>
+                      ))}
+                      {droneChecks.alertas.length === 0 && (
+                        <p className="text-success">• Concentração dentro do limite seguro para baixo volume.</p>
+                      )}
                     </div>
                   )}
 
@@ -703,6 +1094,10 @@ export default function CalculadoraCalda() {
             <h1 className="text-xl font-heading text-center mb-3 border-b-2 border-foreground pb-2">
               Relatório de Mistura — Ordem de Abastecimento
             </h1>
+            <p className="text-center text-xs font-bold mb-3">
+              Modo de aplicação: {modo === "drone" ? "🛸 DRONE (baixo volume — 5 a 20 L/ha)" : "🚜 TERRESTRE"}
+              {modo === "drone" && ` · FC ${droneChecks.fcTotal.toFixed(1)}%`}
+            </p>
             <div className="grid grid-cols-4 gap-2 text-xs mb-3">
               <div className="border border-border rounded p-2">
                 <span className="text-muted-foreground block">Talhão</span>
@@ -713,7 +1108,7 @@ export default function CalculadoraCalda() {
                 <span className="font-bold font-mono">{areaTalhao} ha</span>
               </div>
               <div className="border border-border rounded p-2">
-                <span className="text-muted-foreground block">Vazão</span>
+                <span className="text-muted-foreground block">{modo === "drone" ? "Taxa" : "Vazão"}</span>
                 <span className="font-bold font-mono">{vazaoTrabalho} L/ha</span>
               </div>
               <div className="border border-border rounded p-2">
@@ -760,6 +1155,7 @@ export default function CalculadoraCalda() {
               <CardDescription>
                 {talhao && <>Talhão: {talhao} — </>}
                 Volume total: {volumeTotal.toLocaleString("pt-BR")} L para {areaTalhao} ha
+                {modo === "drone" && " — 🛸 Aplicação via Drone (baixo volume)"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 print:p-0 print:space-y-2">
@@ -770,6 +1166,110 @@ export default function CalculadoraCalda() {
                   Mantenha a <strong>agitação ligada</strong> durante todo o processo de preparo da calda.
                 </p>
               </div>
+
+              {/* ── Bloco específico do modo Drone: fórmula, FC% e validações ── */}
+              {modo === "drone" && (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3 break-inside-avoid">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-heading text-foreground text-sm flex items-center gap-2">
+                      🛸 Dosagem por Tanque — Aplicação via Drone
+                    </p>
+                    <Badge variant="outline" className="text-xs border-primary/40 text-primary shrink-0">Drone</Badge>
+                  </div>
+
+                  {/* Fórmula aplicada */}
+                  <div className="rounded-md bg-background border border-border p-2.5 text-xs font-mono text-foreground space-y-0.5">
+                    <p className="font-bold">P_tanque = (D_ha × C_tanque) ÷ V</p>
+                    <p className="text-muted-foreground">
+                      P_tanque = (D_ha × {capacidadeTanque.toLocaleString("pt-BR")} L) ÷ {vazaoTrabalho} L/ha = D_ha × {areaPorTanque.toFixed(2)} ha/tanque
+                    </p>
+                  </div>
+
+                  {/* Estatísticas */}
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div className="rounded bg-background border border-border p-2 text-center">
+                      <span className="text-muted-foreground block">Área/tanque</span>
+                      <span className="font-bold font-mono text-sm">{areaPorTanque.toFixed(2)} ha</span>
+                    </div>
+                    <div className="rounded bg-background border border-border p-2 text-center">
+                      <span className="text-muted-foreground block">Volume total</span>
+                      <span className="font-bold font-mono text-sm">{volumeTotal.toLocaleString("pt-BR")} L</span>
+                    </div>
+                    <div className="rounded bg-background border border-border p-2 text-center">
+                      <span className="text-muted-foreground block">Tanques</span>
+                      <span className="font-bold font-mono text-sm">{tanquesNecessarios}x</span>
+                    </div>
+                  </div>
+
+                  {/* Índice de Saturação (FC%) */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-medium text-foreground">Fator de Concentração (FC)</span>
+                      <span
+                        className={`font-mono font-bold ${
+                          droneChecks.fcTotal > FC_CRITICO
+                            ? "text-destructive"
+                            : droneChecks.fcTotal > FC_ALERTA
+                            ? "text-warning"
+                            : "text-success"
+                        }`}
+                      >
+                        {droneChecks.fcTotal.toFixed(1)}% / {FC_CRITICO}%
+                      </span>
+                    </div>
+                    <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          droneChecks.fcTotal > FC_CRITICO
+                            ? "bg-destructive"
+                            : droneChecks.fcTotal > FC_ALERTA
+                            ? "bg-warning"
+                            : "bg-success"
+                        }`}
+                        style={{ width: `${Math.min(100, droneChecks.fcTotal)}%` }}
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      FC = (Σ produtos por tanque ÷ {capacidadeTanque.toLocaleString("pt-BR")} L) × 100 · alerta a partir de {FC_ALERTA}% · crítico acima de {FC_CRITICO}%
+                    </p>
+                  </div>
+
+                  {/* Alertas e bloqueios de compatibilidade */}
+                  {droneChecks.alertas.length > 0 && (
+                    <ul className="space-y-1 text-xs">
+                      {droneChecks.alertas.map((a, i) => (
+                        <li
+                          key={`rep-al-${i}`}
+                          className={`flex items-start gap-1.5 ${a.nivel === "critico" ? "text-destructive" : "text-amber-700"}`}
+                        >
+                          <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                          <span>{a.texto}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {droneChecks.alertas.length === 0 && (
+                    <p className="text-xs text-success flex items-center gap-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                      Concentração e compatibilidade dentro dos limites seguros para baixo volume.
+                    </p>
+                  )}
+                  {droneChecks.bloqueios.length > 0 && (
+                    <ul className="space-y-1 text-xs text-destructive">
+                      {droneChecks.bloqueios.map((b, i) => (
+                        <li key={`rep-blk-${i}`} className="flex items-start gap-1.5">
+                          <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                          <span>{b}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <p className="text-xs text-muted-foreground border-t border-border pt-2">
+                    <strong>Ordem de mistura (WALES/DARE):</strong> água + corretivos (50–70%) → sólidos (WP/WG/SG/DF) pré-diluídos → suspensões (SC/CS) → solúveis (SL/SP) → oleosas (EC/EW/ME/SE) → adjuvantes/óleos por último. Agite 30–60 s entre cada adição e pré-dilua sólidos com no mínimo 10× o volume de pós e óleos.
+                  </p>
+                </div>
+              )}
 
               {/* Resumo de abastecimentos - screen only */}
               <div className="rounded-lg bg-primary/10 border border-primary/20 p-4 space-y-1 text-sm print:hidden">
@@ -801,6 +1301,7 @@ export default function CalculadoraCalda() {
                   <Separator className="print:hidden" />
                   <p className="font-heading text-foreground text-sm py-1">
                     🟢 Dosagem por Tanque Cheio ({capacidadeTanque.toLocaleString("pt-BR")} L — {areaPorTanque.toFixed(1)} ha)
+                    {modo === "drone" && <span className="text-xs font-normal text-muted-foreground"> — P = (D_ha × {capacidadeTanque.toLocaleString("pt-BR")}) ÷ {vazaoTrabalho}</span>}
                   </p>
                   <div className="space-y-2 print:space-y-1">
                     {/* Passo 1: Água inicial */}
@@ -814,17 +1315,21 @@ export default function CalculadoraCalda() {
                             <span className="text-xs font-mono rounded-full px-2 py-0.5 bg-[hsl(200,70%,55%)]/20 text-[hsl(200,70%,55%)]">ÁGUA</span>
                           </div>
                           <p className="font-heading text-foreground mt-0.5">
-                            Encher o tanque com <span className="font-mono font-bold">{(capacidadeTanque * 0.7).toLocaleString("pt-BR")} L</span> de água (70%)
+                            Encher o tanque com <span className="font-mono font-bold">{(capacidadeTanque * AGUA_INICIAL_FRACAO).toLocaleString("pt-BR")} L</span> de água (70%)
                           </p>
-                          <p className="text-xs text-muted-foreground">Iniciar agitação máxima e manter</p>
+                          <p className="text-xs text-muted-foreground">
+                            {modo === "drone" ? "Iniciar agitação máxima e manter (faixa ideal 50% a 70% do volume)" : "Iniciar agitação máxima e manter"}
+                          </p>
                         </div>
                       </div>
                     </div>
 
-                    {produtosOrdenados.map((p, idx) => {
+                    {listaOrdem.map((p, idx) => {
                       const doseCheio = areaPorTanque * p.dose;
                       const un = p.unidade === "L/ha" ? "L" : "kg";
                       const info = getFormulacaoInfo(p.formulacao);
+                      const instrucao = modo === "drone" ? getDroneInfo(p.formulacao).instrucao : info.instrucao;
+                      const etapaDrone = modo === "drone" ? getDroneInfo(p.formulacao).etapa : null;
                       const cat = CATEGORIA_CONFIG[info.categoria];
                       const galoes = p.packageSize ? doseCheio / p.packageSize : null;
                       return (
@@ -842,6 +1347,11 @@ export default function CalculadoraCalda() {
                                 <span className={`text-[10px] font-medium ${cat.textClass}`}>
                                   {cat.label}
                                 </span>
+                                {etapaDrone && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                                    {etapaDrone}
+                                  </span>
+                                )}
                               </div>
                               <p className="text-lg print:text-base font-mono font-bold text-primary mt-0.5">
                                 {(doseCheio % 1 === 0 ? doseCheio.toFixed(0) : doseCheio.toFixed(3))} {un}
@@ -853,12 +1363,12 @@ export default function CalculadoraCalda() {
                               )}
                             </div>
                             <p className="text-xs text-muted-foreground hidden print:block shrink-0">
-                              {info.instrucao}
+                              {instrucao}
                             </p>
                           </div>
                           <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 print:hidden">
                             <AlertTriangle className="h-3 w-3 shrink-0" />
-                            {info.instrucao}
+                            {instrucao}
                           </p>
                         </div>
                       );
@@ -890,6 +1400,7 @@ export default function CalculadoraCalda() {
                   <Separator className="print:hidden" />
                   <p className="font-heading text-foreground text-sm py-1">
                     🟡 Dosagem para Tanque Parcial ({volumeRestante.toLocaleString("pt-BR")} L — {(volumeRestante / vazaoTrabalho).toFixed(1)} ha)
+                    {modo === "drone" && <span className="text-xs font-normal text-muted-foreground"> — P = (D_ha × {volumeRestante.toLocaleString("pt-BR")}) ÷ {vazaoTrabalho}</span>}
                   </p>
                   <div className="space-y-2 print:space-y-1">
                     {/* Passo 1: Água inicial parcial */}
@@ -903,18 +1414,20 @@ export default function CalculadoraCalda() {
                             <span className="text-xs font-mono rounded-full px-2 py-0.5 bg-[hsl(200,70%,55%)]/20 text-[hsl(200,70%,55%)]">ÁGUA</span>
                           </div>
                           <p className="font-heading text-foreground mt-0.5">
-                            Encher o tanque com <span className="font-mono font-bold">{(volumeRestante * 0.7).toLocaleString("pt-BR")} L</span> de água (70%)
+                            Encher o tanque com <span className="font-mono font-bold">{(volumeRestante * AGUA_INICIAL_FRACAO).toLocaleString("pt-BR")} L</span> de água (70%)
                           </p>
                           <p className="text-xs text-muted-foreground">Iniciar agitação máxima e manter</p>
                         </div>
                       </div>
                     </div>
 
-                    {produtosOrdenados.map((p, idx) => {
+                    {listaOrdem.map((p, idx) => {
                       const areaParcial = volumeRestante / vazaoTrabalho;
                       const doseParcial = areaParcial * p.dose;
                       const un = p.unidade === "L/ha" ? "L" : "kg";
                       const info = getFormulacaoInfo(p.formulacao);
+                      const instrucao = modo === "drone" ? getDroneInfo(p.formulacao).instrucao : info.instrucao;
+                      const etapaDrone = modo === "drone" ? getDroneInfo(p.formulacao).etapa : null;
                       const cat = CATEGORIA_CONFIG[info.categoria];
                       const galoes = p.packageSize ? doseParcial / p.packageSize : null;
                       return (
@@ -932,6 +1445,11 @@ export default function CalculadoraCalda() {
                                 <span className={`text-[10px] font-medium ${cat.textClass}`}>
                                   {cat.label}
                                 </span>
+                                {etapaDrone && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                                    {etapaDrone}
+                                  </span>
+                                )}
                               </div>
                               <p className="text-lg print:text-base font-mono font-bold text-warning mt-0.5">
                                 {(doseParcial % 1 === 0 ? doseParcial.toFixed(0) : doseParcial.toFixed(3))} {un}
@@ -943,12 +1461,12 @@ export default function CalculadoraCalda() {
                               )}
                             </div>
                             <p className="text-xs text-muted-foreground hidden print:block shrink-0">
-                              {info.instrucao}
+                              {instrucao}
                             </p>
                           </div>
                           <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 print:hidden">
                             <AlertTriangle className="h-3 w-3 shrink-0" />
-                            {info.instrucao}
+                            {instrucao}
                           </p>
                         </div>
                       );
@@ -1022,7 +1540,12 @@ export default function CalculadoraCalda() {
                         onClick={() => setExpandedHistorico(expandedHistorico === h.id ? null : h.id)}
                       >
                         <div className="min-w-0">
-                          <p className="font-medium text-foreground text-sm">{h.talhao}</p>
+                          <p className="font-medium text-foreground text-sm flex items-center gap-1.5">
+                            {h.talhao}
+                            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${h.modo === "drone" ? "border-primary/40 text-primary" : "border-border text-muted-foreground"}`}>
+                              {h.modo === "drone" ? "🛸 Drone" : "🚜 Terrestre"}
+                            </Badge>
+                          </p>
                           <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                             <Calendar className="h-3 w-3" />
                             {formatDate(h.data)} — {h.areaTalhao} ha — {h.tanquesNecessarios} abast.
@@ -1044,7 +1567,7 @@ export default function CalculadoraCalda() {
                         <div className="px-4 pb-3 space-y-2 border-t border-border pt-3">
                           <div className="grid grid-cols-2 gap-2 text-xs">
                             <div className="rounded bg-background p-2">
-                              <span className="text-muted-foreground">Vazão:</span>{" "}
+                              <span className="text-muted-foreground">{h.modo === "drone" ? "Taxa:" : "Vazão:"}</span>{" "}
                               <span className="font-mono font-medium">{h.vazaoTrabalho} L/ha</span>
                             </div>
                             <div className="rounded bg-background p-2">

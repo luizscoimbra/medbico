@@ -75,9 +75,9 @@ interface WaterTruck {
 
 export default function Cadastros() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [userId, setUserId] = useState<string | null>(null);
-  const defaultTab = searchParams.get("tab") || "equipamentos";
+  const activeTab = searchParams.get("tab") || "equipamentos";
 
   // Equipment state
   const [equipments, setEquipments] = useState<Equipment[]>([]);
@@ -1010,7 +1010,11 @@ export default function Cadastros() {
         </p>
       </div>
 
-      <Tabs defaultValue={defaultTab} className="animate-slide-up">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setSearchParams({ tab: value })}
+        className="animate-slide-up"
+      >
 
         {/* EQUIPAMENTOS TAB */}
         <TabsContent value="equipamentos">

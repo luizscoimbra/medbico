@@ -21,6 +21,16 @@ export interface AfericaoVazaoRecord {
     nozzleNumber: number;
     value: number;
   }[];
+  // ── Aferição por Drone (opcional — registros sem `modo` são terrestres) ──
+  modo?: "terrestre" | "drone";
+  material?: "liquido" | "solido";
+  metodo?: "volumetrico" | "sensor" | "bancada" | "app";
+  faixaUtil?: number;          // W — largura de trabalho / espalhamento (m)
+  tempoColeta?: number;        // s (30 ou 60)
+  massaColetada?: number;      // kg — ensaio de bancada (sólidos)
+  vazaoMaxSistema?: number;    // kg/min a 100% de comporta (app do drone)
+  comportaAtual?: number;      // % de abertura atual
+  comportaIdeal?: number;      // % de abertura ideal calculada
 }
 
 const STORAGE_PREFIX = "afericao-vazao-";

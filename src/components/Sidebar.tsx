@@ -14,7 +14,6 @@ import {
   ChevronDown,
   Menu,
   X,
-  Droplets,
   Truck,
   Shield,
   LogOut,
@@ -25,6 +24,7 @@ import {
   Settings,
   Map,
   Users,
+  Banknote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/context/SidebarContext";
@@ -58,6 +58,7 @@ const navItems: NavItem[] = [
   { path: "/historico", label: "Histórico", icon: History, group: "Consultas" },
   { path: "/tabela-referencia", label: "Tabela ISO", icon: BookOpen, group: "Consultas" },
   { path: "/acessos", label: "Gestão de Acessos", icon: Shield, group: "Configurações" },
+  { path: "/financeiro", label: "Financeiro", icon: Banknote, group: "Financeiro" },
 ];
 
 interface CadastroSubItem {
@@ -90,7 +91,7 @@ const droneSubItems: DroneSubItem[] = [
   { label: "Manutenção Drones", icon: Wrench, path: "/maintenance" },
 ];
 
-const groups = ["Principal", "Operações", "Consultas", "Configurações"];
+const groups = ["Principal", "Operações", "Financeiro", "Consultas", "Configurações"];
 
 export function Sidebar() {
   const location = useLocation();
@@ -274,10 +275,10 @@ export function Sidebar() {
     </>
   );
 
-  // Close mobile menu on route change
+  // Close mobile menu on route change (pathname or query string)
   useEffect(() => {
     closeMobile();
-  }, [location.pathname, closeMobile]);
+  }, [location.pathname, location.search, closeMobile]);
 
   // Close mobile menu on escape
   useEffect(() => {
@@ -303,28 +304,13 @@ export function Sidebar() {
   const renderNavContent = (isMobile: boolean) => (
     <div className="flex flex-col h-full">
       {/* Logo Area */}
-      <div
-        className={cn(
-          "flex items-center border-b border-white/[0.06] shrink-0 transition-all duration-300",
-          collapsed && !isMobile ? "justify-center px-2 py-5" : "gap-3 px-5 py-5"
-        )}
-      >
-        <div className="shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-          <Droplets className="h-5 w-5 text-white" />
-        </div>
-        <div
-          className={cn(
-            "overflow-hidden transition-all duration-300",
-            collapsed && !isMobile ? "w-0 opacity-0" : "w-auto opacity-100"
-          )}
-        >
-          <span className="text-lg font-heading text-white tracking-tight block leading-none whitespace-nowrap">
-            HerbiLog
-          </span>
-          <span className="text-[10px] text-white/40 font-medium tracking-widest uppercase whitespace-nowrap">
-            Agro System
-          </span>
-        </div>
+      <div className="flex items-center justify-center border-b border-white/[0.06] shrink-0 transition-all duration-300 py-0 px-0">
+        <img
+          src="/herbilog_sidebar.png"
+          alt="HerbiLog"
+          className="w-4/5 max-w-full h-auto max-h-[28vh] object-contain mx-auto drop-shadow-lg select-none"
+          draggable={false}
+        />
       </div>
 
       {/* Navigation */}
@@ -432,7 +418,10 @@ export function Sidebar() {
           )}
           <div className="flex flex-col gap-0.5 px-3">
             <button
-              onClick={() => setCadastrosOpen(!cadastrosOpen)}
+              onClick={() => {
+                setCadastrosOpen(!cadastrosOpen);
+                navigate("/visao-geral");
+              }}
               className={cn(
                 "sidebar-nav-item flex items-center gap-3 rounded-xl transition-all duration-200 relative overflow-hidden w-full text-left",
                 collapsed && !isMobile
@@ -563,10 +552,12 @@ export function Sidebar() {
           )}
         </button>
         <Link to="/" className="ml-3 flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-green-600 flex items-center justify-center">
-            <Droplets className="h-4 w-4 text-white" />
-          </div>
-          <span className="text-base font-heading text-foreground">HerbiLog</span>
+          <img
+            src="/herbilog_sidebar.png"
+            alt="HerbiLog"
+            className="h-9 w-auto object-contain select-none"
+            draggable={false}
+          />
         </Link>
       </div>
 

@@ -27,6 +27,7 @@ import BatteryManagement from "./pages/BatteryManagement";
 import FlightLog from "./pages/FlightLog";
 import MaintenanceDashboard from "./pages/MaintenanceDashboard";
 import VisaoGeral from "./pages/VisaoGeral";
+import Financeiro from "./pages/Financeiro";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -74,6 +75,7 @@ function AppLayout() {
             <Route path="/flight-log" element={<ProtectedRoute><FlightLog /></ProtectedRoute>} />
             <Route path="/maintenance" element={<ProtectedRoute><MaintenanceDashboard /></ProtectedRoute>} />
             <Route path="/acessos" element={<ProtectedRoute><Acessos /></ProtectedRoute>} />
+            <Route path="/financeiro" element={<ProtectedRoute><Financeiro /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
