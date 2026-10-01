@@ -76,7 +76,7 @@ export default function Auth() {
           company: form.company,
           phone: form.phone,
         },
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: `${window.location.origin}/email-confirmada`,
       },
     });
 
@@ -114,7 +114,7 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 bg-background">
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center space-y-2">
           <div className="flex justify-center mb-4">

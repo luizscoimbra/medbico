@@ -21,6 +21,7 @@ import Drones from "./pages/Drones";
 import Frotas from "./pages/Frotas";
 import Acessos from "./pages/Acessos";
 import Auth from "./pages/Auth";
+import EmailConfirmada from "./pages/EmailConfirmada";
 import NotFound from "./pages/NotFound";
 import AreaMotorista from "./pages/AreaMotorista";
 import BatteryManagement from "./pages/BatteryManagement";
@@ -36,7 +37,7 @@ function AppLayout() {
   const { collapsed } = useSidebar();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <Sidebar />
       {/* Main content area */}
       <div
@@ -56,6 +57,7 @@ function AppLayout() {
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/email-confirmada" element={<EmailConfirmada />} />
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/visao-geral" element={<ProtectedRoute><VisaoGeral /></ProtectedRoute>} />
             <Route path="/nova-medicao" element={<ProtectedRoute><NovaMedicao /></ProtectedRoute>} />

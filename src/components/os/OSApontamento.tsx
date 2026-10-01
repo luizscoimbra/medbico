@@ -919,19 +919,19 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                     </div>
                     
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                      <div className="bg-white p-2 rounded border border-border">
+                      <div className="bg-white/70 backdrop-blur-sm p-2 rounded border border-border">
                         <p className="text-[10px] text-muted-foreground uppercase">Área</p>
                         <p className="font-bold">{ap.areaAplicada || "0.00"} ha</p>
                       </div>
-                      <div className="bg-white p-2 rounded border border-border">
+                      <div className="bg-white/70 backdrop-blur-sm p-2 rounded border border-border">
                         <p className="text-[10px] text-muted-foreground uppercase">Bombas</p>
                         <p className="font-bold">{ap.bombasCheias || "0"}{ap.cargaParcial ? ` + ${ap.cargaParcial}L` : ""}</p>
                       </div>
-                      <div className="bg-white p-2 rounded border border-border">
+                      <div className="bg-white/70 backdrop-blur-sm p-2 rounded border border-border">
                         <p className="text-[10px] text-muted-foreground uppercase">Utilizou Sobra</p>
                         <p className="font-bold text-green-600">{ap.sobraUtilizada || "0"} L</p>
                       </div>
-                      <div className="bg-white p-2 rounded border border-border">
+                      <div className="bg-white/70 backdrop-blur-sm p-2 rounded border border-border">
                         <p className="text-[10px] text-muted-foreground uppercase">Gerou Sobra</p>
                         <p className="font-bold text-amber-600">{ap.caldaRestante || "0"} L</p>
                       </div>
@@ -1085,7 +1085,7 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                       const calc = calculosTotais[idx];
                       if (calc.areaFaltante <= 0.01) return null;
                       return (
-                        <div key={idx} className="flex justify-between items-center text-sm bg-white p-2 rounded border border-red-100 shadow-sm">
+                        <div key={idx} className="flex justify-between items-center text-sm bg-white/70 backdrop-blur-sm p-2 rounded border border-red-100 shadow-sm">
                           <span className="font-medium text-gray-700">{t.nome || `Talhão ${idx + 1}`}</span>
                           <div className="text-right">
                             <span className="text-xs text-muted-foreground mr-2">Falta:</span>

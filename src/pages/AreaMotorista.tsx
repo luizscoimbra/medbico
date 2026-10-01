@@ -116,7 +116,7 @@ export default function AreaMotorista() {
                   <div 
                     key={os.id}
                     onClick={() => handleSelectOS(os)}
-                    className="flex justify-between items-center p-4 border rounded-lg cursor-pointer hover:border-primary/50 transition-colors bg-card"
+                    className="flex justify-between items-center p-4 border rounded-lg cursor-pointer hover:border-primary/50 transition-colors bg-card/70 backdrop-blur-md"
                   >
                     <div>
                       <p className="font-bold">OS nº {os.id}</p>

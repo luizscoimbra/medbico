@@ -10,13 +10,13 @@
 
 @layer base {
   :root {
-    --background: 45 30% 97%;
+    --background: 145 32% 97%;
     --foreground: 150 25% 15%;
 
-    --card: 45 25% 95%;
+    --card: 145 28% 96%;
     --card-foreground: 150 25% 15%;
 
-    --popover: 45 25% 95%;
+    --popover: 145 28% 96%;
     --popover-foreground: 150 25% 15%;
 
     --primary: 145 45% 28%;
@@ -25,7 +25,7 @@
     --secondary: 30 35% 85%;
     --secondary-foreground: 30 40% 25%;
 
-    --muted: 45 20% 90%;
+    --muted: 145 22% 91%;
     --muted-foreground: 150 10% 45%;
 
     --accent: 35 70% 50%;
@@ -40,8 +40,8 @@
     --warning: 40 90% 50%;
     --warning-foreground: 40 90% 15%;
 
-    --border: 45 20% 85%;
-    --input: 45 20% 85%;
+    --border: 145 18% 86%;
+    --input: 145 18% 86%;
     --ring: 145 45% 28%;
 
     --radius: 0.75rem;
@@ -59,7 +59,7 @@
 
     /* Custom gradients */
     --gradient-hero: linear-gradient(135deg, hsl(145 45% 28%) 0%, hsl(160 40% 35%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(45 25% 97%) 0%, hsl(45 20% 93%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(145 28% 97%) 0%, hsl(150 22% 93%) 100%);
     --gradient-earth: linear-gradient(135deg, hsl(30 35% 85%) 0%, hsl(35 30% 78%) 100%);
 
     /* Shadows */
@@ -130,7 +130,17 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply text-foreground font-sans antialiased;
+    min-height: 100vh;
+    background-color: hsl(var(--background));
+    background-image: linear-gradient(
+      135deg,
+      #f7fbf9 0%,
+      #ecf6f0 35%,
+      #e2f1e8 65%,
+      #f1f8f4 100%
+    );
+    background-attachment: fixed;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -228,6 +238,8 @@
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     font-size: 11px;
+    background: #fff !important;
+    background-image: none !important;
   }
 
   .container {

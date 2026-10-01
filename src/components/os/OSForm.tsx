@@ -779,19 +779,19 @@ export function OSForm({
                   </div>
                   
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                    <div className="bg-white p-2 rounded border border-border">
+                    <div className="bg-white/70 backdrop-blur-sm p-2 rounded border border-border">
                       <p className="text-[10px] text-muted-foreground uppercase">Área</p>
                       <p className="font-bold">{rec.areaAplicada || "0.00"} ha</p>
                     </div>
-                    <div className="bg-white p-2 rounded border border-border">
+                    <div className="bg-white/70 backdrop-blur-sm p-2 rounded border border-border">
                       <p className="text-[10px] text-muted-foreground uppercase">Sobra Utilizada</p>
                       <p className="font-bold text-green-600">{rec.sobraUtilizada || "0"} L</p>
                     </div>
-                    <div className="bg-white p-2 rounded border border-border">
+                    <div className="bg-white/70 backdrop-blur-sm p-2 rounded border border-border">
                       <p className="text-[10px] text-muted-foreground uppercase">Sobra Gerada</p>
                       <p className="font-bold text-amber-600">{rec.caldaRestante || "0"} L</p>
                     </div>
-                    <div className="bg-white p-2 rounded border border-border text-center">
+                    <div className="bg-white/70 backdrop-blur-sm p-2 rounded border border-border text-center">
                       <p className="text-[10px] text-muted-foreground uppercase">Status</p>
                       <p className={`font-bold text-[10px] ${rec.statusRegistro === "interrompido" ? "text-red-600" : "text-blue-600"}`}>
                         {rec.statusRegistro === "interrompido" ? "INTERROMPIDO" : "CONCLUÍDO"}

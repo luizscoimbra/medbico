@@ -630,7 +630,7 @@ export default function Frotas() {
                       const dateB = new Date(`${b.data} ${b.hora === "N/I" ? "00:00" : b.hora}`);
                       return dateB.getTime() - dateA.getTime();
                     }).map((ev, idx) => (
-                      <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-white rounded border border-border shadow-sm gap-2 group hover:border-red-200 transition-colors">
+                      <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-white/70 backdrop-blur-sm rounded border border-border shadow-sm gap-2 group hover:border-red-200 transition-colors">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center shrink-0">
                             <Clock className="h-4 w-4 text-red-500" />
