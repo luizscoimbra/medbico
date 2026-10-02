@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { ModuleOverrides } from "@/lib/permissions";
 
 export type UserRole = 'master' | 'gestor' | 'operador' | 'motorista';
 export type UserStatus = 'active' | 'blocked';
@@ -11,6 +12,7 @@ export interface UserProfile {
   status: UserStatus;
   company: string;
   email?: string;
+  modules?: ModuleOverrides | null;
 }
 
 export const ROLE_LABELS: Record<UserRole, string> = {
@@ -40,7 +42,8 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     role: (isLuiz ? 'gestor' : (profileData?.role || metadata.role || 'operador')) as UserRole,
     status: (profileData?.status || metadata.status || 'active') as UserStatus,
     company: profileData?.company || metadata.company || "",
-    email: user?.email
+    email: user?.email,
+    modules: (profileData?.modules ?? null) as ModuleOverrides | null
   };
 }
 

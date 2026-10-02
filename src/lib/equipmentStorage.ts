@@ -10,6 +10,10 @@ export interface Equipment {
   nozzle_spacing?: number;
   working_speed?: number;
   application_rate?: number;
+  /** Horímetro: horas de trabalho acumuladas do equipamento. */
+  horas_acumuladas?: number;
+  /** Data (yyyy-mm-dd) da última leitura do horímetro. */
+  data_ultima_leitura?: string;
   createdAt: string;
 }
 

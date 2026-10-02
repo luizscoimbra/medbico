@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MeasurementProvider } from "@/context/MeasurementContext";
 import { SidebarProvider, useSidebar } from "@/context/SidebarContext";
+import { AuthProvider } from "@/context/AuthContext";
 import { Sidebar } from "@/components/Sidebar";
 import Index from "./pages/Index";
 import NovaMedicao from "./pages/NovaMedicao";
@@ -14,11 +15,15 @@ import Historico from "./pages/Historico";
 import TabelaReferencia from "./pages/TabelaReferencia";
 import CadastroProdutos from "./pages/CadastroProdutos";
 import Cadastros from "./pages/Cadastros";
+import Estoque from "./pages/Estoque";
 import CalculadoraCalda from "./pages/CalculadoraCalda";
 import AferirVazao from "./pages/AferirVazao";
 import OrdemServico from "./pages/OrdemServico";
 import Drones from "./pages/Drones";
 import Frotas from "./pages/Frotas";
+import Equipamentos from "./pages/Equipamentos";
+import ManutencaoEquipamentos from "./pages/ManutencaoEquipamentos";
+import GestaoAbastecimento from "./pages/GestaoAbastecimento";
 import Acessos from "./pages/Acessos";
 import Auth from "./pages/Auth";
 import EmailConfirmada from "./pages/EmailConfirmada";
@@ -67,11 +72,15 @@ function AppLayout() {
             <Route path="/tabela-referencia" element={<ProtectedRoute><TabelaReferencia /></ProtectedRoute>} />
             <Route path="/cadastro-produtos" element={<ProtectedRoute><CadastroProdutos /></ProtectedRoute>} />
             <Route path="/cadastros" element={<ProtectedRoute><Cadastros /></ProtectedRoute>} />
+            <Route path="/estoque" element={<ProtectedRoute><Estoque /></ProtectedRoute>} />
             <Route path="/calculadora-calda" element={<ProtectedRoute><CalculadoraCalda /></ProtectedRoute>} />
             <Route path="/aferir-vazao" element={<ProtectedRoute><AferirVazao /></ProtectedRoute>} />
             <Route path="/ordem-servico" element={<ProtectedRoute><OrdemServico /></ProtectedRoute>} />
             <Route path="/area-motorista" element={<ProtectedRoute><AreaMotorista /></ProtectedRoute>} />
             <Route path="/frotas" element={<ProtectedRoute><Frotas /></ProtectedRoute>} />
+            <Route path="/equipamentos" element={<ProtectedRoute><Equipamentos /></ProtectedRoute>} />
+            <Route path="/manutencao-equipamentos" element={<ProtectedRoute><ManutencaoEquipamentos /></ProtectedRoute>} />
+            <Route path="/gestao-abastecimento" element={<ProtectedRoute><GestaoAbastecimento /></ProtectedRoute>} />
             <Route path="/drones" element={<ProtectedRoute><Drones /></ProtectedRoute>} />
             <Route path="/battery-management" element={<ProtectedRoute><BatteryManagement /></ProtectedRoute>} />
             <Route path="/flight-log" element={<ProtectedRoute><FlightLog /></ProtectedRoute>} />
@@ -92,11 +101,13 @@ const App = () => (
       <MeasurementProvider>
         <Toaster />
         <Sonner position="top-right" />
-        <BrowserRouter>
-          <SidebarProvider>
-            <AppLayout />
-          </SidebarProvider>
-        </BrowserRouter>
+        <AuthProvider>
+          <BrowserRouter>
+            <SidebarProvider>
+              <AppLayout />
+            </SidebarProvider>
+          </BrowserRouter>
+        </AuthProvider>
       </MeasurementProvider>
     </TooltipProvider>
   </QueryClientProvider>

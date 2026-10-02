@@ -25,40 +25,38 @@ import {
   Map,
   Users,
   Banknote,
+  Fuel,
+  Boxes,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/context/SidebarContext";
-import { useState, useEffect as useEffectReact } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { getUserProfile, UserProfile } from "@/lib/auth-roles";
+import { useAuth } from "@/context/AuthContext";
+import type { ModuleId } from "@/modules/registry";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { getAllEquipments, Equipment } from "@/lib/equipmentStorage";
 
 interface NavItem {
   path: string;
   label: string;
   icon: React.ElementType;
   group: string;
+  module: ModuleId;
 }
 
 const navItems: NavItem[] = [
-  { path: "/", label: "Início", icon: Home, group: "Principal" },
-  { path: "/visao-geral", label: "Visão Geral", icon: LayoutDashboard, group: "Principal" },
-  { path: "/nova-medicao", label: "Nova Medição", icon: Plus, group: "Operações" },
-  { path: "/calculadora-calda", label: "Calculadora de Calda", icon: FlaskConical, group: "Operações" },
-  { path: "/aferir-vazao", label: "Aferir Vazão", icon: Activity, group: "Operações" },
-  { path: "/ordem-servico", label: "Ordem de Serviço", icon: FileText, group: "Operações" },
-  { path: "/area-motorista", label: "Área do Motorista", icon: Truck, group: "Operações" },
-  { path: "/historico", label: "Histórico", icon: History, group: "Consultas" },
-  { path: "/tabela-referencia", label: "Tabela ISO", icon: BookOpen, group: "Consultas" },
-  { path: "/acessos", label: "Gestão de Acessos", icon: Shield, group: "Configurações" },
-  { path: "/financeiro", label: "Financeiro", icon: Banknote, group: "Financeiro" },
+  { path: "/", label: "Início", icon: Home, group: "Principal", module: "principal" },
+  { path: "/visao-geral", label: "Visão Geral", icon: LayoutDashboard, group: "Principal", module: "principal" },
+  { path: "/nova-medicao", label: "Nova Medição", icon: Plus, group: "Operações", module: "operacoes" },
+  { path: "/calculadora-calda", label: "Calculadora de Calda", icon: FlaskConical, group: "Operações", module: "operacoes" },
+  { path: "/aferir-vazao", label: "Aferir Vazão", icon: Activity, group: "Operações", module: "operacoes" },
+  { path: "/ordem-servico", label: "Ordem de Serviço", icon: FileText, group: "Operações", module: "operacoes" },
+  { path: "/estoque", label: "Estoque", icon: Boxes, group: "Operações", module: "estoque" },
+  { path: "/area-motorista", label: "Área do Motorista", icon: Truck, group: "Operações", module: "motorista" },
+  { path: "/historico", label: "Histórico", icon: History, group: "Consultas", module: "consultas" },
+  { path: "/tabela-referencia", label: "Tabela ISO", icon: BookOpen, group: "Consultas", module: "consultas" },
+  { path: "/acessos", label: "Gestão de Acessos", icon: Shield, group: "Configurações", module: "acessos" },
+  { path: "/financeiro", label: "Financeiro", icon: Banknote, group: "Financeiro", module: "financeiro" },
 ];
 
 interface CadastroSubItem {
@@ -93,44 +91,32 @@ const droneSubItems: DroneSubItem[] = [
 
 const groups = ["Principal", "Operações", "Financeiro", "Consultas", "Configurações"];
 
+const FROTAS_PATHS = [
+  "/frotas",
+  "/equipamentos",
+  "/manutencao-equipamentos",
+  "/gestao-abastecimento",
+  "/drones",
+  "/flight-log",
+  "/battery-management",
+  "/maintenance",
+];
+
+const EQUIP_PATHS = ["/equipamentos", "/manutencao-equipamentos", "/gestao-abastecimento"];
+const DRONE_PATHS = ["/drones", "/flight-log", "/battery-management", "/maintenance"];
+const EQUIP_MENU_PATHS = [...EQUIP_PATHS, ...DRONE_PATHS];
+
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { collapsed, mobileOpen, toggleCollapse, toggleMobile, closeMobile } = useSidebar();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const { profile, can } = useAuth();
   const [cadastrosOpen, setCadastrosOpen] = useState(() => location.pathname === "/cadastros");
-  const [dronesOpen, setDronesOpen] = useState(() => ["/frotas", "/drones", "/flight-log", "/battery-management", "/maintenance"].includes(location.pathname));
-  const [dronesAereosOpen, setDronesAereosOpen] = useState(() => ["/drones", "/flight-log", "/battery-management", "/maintenance"].includes(location.pathname));
-  const [equipamentosDialogOpen, setEquipamentosDialogOpen] = useState(false);
-  const [equipmentsList, setEquipmentsList] = useState<Equipment[]>([]);
-
-  useEffect(() => {
-    const fetchProfile = async (userId: string) => {
-      const p = await getUserProfile(userId);
-      setProfile(p);
-    };
-
-    // Get initial user
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) fetchProfile(user.id);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
-        setProfile(null);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  useEffectReact(() => {
-    getAllEquipments().then(setEquipmentsList).catch(() => {});
-  }, []);
+  const [dronesOpen, setDronesOpen] = useState(() => FROTAS_PATHS.includes(location.pathname));
+  const [dronesAereosOpen, setDronesAereosOpen] = useState(() => DRONE_PATHS.includes(location.pathname));
+  const [equipamentosOpen, setEquipamentosOpen] = useState(() => EQUIP_MENU_PATHS.includes(location.pathname));
+  const [frotaTerrestreOpen, setFrotaTerrestreOpen] = useState(() => EQUIP_PATHS.includes(location.pathname));
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -139,12 +125,14 @@ export function Sidebar() {
   };
 
   const filteredItems = navItems.filter(item => {
-    // Show all items if user is logged in (profile exists)
     if (!profile) return item.path === "/" || item.path === "/auth";
-    return true;
+    return can(item.module);
   });
 
-  const renderFrotasSubmenu = (isMobile: boolean) => (
+  const renderFrotasSubmenu = (isMobile: boolean) => {
+    if (!can("drones")) return null;
+
+    return (
     <>
       <button
         onClick={() => setDronesOpen(!dronesOpen)}
@@ -153,26 +141,26 @@ export function Sidebar() {
           collapsed && !isMobile
             ? "justify-center px-3 py-3"
             : "px-4 py-3",
-          ["/frotas", "/drones", "/flight-log", "/battery-management", "/maintenance"].includes(location.pathname) && !dronesOpen
+          FROTAS_PATHS.includes(location.pathname) && !dronesOpen
             ? "bg-white/[0.08] text-white"
             : "text-white/50 hover:text-white/90 hover:bg-white/[0.04]"
         )}
       >
-        {["/frotas", "/drones", "/flight-log", "/battery-management", "/maintenance"].includes(location.pathname) && !dronesOpen && (
+        {FROTAS_PATHS.includes(location.pathname) && !dronesOpen && (
           <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
         )}
         <Truck
           className={cn(
             "shrink-0 transition-all duration-200",
             collapsed && !isMobile ? "h-5 w-5" : "h-[18px] w-[18px]",
-            ["/frotas", "/drones", "/flight-log", "/battery-management", "/maintenance"].includes(location.pathname) && !dronesOpen ? "text-emerald-400" : ""
+            FROTAS_PATHS.includes(location.pathname) && !dronesOpen ? "text-emerald-400" : ""
           )}
         />
         <span
           className={cn(
             "text-sm font-medium whitespace-nowrap transition-all duration-300 flex-1",
             collapsed && !isMobile ? "w-0 opacity-0 hidden" : "w-auto opacity-100",
-            ["/frotas", "/drones", "/flight-log", "/battery-management", "/maintenance"].includes(location.pathname) && !dronesOpen ? "text-white" : ""
+            FROTAS_PATHS.includes(location.pathname) && !dronesOpen ? "text-white" : ""
           )}
         >
           Gestão de Frotas
@@ -191,7 +179,7 @@ export function Sidebar() {
       <div
         className={cn(
           "overflow-hidden transition-all duration-300",
-          dronesOpen && !collapsed ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+          dronesOpen && !collapsed ? "max-h-[700px] opacity-100" : "max-h-0 opacity-0"
         )}
       >
         <div className="flex flex-col gap-0.5 pl-4">
@@ -209,71 +197,184 @@ export function Sidebar() {
             <span className="whitespace-nowrap">Frotas</span>
           </Link>
 
-          {/* Equipamentos - abre dialog */}
-          <button
-            onClick={() => setEquipamentosDialogOpen(true)}
-            className={cn(
-              "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2.5 text-sm w-full text-left",
-              "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
-            )}
-          >
-            <Settings className="h-4 w-4 shrink-0" />
-            <span className="whitespace-nowrap">Equipamentos</span>
-          </button>
-
-          {/* Frota de Drones - sub-submenu */}
+          {/* Equipamentos - sub-submenu */}
           <div>
             <button
-              onClick={() => setDronesAereosOpen(!dronesAereosOpen)}
+              onClick={() => setEquipamentosOpen(!equipamentosOpen)}
               className={cn(
                 "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2.5 text-sm w-full text-left",
-                ["/drones", "/flight-log", "/battery-management", "/maintenance"].includes(location.pathname) && !dronesAereosOpen
+                EQUIP_MENU_PATHS.includes(location.pathname) && !equipamentosOpen
                   ? "bg-white/[0.08] text-white"
                   : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
               )}
             >
-              <Plane className={cn("h-4 w-4 shrink-0", ["/drones", "/flight-log", "/battery-management", "/maintenance"].includes(location.pathname) && !dronesAereosOpen ? "text-emerald-400" : "")} />
-              <span className="whitespace-nowrap flex-1">Frota de Drones</span>
+              <Settings
+                className={cn(
+                  "h-4 w-4 shrink-0",
+                  EQUIP_MENU_PATHS.includes(location.pathname) && !equipamentosOpen ? "text-emerald-400" : ""
+                )}
+              />
+              <span className="whitespace-nowrap flex-1">Equipamentos</span>
               <ChevronDown
                 className={cn(
                   "h-3 w-3 transition-transform duration-200 shrink-0",
-                  dronesAereosOpen ? "rotate-0" : "-rotate-90"
+                  equipamentosOpen ? "rotate-0" : "-rotate-90"
                 )}
               />
             </button>
             <div
               className={cn(
                 "overflow-hidden transition-all duration-300",
-                dronesAereosOpen && !collapsed ? "max-h-[200px] opacity-100" : "max-h-0 opacity-0"
+                equipamentosOpen && !collapsed ? "max-h-[640px] opacity-100" : "max-h-0 opacity-0"
               )}
             >
               <div className="flex flex-col gap-0.5 pl-4">
-                {droneSubItems.map((sub) => {
-                  const isSubActive = location.pathname === sub.path;
-                  const SubIcon = sub.icon;
-                  return (
-                    <Link
-                      key={sub.path}
-                      to={sub.path}
+                {/* Frota terrestre - sub-sub-submenu */}
+                <div>
+                  <button
+                    onClick={() => setFrotaTerrestreOpen(!frotaTerrestreOpen)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2.5 text-sm w-full text-left",
+                      EQUIP_PATHS.includes(location.pathname) && !frotaTerrestreOpen
+                        ? "bg-white/[0.08] text-white"
+                        : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
+                    )}
+                  >
+                    <Truck
                       className={cn(
-                        "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2 text-sm",
-                        isSubActive
-                          ? "bg-white/[0.08] text-white"
-                          : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
+                        "h-4 w-4 shrink-0",
+                        EQUIP_PATHS.includes(location.pathname) && !frotaTerrestreOpen
+                          ? "text-emerald-400"
+                          : ""
                       )}
-                    >
-                      <SubIcon className={cn("h-4 w-4 shrink-0", isSubActive ? "text-emerald-400" : "")} />
-                      <span className="whitespace-nowrap">{sub.label}</span>
-                    </Link>
-                  );
-                })}
+                    />
+                    <span className="whitespace-nowrap flex-1">Frota terrestre</span>
+                    <ChevronDown
+                      className={cn(
+                        "h-3 w-3 transition-transform duration-200 shrink-0",
+                        frotaTerrestreOpen ? "rotate-0" : "-rotate-90"
+                      )}
+                    />
+                  </button>
+                  <div
+                    className={cn(
+                      "overflow-hidden transition-all duration-300",
+                      frotaTerrestreOpen && !collapsed ? "max-h-[240px] opacity-100" : "max-h-0 opacity-0"
+                    )}
+                  >
+                    <div className="flex flex-col gap-0.5 pl-4">
+                      <Link
+                        to="/equipamentos"
+                        className={cn(
+                          "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2 text-sm",
+                          location.pathname === "/equipamentos"
+                            ? "bg-white/[0.08] text-white"
+                            : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
+                        )}
+                      >
+                        <Settings
+                          className={cn(
+                            "h-4 w-4 shrink-0",
+                            location.pathname === "/equipamentos" ? "text-emerald-400" : ""
+                          )}
+                        />
+                        <span className="whitespace-nowrap">Equipamentos</span>
+                      </Link>
+                      <Link
+                        to="/manutencao-equipamentos"
+                        className={cn(
+                          "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2 text-sm",
+                          location.pathname === "/manutencao-equipamentos"
+                            ? "bg-white/[0.08] text-white"
+                            : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
+                        )}
+                      >
+                        <Wrench
+                          className={cn(
+                            "h-4 w-4 shrink-0",
+                            location.pathname === "/manutencao-equipamentos" ? "text-emerald-400" : ""
+                          )}
+                        />
+                        <span className="whitespace-nowrap">Manutenção</span>
+                      </Link>
+                      <Link
+                        to="/gestao-abastecimento"
+                        className={cn(
+                          "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2 text-sm",
+                          location.pathname === "/gestao-abastecimento"
+                            ? "bg-white/[0.08] text-white"
+                            : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
+                        )}
+                      >
+                        <Fuel
+                          className={cn(
+                            "h-4 w-4 shrink-0",
+                            location.pathname === "/gestao-abastecimento" ? "text-emerald-400" : ""
+                          )}
+                        />
+                        <span className="whitespace-nowrap">Gestão de abastecimento</span>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Frota de Drones - sub-submenu */}
+                <div>
+                  <button
+                    onClick={() => setDronesAereosOpen(!dronesAereosOpen)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2.5 text-sm w-full text-left",
+                      DRONE_PATHS.includes(location.pathname) && !dronesAereosOpen
+                        ? "bg-white/[0.08] text-white"
+                        : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
+                    )}
+                  >
+                    <Plane className={cn("h-4 w-4 shrink-0", DRONE_PATHS.includes(location.pathname) && !dronesAereosOpen ? "text-emerald-400" : "")} />
+                    <span className="whitespace-nowrap flex-1">Frota de Drones</span>
+                    <ChevronDown
+                      className={cn(
+                        "h-3 w-3 transition-transform duration-200 shrink-0",
+                        dronesAereosOpen ? "rotate-0" : "-rotate-90"
+                      )}
+                    />
+                  </button>
+                  <div
+                    className={cn(
+                      "overflow-hidden transition-all duration-300",
+                      dronesAereosOpen && !collapsed ? "max-h-[200px] opacity-100" : "max-h-0 opacity-0"
+                    )}
+                  >
+                    <div className="flex flex-col gap-0.5 pl-4">
+                      {droneSubItems.map((sub) => {
+                        const isSubActive = location.pathname === sub.path;
+                        const SubIcon = sub.icon;
+                        return (
+                          <Link
+                            key={sub.path}
+                            to={sub.path}
+                            className={cn(
+                              "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2 text-sm",
+                              isSubActive
+                                ? "bg-white/[0.08] text-white"
+                                : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
+                            )}
+                          >
+                            <SubIcon className={cn("h-4 w-4 shrink-0", isSubActive ? "text-emerald-400" : "")} />
+                            <span className="whitespace-nowrap">{sub.label}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
     </>
-  );
+    );
+  };
 
   // Close mobile menu on route change (pathname or query string)
   useEffect(() => {
@@ -402,6 +503,7 @@ export function Sidebar() {
         })}
 
         {/* Cadastros Submenu */}
+        {can("cadastros") && (
         <div className="mb-2">
           <div
             className={cn(
@@ -494,6 +596,7 @@ export function Sidebar() {
             </div>
           </div>
         </div>
+        )}
       </nav>
 
       {/* Logout button */}
@@ -591,42 +694,6 @@ export function Sidebar() {
       >
         {renderNavContent(false)}
       </aside>
-
-      {/* Dialog de Equipamentos */}
-      <Dialog open={equipamentosDialogOpen} onOpenChange={setEquipamentosDialogOpen}>
-        <DialogContent className="sm:max-w-3xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              Equipamentos Cadastrados
-            </DialogTitle>
-          </DialogHeader>
-          <div className="mt-4">
-            {equipmentsList.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">Nenhum equipamento cadastrado.</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {equipmentsList.map((eq) => (
-                  <div key={eq.id} className="border rounded-lg p-3 bg-muted/30 space-y-1">
-                    <p className="font-semibold text-sm">{eq.equipment_model || eq.tractor_model || "Sem nome"}</p>
-                    {eq.license_plate && <p className="text-xs text-muted-foreground">Placa: {eq.license_plate}</p>}
-                    {eq.fleet_number && <p className="text-xs text-muted-foreground">Frota: {eq.fleet_number}</p>}
-                    {eq.category && <p className="text-xs text-muted-foreground">Categoria: {eq.category}</p>}
-                    {eq.status && (
-                      <span className={cn(
-                        "inline-block text-[10px] px-2 py-0.5 rounded-full font-medium",
-                        eq.status === "ativo" ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
-                      )}>
-                        {eq.status}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

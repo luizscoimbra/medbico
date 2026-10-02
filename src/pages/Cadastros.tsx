@@ -26,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Settings, FlaskConical, Plus, Trash2, Tractor, Hash, Truck, Map, MapPin, Activity, Pencil, RefreshCcw, Users, Download, Upload, FileText, ArrowLeft } from "lucide-react";
+import { Settings, FlaskConical, Plus, Trash2, Tractor, Hash, Truck, Map, MapPin, Activity, Pencil, RefreshCcw, Users, Download, Upload, FileText, ArrowLeft, Timer } from "lucide-react";
 import { saveTipoAplicacao, getAllTiposAplicacao, deleteTipoAplicacao, TipoAplicacao } from "@/lib/applicationTypeStorage";
 import { saveEquipment, getAllEquipments, deleteEquipment, Equipment } from "@/lib/equipmentStorage";
 import { supabase } from "@/integrations/supabase/client";
@@ -87,6 +87,7 @@ export default function Cadastros() {
     fleet_number: "",
     total_nozzles: "",
     tank_capacity: "",
+    horas_acumuladas: "",
   });
 
   // Products state
@@ -238,6 +239,7 @@ export default function Cadastros() {
       fleet_number: eq.fleet_number,
       total_nozzles: eq.total_nozzles.toString(),
       tank_capacity: (eq.tank_capacity || 0).toString(),
+      horas_acumuladas: eq.horas_acumuladas != null ? eq.horas_acumuladas.toString() : "",
     });
     const el = document.getElementById("form-equipamento");
     if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -245,7 +247,7 @@ export default function Cadastros() {
 
   const handleCancelEditEquipment = () => {
     setEditingEquipmentId(null);
-    setEqForm({ equipment_model: "", tractor_model: "", fleet_number: "", total_nozzles: "", tank_capacity: "" });
+    setEqForm({ equipment_model: "", tractor_model: "", fleet_number: "", total_nozzles: "", tank_capacity: "", horas_acumuladas: "" });
   };
 
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
@@ -339,23 +341,35 @@ export default function Cadastros() {
       return;
     }
     
+    const existing = editingEquipmentId ? equipments.find(e => e.id === editingEquipmentId) : undefined;
+    const horasDigitadas = parseFloat(eqForm.horas_acumuladas);
+    const horasAtualizadas =
+      eqForm.horas_acumuladas.trim() !== "" && Number.isFinite(horasDigitadas)
+        ? horasDigitadas
+        : existing?.horas_acumuladas ?? 0;
+    const trocouHoras = horasAtualizadas !== existing?.horas_acumuladas;
+
     const newEq: Equipment = {
+      ...(existing || {}),
       id: editingEquipmentId || crypto.randomUUID(),
       equipment_model: eqForm.equipment_model.trim(),
       tractor_model: eqForm.tractor_model.trim(),
       fleet_number: eqForm.fleet_number.trim(),
       total_nozzles: nozzles,
       tank_capacity: capacity,
-      createdAt: editingEquipmentId 
-        ? equipments.find(e => e.id === editingEquipmentId)?.createdAt || new Date().toISOString()
-        : new Date().toISOString()
+      horas_acumuladas: horasAtualizadas,
+      data_ultima_leitura:
+        trocouHoras || !existing?.data_ultima_leitura
+          ? new Date().toISOString().slice(0, 10)
+          : existing.data_ultima_leitura,
+      createdAt: existing?.createdAt || new Date().toISOString()
     };
 
     await saveEquipment(newEq);
     toast.success(editingEquipmentId ? "Equipamento atualizado!" : "Equipamento cadastrado!");
     
     setEditingEquipmentId(null);
-    setEqForm({ equipment_model: "", tractor_model: "", fleet_number: "", total_nozzles: "", tank_capacity: "" });
+    setEqForm({ equipment_model: "", tractor_model: "", fleet_number: "", total_nozzles: "", tank_capacity: "", horas_acumuladas: "" });
     fetchEquipments();
   };
 
@@ -1119,6 +1133,21 @@ export default function Cadastros() {
                       required
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="eq_horas" className="flex items-center gap-2">
+                      <Timer className="h-4 w-4 text-muted-foreground" />
+                      Horímetro (horas de trabalho)
+                    </Label>
+                    <Input
+                      id="eq_horas"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      placeholder="Ex: 1250"
+                      value={eqForm.horas_acumuladas}
+                      onChange={(e) => setEqForm((p) => ({ ...p, horas_acumuladas: e.target.value }))}
+                    />
+                  </div>
                 </div>
                 <div className="flex justify-end gap-2">
                   {editingEquipmentId && (
@@ -1159,6 +1188,7 @@ export default function Cadastros() {
                         <TableHead>Trator</TableHead>
                         <TableHead>Bicos</TableHead>
                         <TableHead>Tanque</TableHead>
+                        <TableHead>Horas</TableHead>
                         <TableHead className="w-12"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1170,6 +1200,7 @@ export default function Cadastros() {
                           <TableCell>{eq.tractor_model || "—"}</TableCell>
                           <TableCell>{eq.total_nozzles}</TableCell>
                           <TableCell>{eq.tank_capacity || 0} L</TableCell>
+                          <TableCell>{eq.horas_acumuladas != null ? `${eq.horas_acumuladas} h` : "—"}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Button

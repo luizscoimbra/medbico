@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,17 +20,43 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft,
   Banknote,
+  Ban,
   CheckCircle2,
   Clock,
   ExternalLink,
+  FileDown,
+  FileText,
+  Printer,
+  RotateCcw,
   Search,
   Trash2,
-  Undo2,
   Wallet,
+  type LucideIcon,
 } from "lucide-react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import { ComprovanteTitulo } from "@/components/financeiro/ComprovanteTitulo";
+import { RelatorioMovimentacoes } from "@/components/financeiro/RelatorioMovimentacoes";
+import { ContasPagar } from "@/components/financeiro/ContasPagar";
+import { REL_FILTROS_PADRAO, dataReferencia, type RelFiltros } from "@/lib/relatorioFinanceiro";
+import {
+  toDocumentoPagar,
+  toDocumentoReceber,
+  type TituloDocumento,
+} from "@/lib/tituloDocumento";
+import { getAllTitulosPagar, type TituloPagar } from "@/lib/contasPagarStorage";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/utils";
 import {
@@ -56,9 +82,51 @@ const STATUS_CLASS: Record<TituloReceber["status"], string> = {
 
 const HOJE = () => new Date().toISOString().slice(0, 10);
 
+type AcaoConfirmar = "estornar" | "cancelar" | "excluir";
+
+const CONFIRMACOES: Record<
+  AcaoConfirmar,
+  {
+    titulo: string;
+    botao: string;
+    className?: string;
+    Icone: LucideIcon;
+    iconClass: string;
+    descricao: (t: TituloReceber) => string;
+  }
+> = {
+  estornar: {
+    titulo: "Estornar recebimento",
+    botao: "Confirmar estorno",
+    Icone: RotateCcw,
+    iconClass: "text-primary",
+    descricao: (t) =>
+      `Estornar o recebimento do título nº ${t.numero}? O valor volta para "A receber".`,
+  },
+  cancelar: {
+    titulo: "Cancelar título",
+    botao: "Confirmar cancelamento",
+    className: "bg-warning text-warning-foreground hover:opacity-90",
+    Icone: Ban,
+    iconClass: "text-warning",
+    descricao: (t) => `Cancelar o título nº ${t.numero}? Esta ação não gera cobrança.`,
+  },
+  excluir: {
+    titulo: "Excluir título",
+    botao: "Excluir definitivamente",
+    className: "bg-destructive text-destructive-foreground hover:opacity-90",
+    Icone: Trash2,
+    iconClass: "text-destructive",
+    descricao: (t) =>
+      `Excluir definitivamente o título nº ${t.numero}? Esta ação não pode ser desfeita.`,
+  },
+};
+
 export default function Financeiro() {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<"receber" | "pagar">("receber");
   const [titulos, setTitulos] = useState<TituloReceber[]>([]);
+  const [titulosPagar, setTitulosPagar] = useState<TituloPagar[]>([]);
   const [filtroStatus, setFiltroStatus] = useState<"todos" | TituloReceber["status"]>("todos");
   const [busca, setBusca] = useState("");
 
@@ -68,7 +136,24 @@ export default function Financeiro() {
   const [formaPagamento, setFormaPagamento] = useState("Pix");
   const [obsBaixa, setObsBaixa] = useState("");
 
-  const load = async () => setTitulos(await getAllTitulos());
+  // Dialog de confirmação (estornar / cancelar / excluir)
+  const [confirmacao, setConfirmacao] = useState<{ acao: AcaoConfirmar; titulo: TituloReceber } | null>(null);
+  const [processando, setProcessando] = useState(false);
+
+  // Dialog do comprovante (impressão / PDF)
+  const [comprovante, setComprovante] = useState<TituloDocumento | null>(null);
+  const comprovantePrintRef = useRef<HTMLDivElement>(null);
+
+  // Relatório de movimentações (impressão / PDF)
+  const [relatorioAberto, setRelatorioAberto] = useState(false);
+  const [relFiltros, setRelFiltros] = useState<RelFiltros>(REL_FILTROS_PADRAO);
+  const relatorioRef = useRef<HTMLDivElement>(null);
+
+  const load = async () => {
+    const [a, b] = await Promise.all([getAllTitulos(), getAllTitulosPagar()]);
+    setTitulos(a);
+    setTitulosPagar(b);
+  };
 
   useEffect(() => {
     load();
@@ -87,6 +172,30 @@ export default function Financeiro() {
       );
     });
   }, [titulos, filtroStatus, busca]);
+
+  const titulosRelatorio = useMemo(() => {
+    const base =
+      relFiltros.origem === "receber"
+        ? titulos.map(toDocumentoReceber)
+        : relFiltros.origem === "pagar"
+          ? titulosPagar.map(toDocumentoPagar)
+          : [
+              ...titulos.map(toDocumentoReceber),
+              ...titulosPagar.map(toDocumentoPagar),
+            ];
+    return base
+      .filter((t) => {
+        if (relFiltros.tipo === "recebimentos" && t.status !== "pago") return false;
+        if (relFiltros.tipo === "cancelamentos" && t.status !== "cancelado") return false;
+        if (relFiltros.tipo === "abertos" && t.status !== "aberto") return false;
+        if (relFiltros.status !== "todos" && t.status !== relFiltros.status) return false;
+        const d = dataReferencia(t);
+        if (relFiltros.de && d && d < relFiltros.de) return false;
+        if (relFiltros.ate && d && d > relFiltros.ate) return false;
+        return true;
+      })
+      .sort((a, b) => (b.dataEmissao || "").localeCompare(a.dataEmissao || ""));
+  }, [titulos, titulosPagar, relFiltros]);
 
   const totalAberto = titulos.filter((t) => t.status === "aberto").reduce((s, t) => s + t.valor, 0);
   const totalRecebido = titulos.filter((t) => t.status === "pago").reduce((s, t) => s + t.valor, 0);
@@ -112,25 +221,109 @@ export default function Financeiro() {
     await load();
   };
 
-  const handleEstornar = async (t: TituloReceber) => {
-    if (!confirm(`Estornar o recebimento do título nº ${t.numero}?`)) return;
-    await estornarTitulo(t.id);
-    toast.success("Recebimento estornado");
-    await load();
+  const handleEstornar = (t: TituloReceber) => setConfirmacao({ acao: "estornar", titulo: t });
+
+  const handleCancelar = (t: TituloReceber) => setConfirmacao({ acao: "cancelar", titulo: t });
+
+  const handleExcluir = (t: TituloReceber) => setConfirmacao({ acao: "excluir", titulo: t });
+
+  const executarConfirmacao = async () => {
+    if (!confirmacao || processando) return;
+    const { acao, titulo } = confirmacao;
+    setProcessando(true);
+    try {
+      if (acao === "estornar") {
+        await estornarTitulo(titulo.id);
+        toast.success("Recebimento estornado");
+      } else if (acao === "cancelar") {
+        await cancelarTitulo(titulo.id);
+        toast.success("Título cancelado");
+      } else {
+        await deleteTitulo(titulo.id);
+        toast.success("Título excluído");
+      }
+      setConfirmacao(null);
+      await load();
+    } catch {
+      toast.error("Erro ao executar a operação");
+    } finally {
+      setProcessando(false);
+    }
   };
 
-  const handleCancelar = async (t: TituloReceber) => {
-    if (!confirm(`Cancelar o título nº ${t.numero}? Esta ação não gera cobrança.`)) return;
-    await cancelarTitulo(t.id);
-    toast.success("Título cancelado");
-    await load();
+  const confirmCfg = confirmacao ? CONFIRMACOES[confirmacao.acao] : null;
+
+  const handlePrintComprovante = () => window.print();
+
+  const handlePDFComprovante = async () => {
+    const target = comprovantePrintRef.current;
+    if (!target) return;
+    try {
+      toast.info("Gerando PDF...");
+      const canvas = await html2canvas(target, { scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfW = pdf.internal.pageSize.getWidth();
+      const pdfH = (canvas.height * pdfW) / canvas.width;
+      const pageH = pdf.internal.pageSize.getHeight();
+
+      if (pdfH <= pageH) {
+        pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
+      } else {
+        let position = 0;
+        let remaining = pdfH;
+        while (remaining > 0) {
+          if (position > 0) pdf.addPage();
+          pdf.addImage(imgData, "PNG", 0, -position, pdfW, pdfH);
+          position += pageH;
+          remaining -= pageH;
+        }
+      }
+
+      pdf.save(`Comprovante-${comprovante?.numero || "titulo"}.pdf`);
+      toast.success("PDF salvo!");
+    } catch {
+      toast.error("Erro ao gerar PDF");
+    }
   };
 
-  const handleExcluir = async (t: TituloReceber) => {
-    if (!confirm(`Excluir definitivamente o título nº ${t.numero}?`)) return;
-    await deleteTitulo(t.id);
-    toast.success("Título excluído");
-    await load();
+  const abrirRelatorio = () => {
+    setRelFiltros({ ...REL_FILTROS_PADRAO, origem: activeTab });
+    setRelatorioAberto(true);
+  };
+
+  const handlePrintRelatorio = () => window.print();
+
+  const handlePDFRelatorio = async () => {
+    const target = relatorioRef.current;
+    if (!target) return;
+    try {
+      toast.info("Gerando PDF do relatório...");
+      const canvas = await html2canvas(target, { scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfW = pdf.internal.pageSize.getWidth();
+      const pdfH = (canvas.height * pdfW) / canvas.width;
+      const pageH = pdf.internal.pageSize.getHeight();
+
+      if (pdfH <= pageH) {
+        pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
+      } else {
+        let position = 0;
+        let remaining = pdfH;
+        while (remaining > 0) {
+          if (position > 0) pdf.addPage();
+          pdf.addImage(imgData, "PNG", 0, -position, pdfW, pdfH);
+          position += pageH;
+          remaining -= pageH;
+        }
+      }
+
+      pdf.save(`Relatorio-Financeiro-${HOJE()}.pdf`);
+      toast.success("PDF do relatório salvo!");
+    } catch {
+      toast.error("Erro ao gerar PDF do relatório");
+    }
   };
 
   return (
@@ -143,16 +336,42 @@ export default function Financeiro() {
           </Button>
           <div>
             <h1 className="text-2xl font-heading text-foreground">Financeiro</h1>
-            <p className="text-sm text-muted-foreground">Contas a receber geradas pelas Ordens de Serviço</p>
+            <p className="text-sm text-muted-foreground">
+              {activeTab === "receber"
+                ? "Contas a receber geradas pelas Ordens de Serviço"
+                : "Contas a pagar, despesas e manutenções de drones"}
+            </p>
           </div>
         </div>
-        <Link to="/ordem-servico">
-          <Button variant="outline" size="sm">
-            <ExternalLink className="h-4 w-4 mr-1" /> Ordens de Serviço
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={abrirRelatorio}>
+            <FileText className="h-4 w-4 mr-1" /> Relatório
           </Button>
-        </Link>
+          <Link to="/ordem-servico">
+            <Button variant="outline" size="sm">
+              <ExternalLink className="h-4 w-4 mr-1" /> Ordens de Serviço
+            </Button>
+          </Link>
+        </div>
       </div>
 
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as "receber" | "pagar")}
+        className="animate-slide-up"
+      >
+      <TabsList className="mb-6 no-print">
+        <TabsTrigger value="receber" className="gap-2">
+          <Banknote className="h-4 w-4" />
+          A Receber
+        </TabsTrigger>
+        <TabsTrigger value="pagar" className="gap-2">
+          <Wallet className="h-4 w-4" />
+          A Pagar
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="receber" className="mt-0">
       {/* Resumo */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <Card className="border-t-4 border-t-emerald-500">
@@ -297,6 +516,15 @@ export default function Financeiro() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Comprovante"
+                            className="h-8 w-8"
+                            onClick={() => setComprovante(toDocumentoReceber(t))}
+                          >
+                            <Printer className="h-4 w-4" />
+                          </Button>
                           {t.status === "aberto" && (
                             <Button
                               variant="ghost"
@@ -319,7 +547,7 @@ export default function Financeiro() {
                               title="Estornar recebimento"
                               onClick={() => handleEstornar(t)}
                             >
-                              <Undo2 className="h-4 w-4" />
+                              <RotateCcw className="h-4 w-4" />
                             </Button>
                           )}
                           {t.status !== "cancelado" && (
@@ -330,7 +558,7 @@ export default function Financeiro() {
                               className="text-warning hover:bg-warning/10"
                               onClick={() => handleCancelar(t)}
                             >
-                              <Undo2 className="h-4 w-4" />
+                              <Ban className="h-4 w-4" />
                             </Button>
                           )}
                           {t.status === "cancelado" && (
@@ -365,6 +593,17 @@ export default function Financeiro() {
           )}
         </CardContent>
       </Card>
+
+      </TabsContent>
+
+      <TabsContent value="pagar" className="mt-0">
+        <ContasPagar
+          titulos={titulosPagar}
+          onReload={load}
+          onComprovante={(t) => setComprovante(toDocumentoPagar(t))}
+        />
+      </TabsContent>
+      </Tabs>
 
       {/* Dialog de recebimento */}
       <Dialog open={!!baixarRef} onOpenChange={(open) => !open && setBaixarRef(null)}>
@@ -416,6 +655,185 @@ export default function Financeiro() {
             </Button>
             <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={confirmarBaixa}>
               Confirmar Recebimento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmação de estornar / cancelar / excluir */}
+      <AlertDialog
+        open={!!confirmacao}
+        onOpenChange={(open) => {
+          if (!open && !processando) setConfirmacao(null);
+        }}
+      >
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              {confirmCfg && <confirmCfg.Icone className={`h-5 w-5 ${confirmCfg.iconClass}`} />}
+              {confirmCfg?.titulo}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmacao && confirmCfg?.descricao(confirmacao.titulo)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={() => setConfirmacao(null)} disabled={processando}>
+              Voltar
+            </Button>
+            <Button className={confirmCfg?.className} onClick={executarConfirmacao} disabled={processando}>
+              {processando ? "Processando..." : confirmCfg?.botao}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Comprovante (impressão / PDF) */}
+      <Dialog
+        open={!!comprovante}
+        onOpenChange={(open) => {
+          if (!open) setComprovante(null);
+        }}
+      >
+        <DialogContent className="comprovante-dialog sm:max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="no-print">
+            <DialogTitle className="flex items-center gap-2">
+              <Printer className="h-5 w-5 text-primary" />
+              Comprovante
+            </DialogTitle>
+            <DialogDescription>
+              Título nº {comprovante?.numero} — {comprovante?.contraparte || "—"}
+            </DialogDescription>
+          </DialogHeader>
+
+          {comprovante && <ComprovanteTitulo ref={comprovantePrintRef} titulo={comprovante} />}
+
+          <DialogFooter className="no-print">
+            <Button variant="outline" onClick={() => setComprovante(null)}>
+              Fechar
+            </Button>
+            <Button variant="outline" onClick={handlePDFComprovante}>
+              <FileDown className="h-4 w-4 mr-1" /> Exportar PDF
+            </Button>
+            <Button onClick={handlePrintComprovante}>
+              <Printer className="h-4 w-4 mr-1" /> Imprimir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Relatório de movimentações (impressão / PDF) */}
+      <Dialog
+        open={relatorioAberto}
+        onOpenChange={(open) => {
+          if (!open) setRelatorioAberto(false);
+        }}
+      >
+        <DialogContent className="relatorio-dialog sm:max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="no-print">
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Relatório de Movimentações
+            </DialogTitle>
+            <DialogDescription>
+              Escolha a origem, a operação, o status e o período para imprimir o
+              relatório de movimentações.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 no-print">
+            <div className="space-y-1">
+              <Label>Origem</Label>
+              <Select
+                value={relFiltros.origem}
+                onValueChange={(v) => setRelFiltros({ ...relFiltros, origem: v as RelFiltros["origem"] })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">A receber e a pagar</SelectItem>
+                  <SelectItem value="receber">A receber</SelectItem>
+                  <SelectItem value="pagar">A pagar</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Operação</Label>
+              <Select
+                value={relFiltros.tipo}
+                onValueChange={(v) => setRelFiltros({ ...relFiltros, tipo: v as RelFiltros["tipo"] })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todas as operações</SelectItem>
+                  <SelectItem value="recebimentos">
+                    {relFiltros.origem === "pagar"
+                      ? "Pagamentos"
+                      : relFiltros.origem === "receber"
+                        ? "Recebimentos"
+                        : "Recebimentos/Pagamentos"}
+                  </SelectItem>
+                  <SelectItem value="cancelamentos">Cancelamentos</SelectItem>
+                  <SelectItem value="abertos">Em aberto</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Status</Label>
+              <Select
+                value={relFiltros.status}
+                onValueChange={(v) => setRelFiltros({ ...relFiltros, status: v as RelFiltros["status"] })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os status</SelectItem>
+                  <SelectItem value="aberto">Em aberto</SelectItem>
+                  <SelectItem value="pago">Recebido / Pago</SelectItem>
+                  <SelectItem value="cancelado">Cancelado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>De</Label>
+              <Input
+                type="date"
+                value={relFiltros.de}
+                onChange={(e) => setRelFiltros({ ...relFiltros, de: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Até</Label>
+              <Input
+                type="date"
+                value={relFiltros.ate}
+                onChange={(e) => setRelFiltros({ ...relFiltros, ate: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground no-print">
+            {titulosRelatorio.length} título(s) no relatório · o período considera a data de
+            pagamento quando existir, senão a data de emissão.
+          </p>
+
+          <div className="relatorio-preview rounded-lg border border-border/60 bg-card p-2 overflow-x-auto">
+            <RelatorioMovimentacoes ref={relatorioRef} titulos={titulosRelatorio} filtros={relFiltros} />
+          </div>
+
+          <DialogFooter className="no-print">
+            <Button variant="outline" onClick={() => setRelatorioAberto(false)}>
+              Fechar
+            </Button>
+            <Button variant="outline" onClick={handlePDFRelatorio}>
+              <FileDown className="h-4 w-4 mr-1" /> Exportar PDF
+            </Button>
+            <Button onClick={handlePrintRelatorio}>
+              <Printer className="h-4 w-4 mr-1" /> Imprimir
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -101,6 +101,7 @@ export type Database = {
           created_at: string
           full_name: string
           id: string
+          modules: Json | null
           phone: string
           role: string
           status: string
@@ -111,6 +112,7 @@ export type Database = {
           created_at?: string
           full_name?: string
           id: string
+          modules?: Json | null
           phone?: string
           role?: string
           status?: string
@@ -121,6 +123,7 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+          modules?: Json | null
           phone?: string
           role?: string
           status?: string
@@ -218,12 +221,292 @@ export type Database = {
         }
         Relationships: []
       }
+      equipment_maintenance_items: {
+        Row: {
+          ativo: boolean
+          categoria: string
+          created_at: string
+          custo: number
+          id: string
+          nome: string
+          tipo: string
+          unidade: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          categoria?: string
+          created_at?: string
+          custo?: number
+          id?: string
+          nome: string
+          tipo: string
+          unidade?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: string
+          created_at?: string
+          custo?: number
+          id?: string
+          nome?: string
+          tipo?: string
+          unidade?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      equipment_maintenance_records: {
+        Row: {
+          categoria: string
+          created_at: string
+          custo_mao_obra: number
+          custo_total: number
+          data: string
+          descricao: string
+          equipment_id: string
+          fleet_number: string
+          fornecedor_id: string
+          fornecedor_nome: string
+          horas_registradas: number
+          id: string
+          itens: Json
+          observacao: string
+          responsavel: string
+          schedule_id: string | null
+          titulo: string
+          titulo_pagar_id: string
+          updated_at: string
+        }
+        Insert: {
+          categoria: string
+          created_at?: string
+          custo_mao_obra?: number
+          custo_total?: number
+          data?: string
+          descricao?: string
+          equipment_id: string
+          fleet_number: string
+          fornecedor_id?: string
+          fornecedor_nome?: string
+          horas_registradas?: number
+          id?: string
+          itens?: Json
+          observacao?: string
+          responsavel?: string
+          schedule_id?: string | null
+          titulo: string
+          titulo_pagar_id?: string
+          updated_at?: string
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          custo_mao_obra?: number
+          custo_total?: number
+          data?: string
+          descricao?: string
+          equipment_id?: string
+          fleet_number?: string
+          fornecedor_id?: string
+          fornecedor_nome?: string
+          horas_registradas?: number
+          id?: string
+          itens?: Json
+          observacao?: string
+          responsavel?: string
+          schedule_id?: string | null
+          titulo?: string
+          titulo_pagar_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_maintenance_records_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_maintenance_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_maintenance_schedules: {
+        Row: {
+          ativo: boolean
+          categoria: string
+          checklist: string[]
+          created_at: string
+          descricao: string
+          equipamento_modelo: string
+          equipment_id: string
+          fleet_number: string
+          id: string
+          intervalo_dias: number
+          intervalo_horas: number
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          categoria: string
+          checklist?: string[]
+          created_at?: string
+          descricao?: string
+          equipamento_modelo?: string
+          equipment_id: string
+          fleet_number: string
+          id?: string
+          intervalo_dias?: number
+          intervalo_horas?: number
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: string
+          checklist?: string[]
+          created_at?: string
+          descricao?: string
+          equipamento_modelo?: string
+          equipment_id?: string
+          fleet_number?: string
+          id?: string
+          intervalo_dias?: number
+          intervalo_horas?: number
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      equipment_fuel_refuelings: {
+        Row: {
+          created_at: string | null
+          data: string
+          equipment_id: string
+          fleet_number: string
+          horimetro: number
+          id: string
+          litros: number
+          observacao: string | null
+          os_id: string | null
+          posto_fornecedor: string | null
+          tipo_combustivel: string | null
+          updated_at: string | null
+          valor_total: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          data?: string
+          equipment_id: string
+          fleet_number: string
+          horimetro: number
+          id?: string
+          litros: number
+          observacao?: string | null
+          os_id?: string | null
+          posto_fornecedor?: string | null
+          tipo_combustivel?: string | null
+          updated_at?: string | null
+          valor_total?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          data?: string
+          equipment_id?: string
+          fleet_number?: string
+          horimetro?: number
+          id?: string
+          litros?: number
+          observacao?: string | null
+          os_id?: string | null
+          posto_fornecedor?: string | null
+          tipo_combustivel?: string | null
+          updated_at?: string | null
+          valor_total?: number | null
+        }
+        Relationships: []
+      }
+      stock_entries: {
+        Row: {
+          categoria: string
+          created_at: string | null
+          data: string
+          fornecedor: string | null
+          id: string
+          item_key: string
+          item_nome: string
+          observacao: string | null
+          quantidade: number
+          updated_at: string | null
+          valor_total: number | null
+        }
+        Insert: {
+          categoria: string
+          created_at?: string | null
+          data?: string
+          fornecedor?: string | null
+          id?: string
+          item_key: string
+          item_nome: string
+          observacao?: string | null
+          quantidade: number
+          updated_at?: string | null
+          valor_total?: number | null
+        }
+        Update: {
+          categoria?: string
+          created_at?: string | null
+          data?: string
+          fornecedor?: string | null
+          id?: string
+          item_key?: string
+          item_nome?: string
+          observacao?: string | null
+          quantidade?: number
+          updated_at?: string | null
+          valor_total?: number | null
+        }
+        Relationships: []
+      }
+      stock_settings: {
+        Row: {
+          ativo: boolean
+          categoria: string
+          created_at: string | null
+          item_key: string
+          minimo: number
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          categoria: string
+          created_at?: string | null
+          item_key: string
+          minimo?: number
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: string
+          created_at?: string | null
+          item_key?: string
+          minimo?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      delete_user: {
+        Args: {
+          target: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

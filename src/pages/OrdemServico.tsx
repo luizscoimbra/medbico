@@ -12,6 +12,12 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { Link, useSearchParams } from "react-router-dom";
 import { getAllEquipments, Equipment } from "@/lib/equipmentStorage";
+import {
+  abastecimentosDaOS,
+  getAllAbastecimentos,
+  totalAbastecimento,
+  type Abastecimento,
+} from "@/lib/equipmentFuelStorage";
 import { getAllClientes, Cliente } from "@/lib/clienteStorage";
 import { supabase } from "@/integrations/supabase/client";
 import type { ServicoOS } from "@/lib/osStorage";
@@ -74,6 +80,15 @@ export default function OrdemServico() {
   const printRef = useRef<HTMLDivElement>(null);
   const apontamentoRef = useRef<HTMLDivElement>(null);
   const [equipments, setEquipments] = useState<Equipment[]>([]);
+  const [abastecimentos, setAbastecimentos] = useState<Abastecimento[]>([]);
+
+  const loadAbastecimentos = async () => {
+    try {
+      setAbastecimentos(await getAllAbastecimentos());
+    } catch {
+      setAbastecimentos([]);
+    }
+  };
 
   // Form state
   const [propriedade, setPropriedade] = useState("");
@@ -98,6 +113,7 @@ export default function OrdemServico() {
   useEffect(() => {
     getAllEquipments().then(setEquipments);
     getAllClientes().then(setClientes);
+    loadAbastecimentos();
     supabase.from("services").select("*").order("descricao").then(({ data }) => {
       if (data) setServicosDisponiveis(data);
     });
@@ -138,6 +154,10 @@ export default function OrdemServico() {
 
   const tituloDaOS = currentOS ? titulos.find((t) => t.osId === currentOS.id) : undefined;
 
+  // Abastecimentos vinculados à OS atual (custo agregado ao vivo)
+  const abastecimentosOS = currentOS ? abastecimentosDaOS(abastecimentos, currentOS.id) : [];
+  const totalAbastecimentosOS = totalAbastecimento(abastecimentosOS);
+
   const abrirFaturar = () => {
     if (!currentOS) return;
     if (currentOS.status !== "concluida") {
@@ -146,7 +166,7 @@ export default function OrdemServico() {
     }
     const venc = new Date();
     venc.setDate(venc.getDate() + 30);
-    setFatValor(mascaraMoeda(valorFaturavelOS(currentOS)));
+    setFatValor(mascaraMoeda(valorFaturavelOS(currentOS) + totalAbastecimentosOS));
     setFatVencimento(venc.toISOString().slice(0, 10));
     setFatObs("");
     setFatStep("form");
@@ -434,7 +454,11 @@ export default function OrdemServico() {
             </Button>
           </div>
           {FaturarBlock}
-          <OSPreview ref={printRef} os={currentOS} />
+          <OSPreview
+            ref={printRef}
+            os={currentOS}
+            abastecimentos={abastecimentosOS}
+          />
         </div>
       )}
 
@@ -444,6 +468,8 @@ export default function OrdemServico() {
           {FaturarBlock}
           <OSApontamento
             os={currentOS}
+            abastecimentos={abastecimentosOS}
+            onAbastecimentosChange={loadAbastecimentos}
             onSaved={(updated) => setCurrentOS(updated)}
             onViewReport={() => setView("apontamento-preview")}
           />

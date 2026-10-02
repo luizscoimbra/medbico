@@ -1,9 +1,11 @@
 import { forwardRef, useMemo } from "react";
 import type { OrdemServico } from "@/lib/osStorage";
+import type { Abastecimento } from "@/lib/equipmentFuelStorage";
 import { MapPin } from "lucide-react";
 
 interface OSPreviewProps {
   os: OrdemServico;
+  abastecimentos?: Abastecimento[];
 }
 
 interface InsumoResumo {
@@ -14,7 +16,8 @@ interface InsumoResumo {
   qtdEmbalagens: number;
 }
 
-export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref) => {
+export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(
+  ({ os, abastecimentos = [] }, ref) => {
   const areaTotal = os.talhoes.reduce((sum, t) => sum + (parseFloat(t.area) || 0), 0);
 
   const resumoInsumos = useMemo(() => {
@@ -85,6 +88,9 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
 
   const temValores = (os.valorHerbicidas || 0) + (os.valorServico || 0) > 0;
   const totalServicos = os.servicos?.reduce((sum, s) => sum + s.valorTotal, 0) || 0;
+  const totalAbastecimento = Math.round(
+    abastecimentos.reduce((s, a) => s + (a.valor_total || 0), 0) * 100
+  ) / 100;
 
   return (
     <div ref={ref} className="bg-white text-black p-4 sm:p-6 w-full lg:max-w-[210mm] mx-auto print-area" id="os-print" style={{ fontSize: "11px", lineHeight: "1.3" }}>
@@ -275,7 +281,7 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
         )}
 
         {/* Resumo Financeiro */}
-        {(temValores || totalServicos > 0 || valorProdutos > 0) && (
+        {(temValores || totalServicos > 0 || valorProdutos > 0 || abastecimentos.length > 0) && (
           <div>
             <h2 className="text-[11px] font-bold uppercase mb-1 text-gray-700">Resumo Financeiro</h2>
             <div className="border border-gray-300 rounded p-2 h-full">
@@ -303,10 +309,20 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
                   <span className="font-medium">R$ {totalServicos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                 </div>
               )}
+              {abastecimentos.length > 0 && (
+                <div className="flex justify-between py-0.5" style={{ fontSize: "10px" }}>
+                  <span className="text-gray-600">
+                    Abastecimentos ({abastecimentos.length}):
+                  </span>
+                  <span className="font-medium">
+                    R$ {totalAbastecimento.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between py-0.5 border-t border-gray-300 mt-1 pt-1" style={{ fontSize: "11px" }}>
                 <span className="font-bold text-gray-800">TOTAL:</span>
                 <span className="font-bold text-gray-800">
-                  R$ {(valorProdutos + (os.valorHerbicidas || 0) + (os.valorServico || 0) + totalServicos).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  R$ {(valorProdutos + (os.valorHerbicidas || 0) + (os.valorServico || 0) + totalServicos + totalAbastecimento).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
@@ -343,6 +359,57 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(({ os }, ref
               <tr className="font-semibold bg-blue-50/50">
                 <td colSpan={4} className="border border-gray-300 px-1.5 py-1 text-right">Total Serviços:</td>
                 <td className="border border-gray-300 px-1.5 py-1 text-right">R$ {os.servicos.reduce((sum, s) => sum + s.valorTotal, 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+
+      {/* Abastecimentos vinculados */}
+      {abastecimentos.length > 0 && (
+        <div className="mb-3">
+          <h2 className="text-[11px] font-bold uppercase mb-1 text-gray-700">Abastecimentos</h2>
+          <table className="w-full border-collapse" style={{ fontSize: "10px" }}>
+            <thead>
+              <tr className="bg-amber-50">
+                <th className="border border-gray-300 px-1.5 py-1 text-left">Data</th>
+                <th className="border border-gray-300 px-1.5 py-1 text-left">Frota</th>
+                <th className="border border-gray-300 px-1.5 py-1 text-right">Horímetro</th>
+                <th className="border border-gray-300 px-1.5 py-1 text-right">Litros</th>
+                <th className="border border-gray-300 px-1.5 py-1 text-left">Tipo</th>
+                <th className="border border-gray-300 px-1.5 py-1 text-right">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {abastecimentos.map((a) => (
+                <tr key={a.id}>
+                  <td className="border border-gray-300 px-1.5 py-1 whitespace-nowrap">
+                    {new Date(`${a.data.slice(0, 10)}T00:00:00`).toLocaleDateString("pt-BR")}
+                  </td>
+                  <td className="border border-gray-300 px-1.5 py-1">{a.fleet_number}</td>
+                  <td className="border border-gray-300 px-1.5 py-1 text-right">
+                    {a.horimetro} h
+                  </td>
+                  <td className="border border-gray-300 px-1.5 py-1 text-right">
+                    {a.litros.toLocaleString("pt-BR")} L
+                  </td>
+                  <td className="border border-gray-300 px-1.5 py-1">
+                    {a.tipo_combustivel || "—"}
+                  </td>
+                  <td className="border border-gray-300 px-1.5 py-1 text-right font-semibold">
+                    R$ {(a.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="font-semibold bg-amber-50/50">
+                <td colSpan={5} className="border border-gray-300 px-1.5 py-1 text-right">
+                  Total Abastecimentos:
+                </td>
+                <td className="border border-gray-300 px-1.5 py-1 text-right">
+                  R$ {totalAbastecimento.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                </td>
               </tr>
             </tfoot>
           </table>

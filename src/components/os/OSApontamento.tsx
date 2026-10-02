@@ -4,9 +4,15 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, Eye, AlertTriangle, Droplets, Clock, Settings, AlertCircle, History as HistoryIcon, ArrowRightLeft, CheckCircle2, Search, FlaskConical, Trash2, Plus, Pencil } from "lucide-react";
+import { Save, Eye, AlertTriangle, Droplets, Clock, Settings, AlertCircle, History as HistoryIcon, ArrowRightLeft, CheckCircle2, Search, FlaskConical, Trash2, Plus, Pencil, Fuel, X } from "lucide-react";
 import type { OrdemServico, ApontamentoTalhao, MotivoParada, ProdutoDose, ServicoOS } from "@/lib/osStorage";
 import { saveOS, MOTIVO_PARADA_LABELS } from "@/lib/osStorage";
+import {
+  getAllAbastecimentos,
+  updateAbastecimento,
+  totalAbastecimento,
+  type Abastecimento,
+} from "@/lib/equipmentFuelStorage";
 import { formatBRL } from "@/lib/utils";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -24,6 +30,8 @@ import {
 
 interface OSApontamentoProps {
   os: OrdemServico;
+  abastecimentos?: Abastecimento[];
+  onAbastecimentosChange?: () => void | Promise<void>;
   onSaved: (os: OrdemServico) => void;
   onViewReport: () => void;
 }
@@ -39,7 +47,13 @@ interface ItemFinanceiro {
   valorTotal: number;
 }
 
-export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps) {
+export function OSApontamento({
+  os,
+  abastecimentos = [],
+  onAbastecimentosChange,
+  onSaved,
+  onViewReport,
+}: OSApontamentoProps) {
   const [apontamentos, setApontamentos] = useState<ApontamentoTalhao[]>(
     os.apontamentos?.length ? os.apontamentos : os.talhoes.map((_, i) => createEmptyApontamento(i))
   );
@@ -68,6 +82,13 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
   const [itensFinanceiro, setItensFinanceiro] = useState<ItemFinanceiro[]>([]);
   const [valorHerbicidas, setValorHerbicidas] = useState(os.valorHerbicidas?.toString() || "");
   const [valorServico, setValorServico] = useState(os.valorServico?.toString() || "");
+
+  // Vínculo de abastecimentos
+  const [vincularOpen, setVincularOpen] = useState(false);
+  const [abastDisponiveis, setAbastDisponiveis] = useState<Abastecimento[]>([]);
+  const [selAbast, setSelAbast] = useState<string[]>([]);
+  const [carregandoAbast, setCarregandoAbast] = useState(false);
+  const [processandoVinculo, setProcessandoVinculo] = useState(false);
 
   useEffect(() => {
     getAllOperadores().then(setOperadores);
@@ -389,6 +410,66 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
   const subtotalServicos = itensFinanceiro.filter(i => i.tipo === "servico").reduce((s, i) => s + i.valorTotal, 0);
   const totalGeral = subtotalProdutos + subtotalServicos;
 
+  // Custo de combustível vinculado (somado ao vivo aos totais da OS)
+  const totalAbastecimentoOS = totalAbastecimento(abastecimentos);
+  const litrosAbastecimentoOS =
+    Math.round(abastecimentos.reduce((s, a) => s + a.litros, 0) * 100) / 100;
+
+  // ── Vínculo de abastecimentos ────────────────────────────────────
+  const abrirVincular = async () => {
+    setVincularOpen(true);
+    setCarregandoAbast(true);
+    try {
+      const todos = await getAllAbastecimentos();
+      setAbastDisponiveis(todos.filter((a) => !a.os_id));
+      setSelAbast([]);
+    } catch {
+      toast.error("Erro ao carregar abastecimentos");
+    } finally {
+      setCarregandoAbast(false);
+    }
+  };
+
+  const confirmarVincular = async () => {
+    if (selAbast.length === 0) {
+      toast.error("Selecione ao menos um abastecimento");
+      return;
+    }
+    setProcessandoVinculo(true);
+    try {
+      for (const id of selAbast) {
+        await updateAbastecimento(id, { os_id: os.id });
+      }
+      toast.success(
+        `${selAbast.length} abastecimento(s) vinculado(s) à OS ${os.id}`
+      );
+      setVincularOpen(false);
+      await onAbastecimentosChange?.();
+    } catch {
+      toast.error("Erro ao vincular os abastecimentos");
+    } finally {
+      setProcessandoVinculo(false);
+    }
+  };
+
+  const desvincularAbastecimento = async (id: string) => {
+    try {
+      await updateAbastecimento(id, { os_id: null });
+      toast.success("Abastecimento desvinculado");
+      await onAbastecimentosChange?.();
+    } catch {
+      toast.error("Erro ao desvincular o abastecimento");
+    }
+  };
+
+  // Abastecimentos disponíveis ordenados: frotas da OS primeiro
+  const disponiveisOrdenados = [...abastDisponiveis].sort((a, b) => {
+    const am = (os.equipamentos || []).includes(a.fleet_number) ? 0 : 1;
+    const bm = (os.equipamentos || []).includes(b.fleet_number) ? 0 : 1;
+    if (am !== bm) return am - bm;
+    return b.data.localeCompare(a.data);
+  });
+
   const handleSave = async () => {
     const updatedOS: OrdemServico = {
       ...os,
@@ -458,6 +539,84 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
             </Button>
           </div>
         </CardHeader>
+      </Card>
+
+      {/* Abastecimentos vinculados */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Fuel className="h-4 w-4 text-primary" /> Abastecimentos
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Custo de combustível vinculado a esta OS (somado ao total).
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={abrirVincular} className="h-9">
+              <Plus className="h-4 w-4 mr-2" /> Vincular abastecimento
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {abastecimentos.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic">
+              Nenhum abastecimento vinculado. Use "Vincular abastecimento" ou lance em Gestão de
+              Abastecimento selecionando esta OS.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border text-muted-foreground">
+                    <th className="py-1.5 text-left font-semibold">Data</th>
+                    <th className="py-1.5 text-left font-semibold">Frota</th>
+                    <th className="py-1.5 text-right font-semibold">Horímetro</th>
+                    <th className="py-1.5 text-right font-semibold">Litros</th>
+                    <th className="py-1.5 text-left font-semibold">Tipo</th>
+                    <th className="py-1.5 text-right font-semibold">Valor</th>
+                    <th className="py-1.5 text-right font-semibold" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {abastecimentos.map((a) => (
+                    <tr key={a.id} className="border-b border-border/50">
+                      <td className="py-1.5 whitespace-nowrap">
+                        {new Date(`${a.data.slice(0, 10)}T00:00:00`).toLocaleDateString("pt-BR")}
+                      </td>
+                      <td className="py-1.5 font-medium">{a.fleet_number}</td>
+                      <td className="py-1.5 text-right">{a.horimetro} h</td>
+                      <td className="py-1.5 text-right">{a.litros.toLocaleString("pt-BR")} L</td>
+                      <td className="py-1.5">{a.tipo_combustivel || "—"}</td>
+                      <td className="py-1.5 text-right font-semibold">{formatBRL(a.valor_total || 0)}</td>
+                      <td className="py-1.5 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-destructive hover:text-destructive"
+                          onClick={() => desvincularAbastecimento(a.id)}
+                        >
+                          <X className="h-3.5 w-3.5 mr-1" /> Desvincular
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="font-semibold">
+                    <td colSpan={3} className="py-1.5 text-right">
+                      Total ({abastecimentos.length}):
+                    </td>
+                    <td className="py-1.5 text-right">{litrosAbastecimentoOS} L</td>
+                    <td />
+                    <td className="py-1.5 text-right">{formatBRL(totalAbastecimentoOS)}</td>
+                    <td />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </CardContent>
       </Card>
 
       {os.talhoes.map((t, i) => {
@@ -1233,11 +1392,30 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
                 </div>
               )}
 
+              {/* Abastecimentos */}
+              {abastecimentos.length > 0 && (
+                <div className="border-t border-amber-200 bg-amber-50/50">
+                  <div className="bg-amber-50 px-3 py-1.5 border-b border-amber-200">
+                    <p className="text-[10px] font-bold text-amber-800 uppercase flex items-center gap-1">
+                      <Fuel className="h-3 w-3" /> Abastecimentos ({abastecimentos.length})
+                    </p>
+                  </div>
+                  <div className="px-3 py-1.5 flex justify-between text-xs border-b border-amber-100">
+                    <span className="text-muted-foreground">
+                      {litrosAbastecimentoOS} L de combustível
+                    </span>
+                    <span className="font-semibold text-amber-800">
+                      {formatBRL(totalAbastecimentoOS)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Total Geral */}
               <div className="bg-gray-100 px-3 py-2 border-t border-gray-300 flex justify-between items-center">
                 <span className="text-sm font-bold text-gray-800">VALOR TOTAL:</span>
                 <span className="text-lg font-heading text-emerald-700">
-                  {formatBRL(totalGeral)}
+                  {formatBRL(totalGeral + totalAbastecimentoOS)}
                 </span>
               </div>
             </div>
@@ -1266,6 +1444,95 @@ export function OSApontamento({ os, onSaved, onViewReport }: OSApontamentoProps)
               }}
             >
               Confirmar Encerramento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Vincular abastecimentos à OS */}
+      <Dialog open={vincularOpen} onOpenChange={setVincularOpen}>
+        <DialogContent className="sm:max-w-xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Fuel className="h-5 w-5 text-primary" />
+              Vincular abastecimentos à OS {os.id}
+            </DialogTitle>
+            <DialogDescription>
+              Selecione os abastecimentos sem OS. O valor deles será somado ao custo desta ordem
+              de serviço. Frotas da OS vêm primeiro.
+            </DialogDescription>
+          </DialogHeader>
+
+          {carregandoAbast ? (
+            <p className="text-sm text-muted-foreground italic py-6 text-center">
+              Carregando abastecimentos...
+            </p>
+          ) : disponiveisOrdenados.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic py-6 text-center">
+              Nenhum abastecimento disponível (todos já vinculados ou nenhum lançado).
+            </p>
+          ) : (
+            <div className="space-y-1.5 max-h-72 overflow-y-auto rounded-lg border border-border/60 p-2">
+              {disponiveisOrdenados.map((a) => {
+                const daOS = (os.equipamentos || []).includes(a.fleet_number);
+                return (
+                  <div
+                    key={a.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() =>
+                      setSelAbast((p) =>
+                        p.includes(a.id) ? p.filter((x) => x !== a.id) : [...p, a.id]
+                      )
+                    }
+                    onKeyDown={(ev) => {
+                      if (ev.key === "Enter" || ev.key === " ") {
+                        setSelAbast((p) =>
+                          p.includes(a.id) ? p.filter((x) => x !== a.id) : [...p, a.id]
+                        );
+                      }
+                    }}
+                    className={`flex items-center justify-between gap-2 rounded-md px-2 py-2 text-sm cursor-pointer hover:bg-muted ${
+                      selAbast.includes(a.id) ? "bg-primary/5 border border-primary/30" : "border border-transparent"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={selAbast.includes(a.id)}
+                        onChange={() => undefined}
+                        className="pointer-events-none"
+                      />
+                      <span className="truncate">
+                        {new Date(`${a.data.slice(0, 10)}T00:00:00`).toLocaleDateString("pt-BR")} ·{" "}
+                        <strong>{a.fleet_number}</strong> · {a.litros} L
+                        {daOS && <span className="text-primary text-[10px] ml-1">da OS</span>}
+                      </span>
+                    </span>
+                    <span className="font-semibold whitespace-nowrap">
+                      {formatBRL(a.valor_total || 0)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <p className="text-xs text-muted-foreground">
+            {selAbast.length} selecionado(s) ·{" "}
+            {formatBRL(
+              abastDisponiveis
+                .filter((a) => selAbast.includes(a.id))
+                .reduce((s, a) => s + (a.valor_total || 0), 0)
+            )}
+          </p>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setVincularOpen(false)} disabled={processandoVinculo}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmarVincular} disabled={processandoVinculo || selAbast.length === 0}>
+              {processandoVinculo ? "Vinculando..." : `Vincular ${selAbast.length} abastecimento(s)`}
             </Button>
           </DialogFooter>
         </DialogContent>

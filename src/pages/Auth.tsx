@@ -7,10 +7,13 @@ import { LogIn, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { getUserProfile, UserProfile } from "@/lib/auth-roles";
+import { getUserProfile } from "@/lib/auth-roles";
+import { homePathFor, resolveModules } from "@/lib/permissions";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Auth() {
   const navigate = useNavigate();
+  const { user, loading: authLoading, can, homePath } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
@@ -22,12 +25,10 @@ export default function Auth() {
   });
 
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) navigate("/cadastros");
-    };
-    checkUser();
-  }, [navigate]);
+    if (!authLoading && user) {
+      navigate(can("cadastros") ? "/cadastros" : homePath, { replace: true });
+    }
+  }, [authLoading, user, can, homePath, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +56,8 @@ export default function Auth() {
       }
       
       toast.success("Login realizado com sucesso!");
-      navigate("/cadastros");
+      const modules = resolveModules(profile?.role ?? "operador", profile?.modules);
+      navigate(modules.has("cadastros") ? "/cadastros" : homePathFor(modules));
     }
     setLoading(false);
   };
