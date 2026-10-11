@@ -1,4 +1,17 @@
 import { supabase } from "@/integrations/supabase/client";
+import { asArray, requireScope } from "@/lib/db";
+
+/**
+ * Carimba a filial ativa nas gravações.
+ *
+ * Sem isso, todo registro do módulo de drones nascia com `branch_id` nulo e a
+ * política de RLS o tratava como dado compartilhado da empresa — visível para
+ * todas as filiais, quando na verdade pertence só à filial que o launching fez.
+ */
+async function comFilial<T extends object>(registro: T): Promise<T & { branch_id: string | null }> {
+  const { branchId } = await requireScope();
+  return { ...registro, branch_id: branchId };
+}
 
 // ============================================
 // TYPES
@@ -136,6 +149,36 @@ export interface Pilot {
 }
 
 // ============================================
+// CONVERSÃO DE LINHAS
+// ============================================
+// `produtos_aplicados` e `componentes_trocados` sңo colunas JSONB: o Postgres
+// as devolve como Json, e nңo como o array tipado que as telas esperam. Sem
+// esta conversңo, um cast direto mascararia a diferenҧa e uma coluna vazia ou
+// corrompida quebraria a tela em tempo de execuҧңo.
+
+type LinhaFlightLog = Omit<FlightLog, "produtos_aplicados"> & {
+  produtos_aplicados: unknown;
+};
+
+type LinhaManutencao = Omit<MaintenanceRecord, "componentes_trocados"> & {
+  componentes_trocados: unknown;
+};
+
+const paraFlightLog = (row: LinhaFlightLog): FlightLog => ({
+  ...row,
+  produtos_aplicados: asArray<{ nome: string; dose: number; unidade: string }>(
+    row.produtos_aplicados
+  ),
+});
+
+const paraManutencao = (row: LinhaManutencao): MaintenanceRecord => ({
+  ...row,
+  componentes_trocados: asArray<{ nome: string; modelo: string; custo?: number }>(
+    row.componentes_trocados
+  ),
+});
+
+// ============================================
 // DRONES CRUD
 // ============================================
 
@@ -161,7 +204,7 @@ export async function getDrone(id: string): Promise<Drone | null> {
 export async function createDrone(drone: Omit<Drone, "id" | "created_at" | "updated_at" | "horas_voo_total">): Promise<Drone> {
   const { data, error } = await supabase
     .from("drones")
-    .insert(drone)
+    .insert(await comFilial(drone))
     .select()
     .single();
   if (error) throw error;
@@ -210,7 +253,7 @@ export async function getAllDroneComponents(): Promise<DroneComponent[]> {
 export async function createDroneComponent(comp: Omit<DroneComponent, "id" | "created_at" | "updated_at" | "horas_voo_total">): Promise<DroneComponent> {
   const { data, error } = await supabase
     .from("drone_components")
-    .insert(comp)
+    .insert(await comFilial(comp))
     .select()
     .single();
   if (error) throw error;
@@ -243,7 +286,7 @@ export async function getAllFlightLogs(): Promise<FlightLog[]> {
     .select("*")
     .order("data", { ascending: false });
   if (error) throw error;
-  return (data || []) as FlightLog[];
+  return (data || []).map((r) => paraFlightLog(r as LinhaFlightLog));
 }
 
 export async function getFlightLogsByDrone(droneId: string): Promise<FlightLog[]> {
@@ -253,7 +296,7 @@ export async function getFlightLogsByDrone(droneId: string): Promise<FlightLog[]
     .eq("drone_id", droneId)
     .order("data", { ascending: false });
   if (error) throw error;
-  return (data || []) as FlightLog[];
+  return (data || []).map((r) => paraFlightLog(r as LinhaFlightLog));
 }
 
 export async function getFlightLogsByDateRange(start: string, end: string): Promise<FlightLog[]> {
@@ -264,17 +307,17 @@ export async function getFlightLogsByDateRange(start: string, end: string): Prom
     .lte("data", end)
     .order("data", { ascending: false });
   if (error) throw error;
-  return (data || []) as FlightLog[];
+  return (data || []).map((r) => paraFlightLog(r as LinhaFlightLog));
 }
 
 export async function createFlightLog(log: Omit<FlightLog, "id" | "created_at" | "updated_at">): Promise<FlightLog> {
   const { data, error } = await supabase
     .from("flight_logs")
-    .insert(log)
+    .insert(await comFilial(log))
     .select()
     .single();
   if (error) throw error;
-  return data as FlightLog;
+  return paraFlightLog(data as LinhaFlightLog);
 }
 
 export async function updateFlightLog(id: string, updates: Partial<FlightLog>): Promise<void> {
@@ -310,7 +353,7 @@ export async function getBatteryCycles(componentId: string): Promise<BatteryCycl
 export async function createBatteryCycle(cycle: Omit<BatteryCycle, "id" | "created_at">): Promise<BatteryCycle> {
   const { data, error } = await supabase
     .from("battery_cycles")
-    .insert(cycle)
+    .insert(await comFilial(cycle))
     .select()
     .single();
   if (error) throw error;
@@ -348,7 +391,7 @@ export async function getMaintenanceSchedules(droneModelo?: string): Promise<Mai
 export async function createMaintenanceSchedule(sched: Omit<MaintenanceSchedule, "id" | "created_at">): Promise<MaintenanceSchedule> {
   const { data, error } = await supabase
     .from("maintenance_schedules")
-    .insert(sched)
+    .insert(await comFilial(sched))
     .select()
     .single();
   if (error) throw error;
@@ -380,17 +423,17 @@ export async function getMaintenanceRecords(droneId?: string): Promise<Maintenan
   if (droneId) query = query.eq("drone_id", droneId);
   const { data, error } = await query.order("data", { ascending: false });
   if (error) throw error;
-  return (data || []) as MaintenanceRecord[];
+  return (data || []).map((r) => paraManutencao(r as LinhaManutencao));
 }
 
 export async function createMaintenanceRecord(rec: Omit<MaintenanceRecord, "id" | "created_at" | "updated_at">): Promise<MaintenanceRecord> {
   const { data, error } = await supabase
     .from("maintenance_records")
-    .insert(rec)
+    .insert(await comFilial(rec))
     .select()
     .single();
   if (error) throw error;
-  return data as MaintenanceRecord;
+  return paraManutencao(data as LinhaManutencao);
 }
 
 export async function updateMaintenanceRecord(id: string, updates: Partial<MaintenanceRecord>): Promise<void> {
@@ -424,7 +467,7 @@ export async function getDocumentAlerts(droneId?: string): Promise<DocumentAlert
 export async function createDocumentAlert(alert: Omit<DocumentAlert, "id" | "created_at">): Promise<DocumentAlert> {
   const { data, error } = await supabase
     .from("document_alerts")
-    .insert(alert)
+    .insert(await comFilial(alert))
     .select()
     .single();
   if (error) throw error;
@@ -476,7 +519,7 @@ export async function getAllPilots(): Promise<Pilot[]> {
 export async function createPilot(pilot: Omit<Pilot, "id" | "created_at" | "updated_at" | "horas_voo_total">): Promise<Pilot> {
   const { data, error } = await supabase
     .from("pilots")
-    .insert(pilot)
+    .insert(await comFilial(pilot))
     .select()
     .single();
   if (error) throw error;

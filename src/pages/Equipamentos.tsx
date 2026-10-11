@@ -265,14 +265,14 @@ export default function Equipamentos() {
                   {equipments.map((eq) => (
                     <TableRow key={eq.id}>
                       <TableCell className="font-mono font-semibold">{eq.fleet_number}</TableCell>
-                      <TableCell className="font-medium">{eq.equipment_model || "—"}</TableCell>
-                      <TableCell>{eq.tractor_model || "—"}</TableCell>
+                      <TableCell className="font-medium">{eq.equipment_model || ""}</TableCell>
+                      <TableCell>{eq.tractor_model || ""}</TableCell>
                       <TableCell className="text-right">{eq.total_nozzles}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">
                         {eq.tank_capacity || 0} L
                       </TableCell>
                       <TableCell className="text-right whitespace-nowrap">
-                        {eq.horas_acumuladas != null ? `${eq.horas_acumuladas} h` : "—"}
+                        {eq.horas_acumuladas != null ? `${eq.horas_acumuladas} h` : ""}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-1">
@@ -452,7 +452,7 @@ export default function Equipamentos() {
               Excluir equipamento
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Excluir o equipamento de frota "{excluindo?.fleet_number}" —{" "}
+              Excluir o equipamento de frota "{excluindo?.fleet_number}" {" "}
               {excluindo?.equipment_model}? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>

@@ -4,9 +4,9 @@ import { type RelFiltros } from "@/lib/relatorioFinanceiro";
 import { formatBRL } from "@/lib/utils";
 
 const fmtData = (value?: string) => {
-  if (!value) return "—";
+  if (!value) return "";
   const [y, m, d] = value.slice(0, 10).split("-");
-  if (!y || !m || !d) return "—";
+  if (!y || !m || !d) return "";
   return `${d}/${m}/${y}`;
 };
 
@@ -277,13 +277,13 @@ export const RelatorioMovimentacoes = forwardRef<
                       </td>
                     )}
                     <td className="border border-gray-400 px-1.5 py-1">
-                      {t.contraparte || "—"}
+                      {t.contraparte || ""}
                     </td>
                     <td className="border border-gray-400 px-1.5 py-1 break-words">
-                      {t.descricao || "—"}
+                      {t.descricao || ""}
                     </td>
                     <td className="border border-gray-400 px-1.5 py-1 font-mono">
-                      {t.referencia || "—"}
+                      {t.referencia || ""}
                     </td>
                     <td className="border border-gray-400 px-1.5 py-1 whitespace-nowrap">
                       {fmtData(t.dataEmissao)}
@@ -295,7 +295,7 @@ export const RelatorioMovimentacoes = forwardRef<
                       {fmtData(t.dataPagamento)}
                     </td>
                     <td className="border border-gray-400 px-1.5 py-1 whitespace-nowrap">
-                      {t.formaPagamento || "—"}
+                      {t.formaPagamento || ""}
                     </td>
                     <td className="border border-gray-400 px-1.5 py-1 text-right font-mono whitespace-nowrap">
                       {formatBRL(t.valor)}

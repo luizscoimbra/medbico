@@ -1,10 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { Abastecimento } from "./equipmentFuelStorage";
-import { TIPOS_COMBUSTIVEL } from "./equipmentFuelStorage";
-import type { ItemManutencao, RegistroManutencao } from "./equipmentMaintenanceStorage";
-import type { MaintenanceRecord } from "./droneStorage";
+import { activeBranch, num, storageError } from "@/lib/db";
+import type { ItemManutencao } from "./equipmentMaintenanceStorage";
 import type { ComponenteCatalogo } from "./componenteStorage";
-import type { OrdemServico } from "./osStorage";
+import { TIPOS_COMBUSTIVEL } from "./equipmentFuelStorage";
 
 // ============================================
 // TYPES
@@ -49,6 +47,21 @@ export interface ConfigEstoque {
   updated_at: string;
 }
 
+/** Linha agregada devolvida por `public.stock_snapshot()`. */
+export interface SnapshotItem {
+  categoria: CategoriaEstoque;
+  item_key: string;
+  nome: string;
+  nome_norm: string;
+  entradas_total: number;
+  saida_total: number;
+  saldo: number;
+  valor_ultima_entrada: number;
+  data_ultima_entrada: string | null;
+}
+
+export type SnapshotDados = Record<CategoriaEstoque, SnapshotItem[]>;
+
 // ============================================
 // CHAVES (vínculo com o cadastro do módulo correspondente)
 // ============================================
@@ -63,16 +76,14 @@ const PREFIXO_CATEGORIA: Record<CategoriaEstoque, string> = {
 /**
  * Chave do item no estoque. Liga a linha do estoque ao cadastro do módulo
  * correspondente: prod:<registered_products.id> · peca:<equipment_maintenance_items.id> ·
- * acc:<ComponenteCatalogo.id> · comb:<tipo de combustível>.
+ * acc:<component_catalog.id> · comb:<tipo de combustível>.
  */
 export function buildItemKey(categoria: CategoriaEstoque, origemId: string): string {
   return `${PREFIXO_CATEGORIA[categoria]}:${origemId}`;
 }
 
-const norm = (s: string | null | undefined) => (s || "").trim().toLowerCase();
-
 // ============================================
-// CRUD (Supabase)
+// LEITURA
 // ============================================
 
 export async function getAllEntradas(categoria?: CategoriaEstoque): Promise<EntradaEstoque[]> {
@@ -80,13 +91,155 @@ export async function getAllEntradas(categoria?: CategoriaEstoque): Promise<Entr
   if (categoria) query = query.eq("categoria", categoria);
   const { data, error } = await query.order("data", { ascending: false });
   if (error) throw error;
-  return (data || []) as EntradaEstoque[];
+  return (data || []).map((row) => ({ ...row, quantidade: num(row.quantidade), valor_total: num(row.valor_total) })) as EntradaEstoque[];
 }
 
-export async function createEntrada(rec: EntradaEstoqueInput): Promise<EntradaEstoque> {
-  const { data, error } = await supabase.from("stock_entries").insert(rec).select().single();
+/**
+ * Estoque mínimo dos itens.
+ *
+ * O mínimo é definido por filial (`stock_settings.branch_key`). Sem o filtro, uma
+ * empresa com várias filiais recebia uma linha por filial e `montarEstoque` as
+ * reduzia a um mapa por `item_key` — o mínimo de uma filial vazava para as
+ * outras e o alerta de estoque baixo disparava no lugar errado.
+ */
+export async function getAllConfigs(): Promise<ConfigEstoque[]> {
+  const filial = activeBranch();
+  let query = supabase.from("stock_settings").select("*");
+  if (filial) query = query.eq("branch_key", filial);
+  const { data, error } = await query;
   if (error) throw error;
-  return data as EntradaEstoque;
+  return (data || []).map((row) => ({ ...row, minimo: num(row.minimo) })) as ConfigEstoque[];
+}
+
+/**
+* Saldo consolidado, calculado em uma única transação no PostgreSQL.
+  *
+  * Antes o saldo era somado no navegador cruzando entradas (Supabase) com saídas
+  * derivadas de OS, manutenções, drones e abastecimentos — fontes distintas que
+  * podiam ser lidas em estados diferentes e gerar divergência. Todas essas
+  * fontes agora vivem no mesmo banco, então o snapshot é internamente coerente.
+  *
+  * O banco devolve uma seção por filial. Sem filial, devolve a visão
+  * consolidada da empresa inteira.
+  */
+export async function getEstoqueSnapshot(): Promise<SnapshotDados> {
+  // O parâmetro precisa ser enviado mesmo quando é nulo: o PostgREST casa a
+  // chamada pelo conjunto exato de argumentos e não aceita a chamada vazia.
+  const { data, error } = await supabase.rpc("stock_snapshot", {
+    p_branch: activeBranch(),
+  });
+  if (error) throw storageError("Falha ao calcular o saldo do estoque", error);
+
+  return normalizarSnapshot(data);
+}
+
+/** Snapshot de uma filial específica. */
+export async function getEstoqueSnapshotFilial(branchId: string): Promise<SnapshotDados> {
+  const { data, error } = await supabase.rpc("stock_snapshot", { p_branch: branchId });
+  if (error) throw storageError("Falha ao calcular o saldo do estoque da filial", error);
+  return normalizarSnapshot(data);
+}
+
+function normalizarSnapshot(data: unknown): SnapshotDados {
+  const bruto = (data ?? {}) as Record<string, unknown>;
+  const vazio = (): SnapshotItem[] => [];
+
+  // O banco devolve { branch_key: [itens...] }. Quando há uma única filial,
+  // devolvemos direto; com várias, o cliente escolhe qual soma.
+  const secoes = Object.values(bruto).filter(Array.isArray);
+  const linhas = secoes.flat() as (SnapshotItem & { branch_key?: string })[];
+
+  const agrupado: SnapshotItem[] = linhas.map((row) => ({
+    categoria: row.categoria,
+    item_key: row.item_key,
+    nome: row.nome,
+    nome_norm: row.nome_norm ?? row.nome?.trim().toLowerCase() ?? "",
+    entradas_total: num(row.entradas_total),
+    saida_total: num(row.saida_total),
+    saldo: num(row.saldo),
+    valor_ultima_entrada: num(row.valor_ultima_entrada),
+    data_ultima_entrada: row.data_ultima_entrada ?? null,
+  }));
+
+  return {
+    produto: agrupado.filter((i) => i.categoria === "produto"),
+    peca: agrupado.filter((i) => i.categoria === "peca"),
+    acessorio: agrupado.filter((i) => i.categoria === "acessorio"),
+    combustivel: agrupado.filter((i) => i.categoria === "combustivel"),
+  };
+}
+
+// ============================================
+// ESCRITA ATÔMICA
+// ============================================
+
+/**
+ * Registra uma entrada de estoque.
+ *
+ * A RPC grava a linha e recalcula o saldo do item dentro da mesma transação, e
+ * devolve o novo saldo  a tela deixa de exibir um valor defasado entre a
+ * gravação e o recarregamento.
+ */
+export async function createEntrada(
+  rec: EntradaEstoqueInput,
+  branchId?: string | null
+): Promise<EntradaEstoque> {
+  const { data, error } = await supabase.rpc("register_stock_entry", {
+    p_categoria: rec.categoria,
+    p_item_key: rec.item_key,
+    p_item_nome: rec.item_nome,
+    p_quantidade: rec.quantidade,
+    p_valor_total: rec.valor_total ?? 0,
+    p_data: rec.data,
+    p_fornecedor: rec.fornecedor,
+    p_observacao: rec.observacao,
+    p_branch_id: branchId ?? activeBranch(),
+  });
+
+  if (error) throw storageError("Falha ao registrar a entrada de estoque", error);
+
+  const id = (data as { id: string } | null)?.id;
+  if (!id) throw new Error("Falha ao registrar a entrada de estoque: o banco não devolveu o identificador.");
+
+  const criadas = await getAllEntradas(rec.categoria);
+  return (
+    criadas.find((e) => e.id === id) ?? {
+      ...rec,
+      id,
+      valor_total: rec.valor_total ?? 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+  );
+}
+
+/**
+ * Transfere material entre filiais.
+ *
+ * A RPC valida o saldo na origem e grava as duas movimentações na mesma
+ * transação. Se algo falhar no meio, nada é gravado — não existe caminho em que
+ * a mercadoria sai de uma filial e não chega à outra.
+ */
+export async function transferirEstoque(params: {
+  de: string;
+  para: string;
+  itemKey: string;
+  itemNome: string;
+  quantidade: number;
+  observacao?: string;
+}): Promise<{ saldoOrigem: number; saldoDestino: number }> {
+  const { data, error } = await supabase.rpc("transfer_stock", {
+    p_de: params.de,
+    p_para: params.para,
+    p_item_key: params.itemKey,
+    p_item_nome: params.itemNome,
+    p_quantidade: params.quantidade,
+    p_observacao: params.observacao ?? "",
+  });
+
+  if (error) throw new Error(error.message);
+  const r = (data ?? {}) as { saldo_origem?: number; saldo_destino?: number };
+  return { saldoOrigem: num(r.saldo_origem), saldoDestino: num(r.saldo_destino) };
 }
 
 export async function updateEntrada(
@@ -97,106 +250,30 @@ export async function updateEntrada(
   if (error) throw error;
 }
 
+/** Exclui uma entrada e recalcula o saldo afetado na mesma transação. */
 export async function deleteEntrada(id: string): Promise<void> {
-  const { error } = await supabase.from("stock_entries").delete().eq("id", id);
-  if (error) throw error;
+  const { error } = await supabase.rpc("delete_stock_entry", { p_id: id });
+  if (error) throw storageError("Falha ao excluir a entrada de estoque", error);
 }
 
-export async function getAllConfigs(): Promise<ConfigEstoque[]> {
-  const { data, error } = await supabase.from("stock_settings").select("*");
-  if (error) throw error;
-  return (data || []) as ConfigEstoque[];
-}
-
-/** Cria ou atualiza o estoque mínimo de um item. */
+/** Cria ou atualiza o estoque mínimo de um item (upsert atômico no banco). */
 export async function upsertConfig(
   itemKey: string,
   categoria: CategoriaEstoque,
-  minimo: number
+  minimo: number,
+  branchId?: string | null
 ): Promise<void> {
-  const { error } = await supabase
-    .from("stock_settings")
-    .upsert({ item_key: itemKey, categoria, minimo, ativo: true }, { onConflict: "item_key" });
-  if (error) throw error;
+  const { error } = await supabase.rpc("set_stock_minimum", {
+    p_item_key: itemKey,
+    p_categoria: categoria,
+    p_minimo: minimo,
+    p_branch_id: branchId ?? activeBranch(),
+  });
+  if (error) throw storageError("Falha ao salvar o estoque mínimo", error);
 }
 
 // ============================================
-// SAÍDAS DERIVADAS DOS MÓDULOS VINCULADOS (puras)
-// ============================================
-
-/** Consumo real de produtos por nome (OS): Σ dose × área apontada, com substitutos. */
-export function consumoProdutosOS(oss: OrdemServico[]): Map<string, number> {
-  const consumo = new Map<string, number>();
-  for (const os of oss) {
-    for (const ap of os.apontamentos || []) {
-      const talhao = os.talhoes[ap.talhaoIndex];
-      if (!talhao) continue;
-      const area = parseFloat(ap.areaAplicada) || 0;
-      if (area <= 0) continue;
-      const produtos =
-        ap.produtosSubstitutos && ap.produtosSubstitutos.length > 0
-          ? ap.produtosSubstitutos
-          : talhao.produtos;
-      for (const p of produtos) {
-        if (!p.produto) continue;
-        const dose = parseFloat(p.dose) || 0;
-        const total = dose * area;
-        if (total <= 0) continue;
-        const key = norm(p.produto);
-        consumo.set(key, (consumo.get(key) || 0) + total);
-      }
-    }
-  }
-  for (const [k, v] of consumo) consumo.set(k, Math.round(v * 100) / 100);
-  return consumo;
-}
-
-/** Saída de peças por cadastro (itemId): Σ quantidade dos itens lançados nas manutenções. */
-export function consumoPecasManutencao(
-  registros: RegistroManutencao[]
-): Map<string, number> {
-  const consumo = new Map<string, number>();
-  for (const reg of registros) {
-    for (const item of reg.itens || []) {
-      if (item.tipo !== "peca" || !item.itemId) continue;
-      const total = item.quantidade || 0;
-      if (total <= 0) continue;
-      consumo.set(item.itemId, (consumo.get(item.itemId) || 0) + total);
-    }
-  }
-  for (const [k, v] of consumo) consumo.set(k, Math.round(v * 100) / 100);
-  return consumo;
-}
-
-/** Saída de acessórios por nome (manutenção de drones): 1 unidade por componente trocado. */
-export function consumoAcessoriosDrones(registros: MaintenanceRecord[]): Map<string, number> {
-  const consumo = new Map<string, number>();
-  for (const reg of registros) {
-    for (const comp of reg.componentes_trocados || []) {
-      const key = norm(comp.nome);
-      if (!key) continue;
-      consumo.set(key, (consumo.get(key) || 0) + 1);
-    }
-  }
-  return consumo;
-}
-
-/** Saída de combustível por tipo (abastecimentos): Σ litros. */
-export function consumoCombustivelAbastecimentos(
-  abastecimentos: Abastecimento[]
-): Map<string, number> {
-  const consumo = new Map<string, number>();
-  for (const a of abastecimentos) {
-    const key = norm(a.tipo_combustivel);
-    if (!key) continue;
-    consumo.set(key, (consumo.get(key) || 0) + (a.litros || 0));
-  }
-  for (const [k, v] of consumo) consumo.set(k, Math.round(v * 100) / 100);
-  return consumo;
-}
-
-// ============================================
-// MONTAGEM DO ESTOQUE (pura)
+// MONTAGEM DA TELA (apresentação — a aritmética vem do snapshot)
 // ============================================
 
 export interface ProdutoCadastrado {
@@ -232,150 +309,121 @@ export interface DadosEstoque {
   combustivel: ItemEstoque[];
 }
 
-function montarCategoria(params: {
-  categoria: CategoriaEstoque;
-  itens: Array<{ origemId: string; nome: string; detalhe: string; unidade: string }>;
-  consumo: Map<string, number>;
-  entradasPorKey: Map<string, EntradaEstoque[]>;
-  configs: Map<string, ConfigEstoque>;
-  /** true = a saída casa por nome normalizado; false = casa por item_key direto. */
-  saidaPorNome: boolean;
-}): ItemEstoque[] {
-  const itens: ItemEstoque[] = [];
+const brl = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
-  for (const src of params.itens) {
-    const itemKey = buildItemKey(params.categoria, src.origemId);
-    const entradas = params.entradasPorKey.get(itemKey) || [];
-    const entradasTotal = Math.round(entradas.reduce((s, e) => s + (e.quantidade || 0), 0) * 100) / 100;
-    const ultima = entradas.length
-      ? entradas.reduce((a, b) => (a.data >= b.data ? a : b))
-      : null;
-
-    const saidaTotal = params.saidaPorNome
-      ? params.consumo.get(norm(src.nome)) || 0
-      : params.consumo.get(src.origemId) || 0;
-
-    const config = params.configs.get(itemKey);
-    const saldo = Math.round((entradasTotal - saidaTotal) * 100) / 100;
-    const minimo = config?.minimo ?? 0;
-    const temConfig = !!config;
-
-    itens.push({
-      itemKey,
-      categoria: params.categoria,
-      nome: src.nome,
-      detalhe: src.detalhe,
-      unidade: src.unidade,
-      saldo,
-      entradasTotal,
-      saidaTotal: Math.round(saidaTotal * 100) / 100,
-      minimo,
-      temConfig,
-      abaixoDoMinimo: temConfig && saldo < minimo,
-      valorUltimaEntrada: ultima?.valor_total || 0,
-      dataUltimaEntrada: ultima?.data || null,
-    });
+function detalheProduto(p: ProdutoCadastrado): string {
+  if (p.package_size > 0) {
+    return (
+      `Emb. ${p.package_size} ${p.unit || ""}`.trim() +
+      (p.preco_unitario > 0 ? ` · R$ ${brl(p.preco_unitario)}` : "")
+    );
   }
+  return p.preco_unitario > 0 ? `R$ ${brl(p.preco_unitario)}` : "";
+}
+
+function formatar(
+  categoria: CategoriaEstoque,
+  snapshot: SnapshotItem[],
+  detalhes: Map<string, { detalhe: string; unidade: string }>,
+  configs: Map<string, ConfigEstoque>
+): ItemEstoque[] {
+  const itens: ItemEstoque[] = snapshot.map((row) => {
+    const extra = detalhes.get(row.item_key);
+    const config = configs.get(row.item_key);
+    const saldo = row.saldo;
+    const minimo = config?.minimo ?? 0;
+
+    return {
+      itemKey: row.item_key,
+      categoria,
+      nome: row.nome,
+      detalhe: extra?.detalhe ?? "",
+      unidade: extra?.unidade ?? "",
+      saldo,
+      entradasTotal: row.entradas_total,
+      saidaTotal: row.saida_total,
+      minimo,
+      temConfig: !!config,
+      abaixoDoMinimo: !!config && saldo < minimo,
+      valorUltimaEntrada: row.valor_ultima_entrada,
+      dataUltimaEntrada: row.data_ultima_entrada,
+    };
+  });
 
   itens.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   return itens;
 }
 
+/**
+ * Junta o retrato calculado pelo banco com os metadados de exibição dos
+ * cadastros. Nenhuma soma é feita aqui — saldo, entradas e saídas já vêm
+ * consolidados de `public.stock_snapshot()`.
+ */
 export function montarEstoque(params: {
   produtos: ProdutoCadastrado[];
   pecas: ItemManutencao[];
   acessorios: ComponenteCatalogo[];
   tiposCombustivel?: readonly string[];
-  entradas: EntradaEstoque[];
+  snapshot: SnapshotDados;
   configs: ConfigEstoque[];
-  oss: OrdemServico[];
-  registrosManutencao: RegistroManutencao[];
-  registrosDrone: MaintenanceRecord[];
-  abastecimentos: Abastecimento[];
 }): DadosEstoque {
-  const entradasPorKey = new Map<string, EntradaEstoque[]>();
-  for (const e of params.entradas) {
-    const lista = entradasPorKey.get(e.item_key) || [];
-    lista.push(e);
-    entradasPorKey.set(e.item_key, lista);
-  }
-
   const configs = new Map(params.configs.map((c) => [c.item_key, c]));
 
-  // Tipos de combustível: lista oficial + tipos distintos já lançados nos abastecimentos.
-  const tipos = new Set<string>(params.tiposCombustivel ?? TIPOS_COMBUSTIVEL);
-  for (const a of params.abastecimentos) {
-    if (a.tipo_combustivel && a.tipo_combustivel.trim()) tipos.add(a.tipo_combustivel.trim());
+  const detalhesProduto = new Map<string, { detalhe: string; unidade: string }>();
+  for (const p of params.produtos) {
+    detalhesProduto.set(buildItemKey("produto", p.id), {
+      detalhe: detalheProduto(p),
+      unidade: p.unit || "",
+    });
   }
 
-  const consumoProduto = consumoProdutosOS(params.oss);
-  const consumoPeca = consumoPecasManutencao(params.registrosManutencao);
-  const consumoAcessorio = consumoAcessoriosDrones(params.registrosDrone);
-  const consumoCombustivel = consumoCombustivelAbastecimentos(params.abastecimentos);
+  const detalhesPeca = new Map<string, { detalhe: string; unidade: string }>();
+  for (const p of params.pecas) {
+    detalhesPeca.set(buildItemKey("peca", p.id), {
+      detalhe: [p.categoria, p.custo > 0 ? `R$ ${brl(p.custo)}` : ""].filter(Boolean).join(" · "),
+      unidade: p.unidade || "",
+    });
+  }
+
+  const detalhesAcessorio = new Map<string, { detalhe: string; unidade: string }>();
+  for (const a of params.acessorios) {
+    detalhesAcessorio.set(buildItemKey("acessorio", a.id), {
+      detalhe: [a.marca, a.modelo].filter(Boolean).join(" "),
+      unidade: "un",
+    });
+  }
+
+  // O snapshot só devolve os combustíveis que já tiveram abastecimento.
+  // A lista oficial é mesclada para o operador ver os tipos cadastráveis.
+  const combustivel: SnapshotItem[] = [];
+  const vistos = new Set(params.snapshot.combustivel.map((i) => i.nome_norm));
+  for (const tipo of params.tiposCombustivel ?? TIPOS_COMBUSTIVEL) {
+    const chave = buildItemKey("combustivel", tipo);
+    if (vistos.has(tipo.trim().toLowerCase()) || vistos.has(chave)) continue;
+    combustivel.push({
+      categoria: "combustivel",
+      item_key: chave,
+      nome: tipo,
+      nome_norm: tipo.trim().toLowerCase(),
+      entradas_total: 0,
+      saida_total: 0,
+      saldo: 0,
+      valor_ultima_entrada: 0,
+      data_ultima_entrada: null,
+    });
+  }
+  combustivel.push(...params.snapshot.combustivel);
 
   return {
-    produto: montarCategoria({
-      categoria: "produto",
-      itens: params.produtos.map((p) => ({
-        origemId: p.id,
-        nome: p.commercial_name,
-        detalhe:
-          p.package_size > 0
-            ? `Emb. ${p.package_size} ${p.unit || ""}`.trim() +
-              (p.preco_unitario > 0
-                ? ` · R$ ${p.preco_unitario.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
-                : "")
-            : p.preco_unitario > 0
-              ? `R$ ${p.preco_unitario.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
-              : "",
-        unidade: p.unit || "",
-      })),
-      consumo: consumoProduto,
-      entradasPorKey,
-      configs,
-      saidaPorNome: true,
-    }),
-    peca: montarCategoria({
-      categoria: "peca",
-      itens: params.pecas.map((p) => ({
-        origemId: p.id,
-        nome: p.nome,
-        detalhe: [p.categoria, p.custo > 0 ? `R$ ${p.custo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : ""]
-          .filter(Boolean)
-          .join(" · "),
-        unidade: p.unidade || "",
-      })),
-      consumo: consumoPeca,
-      entradasPorKey,
-      configs,
-      saidaPorNome: false,
-    }),
-    acessorio: montarCategoria({
-      categoria: "acessorio",
-      itens: params.acessorios.map((a) => ({
-        origemId: a.id,
-        nome: a.nome,
-        detalhe: [a.marca, a.modelo].filter(Boolean).join(" "),
-        unidade: "un",
-      })),
-      consumo: consumoAcessorio,
-      entradasPorKey,
-      configs,
-      saidaPorNome: true,
-    }),
-    combustivel: montarCategoria({
-      categoria: "combustivel",
-      itens: [...tipos].map((t) => ({
-        origemId: t,
-        nome: t,
-        detalhe: "Litros",
-        unidade: "L",
-      })),
-      consumo: consumoCombustivel,
-      entradasPorKey,
-      configs,
-      saidaPorNome: true,
-    }),
+    produto: formatar("produto", params.snapshot.produto, detalhesProduto, configs),
+    peca: formatar("peca", params.snapshot.peca, detalhesPeca, configs),
+    acessorio: formatar("acessorio", params.snapshot.acessorio, detalhesAcessorio, configs),
+    combustivel: formatar(
+      "combustivel",
+      combustivel,
+      new Map(combustivel.map((i) => [i.item_key, { detalhe: "Litros", unidade: "L" }])),
+      configs
+    ),
   };
 }
 

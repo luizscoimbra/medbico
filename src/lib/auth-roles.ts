@@ -23,25 +23,39 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
-  const { data: profileData, error: profileError } = await supabase
+  const { data: profileData } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', userId)
-    .single();
+    .maybeSingle();
 
   const { data: { user } } = await supabase.auth.getUser();
   const metadata = user?.user_metadata || {};
 
-  const isLuiz = user?.email === 'luizssacoimbra@gmail.com';
-
-  // If profile table fails or is missing columns, use metadata fallback
+  /*
+   * Função, status, empresa e módulos vêm exclusivamente do perfil gravado no
+   * banco.
+   *
+   * Eles NÃO podem vir de `user_metadata`: esse objeto é gravado pelo próprio
+   * usuário no cadastro e é, portanto, controlado por ele. Ler o papel dali
+   * permitia que qualquer pessoa se cadastrasse dizendo ser "master"  e que
+   * um administrador promovesse a si mesmo com um update na própria linha.
+   *
+   * A empresa é o dado mais sensível de todos: as políticas de RLS derivam
+   * dela o tenant que define o que a pessoa enxerga. Mantê-la fora dos
+   * metadados é o que impede alguém de se cadastrar com o nome de outra
+   * empresa e cair dentro dos dados dela.
+   *
+   * Os metadados sobram apenas como valor inicial de exibição (nome e
+   * telefone), enquanto um administrador ajusta a função do usuário.
+   */
   return {
     id: userId,
-    full_name: profileData?.full_name || metadata.full_name || (isLuiz ? "Luiz Alberto" : "Usuário"),
-    phone: profileData?.phone || metadata.phone || "",
-    role: (isLuiz ? 'gestor' : (profileData?.role || metadata.role || 'operador')) as UserRole,
-    status: (profileData?.status || metadata.status || 'active') as UserStatus,
-    company: profileData?.company || metadata.company || "",
+    full_name: profileData?.full_name || metadata.full_name || 'Usuário',
+    phone: profileData?.phone || metadata.phone || '',
+    role: (profileData?.role || 'operador') as UserRole,
+    status: (profileData?.status || 'active') as UserStatus,
+    company: profileData?.company || '',
     email: user?.email,
     modules: (profileData?.modules ?? null) as ModuleOverrides | null
   };

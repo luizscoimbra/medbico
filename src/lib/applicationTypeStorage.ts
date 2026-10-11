@@ -1,4 +1,5 @@
-import { get, set, keys, del } from "idb-keyval";
+import { supabase } from "@/integrations/supabase/client";
+import { requireUserId, storageError } from "@/lib/db";
 
 export interface TipoAplicacao {
   id: string;
@@ -7,23 +8,45 @@ export interface TipoAplicacao {
   createdAt: string;
 }
 
+interface TipoRow {
+  id: string;
+  nome: string;
+  codigo: string;
+  created_at: string;
+}
+
+const fromRow = (row: TipoRow): TipoAplicacao => ({
+  id: row.id,
+  nome: row.nome,
+  codigo: row.codigo,
+  createdAt: row.created_at,
+});
+
 export async function saveTipoAplicacao(tipo: TipoAplicacao): Promise<void> {
-  await set(`tipo-aplicacao-${tipo.id}`, tipo);
+  const userId = await requireUserId();
+  const { error } = await supabase.from("application_types").upsert(
+    {
+      id: tipo.id,
+      user_id: userId,
+      nome: tipo.nome,
+      codigo: tipo.codigo,
+      created_at: tipo.createdAt,
+    },
+    { onConflict: "id" }
+  );
+  if (error) throw storageError("Falha ao salvar o tipo de aplicação", error);
 }
 
 export async function getAllTiposAplicacao(): Promise<TipoAplicacao[]> {
-  const allKeys = await keys();
-  const tipoKeys = allKeys.filter(
-    (k) => typeof k === "string" && k.startsWith("tipo-aplicacao-")
-  );
-  const results: TipoAplicacao[] = [];
-  for (const k of tipoKeys) {
-    const val = await get<TipoAplicacao>(k);
-    if (val) results.push(val);
-  }
-  return results.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const { data, error } = await supabase
+    .from("application_types")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw storageError("Falha ao carregar os tipos de aplicação", error);
+  return (data as TipoRow[]).map(fromRow);
 }
 
 export async function deleteTipoAplicacao(id: string): Promise<void> {
-  await del(`tipo-aplicacao-${id}`);
+  const { error } = await supabase.from("application_types").delete().eq("id", id);
+  if (error) throw storageError("Falha ao excluir o tipo de aplicação", error);
 }

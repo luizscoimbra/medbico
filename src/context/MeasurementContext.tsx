@@ -1,5 +1,7 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { toast } from "sonner";
 import { MeasurementData, NozzleReading } from "@/lib/nozzleData";
+import { getAllMeasurements, saveMeasurement as persistMeasurement } from "@/lib/measurementStorage";
 
 interface MeasurementContextType {
   currentMeasurement: MeasurementData | null;
@@ -8,17 +10,28 @@ interface MeasurementContextType {
   updateReadings: (readings: NozzleReading[]) => void;
   resetMeasurement: () => void;
   savedMeasurements: MeasurementData[];
-  saveMeasurement: (measurement: MeasurementData) => void;
+  saveMeasurement: (measurement: MeasurementData) => Promise<void>;
 }
 
 const MeasurementContext = createContext<MeasurementContextType | undefined>(undefined);
 
 export function MeasurementProvider({ children }: { children: ReactNode }) {
   const [currentMeasurement, setCurrentMeasurement] = useState<MeasurementData | null>(null);
-  const [savedMeasurements, setSavedMeasurements] = useState<MeasurementData[]>(() => {
-    const saved = localStorage.getItem("measurements");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [savedMeasurements, setSavedMeasurements] = useState<MeasurementData[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    getAllMeasurements()
+      .then((list) => {
+        if (active) setSavedMeasurements(list);
+      })
+      .catch(() => {
+        if (active) toast.error("Não foi possível carregar o histórico de medições.");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const updateEquipmentInfo = (info: Partial<MeasurementData>) => {
     setCurrentMeasurement((prev) => {
@@ -49,15 +62,16 @@ export function MeasurementProvider({ children }: { children: ReactNode }) {
     setCurrentMeasurement(null);
   };
 
-  const saveMeasurement = (measurement: MeasurementData) => {
-    const newMeasurement = {
-      ...measurement,
-      id: crypto.randomUUID(),
-    };
-    const updated = [newMeasurement, ...savedMeasurements];
-    setSavedMeasurements(updated);
-    localStorage.setItem("measurements", JSON.stringify(updated));
-  };
+  const saveMeasurement = useCallback(async (measurement: MeasurementData) => {
+    try {
+      const saved = await persistMeasurement({ ...measurement, id: crypto.randomUUID() });
+      setSavedMeasurements((prev) => [saved, ...prev.filter((m) => m.id !== saved.id)]);
+      toast.success("Medição salva!");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao salvar a medição.");
+      throw e;
+    }
+  }, []);
 
   return (
     <MeasurementContext.Provider

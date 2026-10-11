@@ -1,4 +1,5 @@
-import { get, set, keys, del } from "idb-keyval";
+import { supabase } from "@/integrations/supabase/client";
+import { asArray, asJsonArray, num, orNull, requireScope, storageError } from "@/lib/db";
 
 export interface ProdutoDose {
   produto: string;
@@ -89,6 +90,31 @@ export interface OrdemServico {
   valorTotal?: number;
 }
 
+interface OsRow {
+  id: string;
+  os_externa: string | null;
+  data: string;
+  propriedade: string;
+  codigo_area: string | null;
+  responsavel_tecnico: string | null;
+  aplicador: string | null;
+  talhoes: unknown;
+  created_at: string;
+  volume_calda_ha: string | null;
+  coordenadas: string | null;
+  tipo_aplicacao: string | null;
+  codigo_aplicacao: string | null;
+  apontamentos: unknown;
+  status: string | null;
+  equipamentos: unknown;
+  cliente_id: string | null;
+  cliente_nome: string | null;
+  servicos: unknown;
+  valor_herbicidas: number | string | null;
+  valor_servico: number | string | null;
+  valor_total: number | string | null;
+}
+
 function getTodayPrefix(): string {
   const now = new Date();
   const y = now.getFullYear();
@@ -97,32 +123,109 @@ function getTodayPrefix(): string {
   return `${y}${m}${d}`;
 }
 
+function fromRow(row: OsRow): OrdemServico {
+  return {
+    id: row.id,
+    osExterna: row.os_externa ?? undefined,
+    data: row.data,
+    propriedade: row.propriedade,
+    codigoArea: row.codigo_area ?? "",
+    responsavelTecnico: row.responsavel_tecnico ?? "",
+    aplicador: row.aplicador ?? "",
+    talhoes: asArray<TalhaoData>(row.talhoes),
+    createdAt: row.created_at,
+    volumeCaldaHa: row.volume_calda_ha ?? undefined,
+    coordenadas: row.coordenadas ?? undefined,
+    tipoAplicacao: row.tipo_aplicacao ?? undefined,
+    codigoAplicacao: row.codigo_aplicacao ?? undefined,
+    apontamentos: asArray<ApontamentoTalhao>(row.apontamentos),
+    status: (row.status as OrdemServico["status"]) ?? undefined,
+    equipamentos: asArray<string>(row.equipamentos),
+    clienteId: row.cliente_id ?? undefined,
+    clienteNome: row.cliente_nome ?? undefined,
+    servicos: asArray<ServicoOS>(row.servicos),
+    valorHerbicidas: row.valor_herbicidas == null ? undefined : num(row.valor_herbicidas),
+    valorServico: row.valor_servico == null ? undefined : num(row.valor_servico),
+    valorTotal: row.valor_total == null ? undefined : num(row.valor_total),
+  };
+}
+
+function toRow(os: OrdemServico, userId: string, branchId: string | null) {
+  return {
+    id: os.id,
+    user_id: userId,
+    branch_id: branchId,
+    os_externa: orNull(os.osExterna),
+    data: os.data,
+    propriedade: os.propriedade,
+    codigo_area: os.codigoArea,
+    responsavel_tecnico: os.responsavelTecnico,
+    aplicador: os.aplicador,
+    talhoes: asJsonArray(os.talhoes),
+    created_at: os.createdAt,
+    volume_calda_ha: orNull(os.volumeCaldaHa),
+    coordenadas: orNull(os.coordenadas),
+    tipo_aplicacao: orNull(os.tipoAplicacao),
+    codigo_aplicacao: orNull(os.codigoAplicacao),
+    apontamentos: asJsonArray(os.apontamentos),
+    status: os.status ?? null,
+    equipamentos: asJsonArray(os.equipamentos),
+    cliente_id: orNull(os.clienteId),
+    cliente_nome: orNull(os.clienteNome),
+    servicos: asJsonArray(os.servicos),
+    valor_herbicidas: os.valorHerbicidas ?? null,
+    valor_servico: os.valorServico ?? null,
+    valor_total: os.valorTotal ?? null,
+  };
+}
+
+/**
+ * Próximo identificador do dia (AAAAMMDD-NNN).
+ *
+ * A numeração é resolvida no PostgreSQL com trava de concorrência: o
+ * contador anterior ficava no navegador e reiniciava em cada dispositivo,
+ * gerando ids duplicados assim que alguém abriu uma OS no celular.
+ */
 export async function generateOSId(): Promise<string> {
-  const prefix = getTodayPrefix();
-  const counterKey = `os-counter-${prefix}`;
-  const current = (await get<number>(counterKey)) || 0;
-  const next = current + 1;
-  await set(counterKey, next);
-  return `${prefix}-${String(next).padStart(3, "0")}`;
+  const { data, error } = await supabase.rpc("next_os_id", {
+    p_prefix: getTodayPrefix(),
+  });
+  if (error) throw storageError("Não foi possível gerar o número da OS", error);
+  return String(data);
 }
 
 export async function saveOS(os: OrdemServico): Promise<void> {
-  await set(`os-${os.id}`, os);
+  const { userId, branchId } = await requireScope();
+
+  const { error } = await supabase
+    .from("orders_of_service")
+    .upsert({ ...toRow(os, userId, branchId) }, { onConflict: "id" });
+
+  if (error) throw storageError("Falha ao salvar a OS", error);
 }
 
 export async function getAllOS(): Promise<OrdemServico[]> {
-  const allKeys = await keys();
-  const osKeys = allKeys.filter(
-    (k) => typeof k === "string" && k.startsWith("os-") && !k.startsWith("os-counter-")
-  );
-  const results: OrdemServico[] = [];
-  for (const k of osKeys) {
-    const val = await get<OrdemServico>(k);
-    if (val) results.push(val);
-  }
-  return results.sort((a, b) => b.id.localeCompare(a.id));
+  const { data, error } = await supabase
+    .from("orders_of_service")
+    .select("*")
+    .order("id", { ascending: false });
+
+  if (error) throw storageError("Falha ao carregar as OS", error);
+  return (data as OsRow[]).map(fromRow);
+}
+
+export async function getOSById(id: string): Promise<OrdemServico | undefined> {
+  const { data, error } = await supabase
+    .from("orders_of_service")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw storageError("Falha ao carregar a OS", error);
+  return data ? fromRow(data as OsRow) : undefined;
 }
 
 export async function deleteOS(id: string): Promise<void> {
-  await del(`os-${id}`);
+  const { error } = await supabase.from("orders_of_service").delete().eq("id", id);
+  if (error) throw storageError("Falha ao excluir a OS", error);
 }

@@ -578,7 +578,7 @@ export function ContasPagar({ titulos, onReload, onComprovante }: ContasPagarPro
                     <tr key={t.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3 font-mono font-semibold">{t.numero}</td>
                       <td className="px-4 py-3">
-                        <p className="font-medium">{t.fornecedorNome || "—"}</p>
+                        <p className="font-medium">{t.fornecedorNome || ""}</p>
                         {t.categoria && (
                           <p className="text-[11px] text-muted-foreground">{t.categoria}</p>
                         )}
@@ -590,7 +590,7 @@ export function ContasPagar({ titulos, onReload, onComprovante }: ContasPagarPro
                       <td className="px-4 py-3 whitespace-nowrap">
                         {t.dataVencimento
                           ? new Date(t.dataVencimento + "T00:00:00").toLocaleDateString("pt-BR")
-                          : "—"}
+                          : ""}
                       </td>
                       <td className="px-4 py-3 text-right font-mono font-semibold whitespace-nowrap">
                         {formatBRL(t.valor)}
@@ -725,7 +725,7 @@ export function ContasPagar({ titulos, onReload, onComprovante }: ContasPagarPro
                         {f.nome}
                       </SelectItem>
                     ))}
-                    <SelectItem value={LIVRE}>Digitar manualmente…</SelectItem>
+                    <SelectItem value={LIVRE}>Digitar manualmente&</SelectItem>
                   </SelectContent>
                 </Select>
                 {form.fornId === LIVRE && (
@@ -958,7 +958,7 @@ export function ContasPagar({ titulos, onReload, onComprovante }: ContasPagarPro
                         </p>
                         <p className="text-[11px] text-muted-foreground">
                           {m.origem === "drone" ? "Drone" : "Equipamento"} ·{" "}
-                          {m.data ? new Date(m.data + "T00:00:00").toLocaleDateString("pt-BR") : "—"}{" "}
+                          {m.data ? new Date(m.data + "T00:00:00").toLocaleDateString("pt-BR") : ""}{" "}
                           · {m.responsavel || "sem responsável"}
                         </p>
                       </div>

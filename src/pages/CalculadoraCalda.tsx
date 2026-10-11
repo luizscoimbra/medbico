@@ -18,6 +18,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  deleteCalculoCalda,
+  getAllCalculosCalda,
+  saveCalculoCalda,
+  type CalculoCaldaRecord,
+} from "@/lib/caldaStorage";
 
 type FormulacaoConhecida = "WP" | "WG" | "SC" | "EC" | "SL" | "ADJ";
 
@@ -99,7 +105,7 @@ function getFormulacaoInfo(f: string) {
 
 // ── Parâmetros do modo Drone (aplicação em baixo volume) ──────────────
 const DRONE_V_MIN = 5;            // L/ha — início da faixa usual do drone
-const DRONE_V_MAX = 20;           // L/ha — fim da faixa usual do drone
+const DRONE_V_MAX = 20;           // L/ha  fim da faixa usual do drone
 const FC_ALERTA = 15;             // % — concentração elevada (alerta amarelo)
 const FC_CRITICO = 20;            // % — alerta vermelho de alta concentração
 const AGUA_INICIAL_FRACAO = 0.7;  // 70% do tanque recebe água antes dos produtos
@@ -162,19 +168,27 @@ interface ProdutoCadastrado {
   package_size: number;
 }
 
-const HISTORICO_KEY = "historico_calda";
-
-function loadHistorico(): HistoricoCalda[] {
-  try {
-    const saved = localStorage.getItem(HISTORICO_KEY);
-    return saved ? JSON.parse(saved) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveHistorico(list: HistoricoCalda[]) {
-  localStorage.setItem(HISTORICO_KEY, JSON.stringify(list));
+/**
+ * O histórico de caldas migrou de `localStorage` para a tabela
+ * `spray_mix_recipes` no PostgreSQL, para acompanhar oTalhão em qualquer
+ * dispositivo. As duas formas abaixo traduzem entre o formato da tela e o
+ * formato persistido.
+ */
+function toHistorico(record: CalculoCaldaRecord): HistoricoCalda {
+  return {
+    id: record.id,
+    data: record.data,
+    talhao: record.talhao,
+    areaTalhao: record.areaTalhao,
+    vazaoTrabalho: record.vazaoTrabalho,
+    capacidadeTanque: record.capacidadeTanque,
+    produtos: record.produtos as unknown as Produto[],
+    volumeTotal: record.volumeTotalCalda,
+    tanquesCheios: record.tanquesCheios,
+    volumeRestante: record.volumeRestante,
+    tanquesNecessarios: record.tanquesNecessarios,
+    modo: record.modo as ModoAplicacao | undefined,
+  };
 }
 
 export default function CalculadoraCalda() {
@@ -193,7 +207,7 @@ export default function CalculadoraCalda() {
   const [mostrarResultado, setMostrarResultado] = useState(false);
 
   // History
-  const [historico, setHistorico] = useState<HistoricoCalda[]>(loadHistorico);
+  const [historico, setHistorico] = useState<HistoricoCalda[]>([]);
   const [showHistorico, setShowHistorico] = useState(false);
   const [searchHistorico, setSearchHistorico] = useState("");
   const [expandedHistorico, setExpandedHistorico] = useState<string | null>(null);
@@ -224,6 +238,12 @@ export default function CalculadoraCalda() {
     });
   }, []);
 
+  useEffect(() => {
+    getAllCalculosCalda()
+      .then((lista) => setHistorico(lista.map(toHistorico)))
+      .catch((e) => toast.error(e instanceof Error ? e.message : "Falha ao carregar o histórico de caldas."));
+  }, []);
+
   const filteredOS = useMemo(() => {
     if (!osSearch.trim()) return ordens;
     const s = osSearch.toLowerCase();
@@ -237,7 +257,7 @@ export default function CalculadoraCalda() {
   const handleSelectOS = (os: OrdemServico) => {
     setSelectedOS(os);
     setSelectedTalhaoIdx(null);
-    setOsSearch(os.osExterna ? `${os.id} — ${os.osExterna}` : os.id);
+    setOsSearch(os.osExterna ? `${os.id}  ${os.osExterna}` : os.id);
     setShowOsSuggestions(false);
     setMostrarResultado(false);
   };
@@ -560,7 +580,7 @@ export default function CalculadoraCalda() {
     areaTalhao > 0 &&
     droneChecks.bloqueios.length === 0;
 
-  const handleCalcular = () => {
+  const handleCalcular = async () => {
     setMostrarResultado(true);
     // Save to history
     const entry: HistoricoCalda = {
@@ -577,9 +597,25 @@ export default function CalculadoraCalda() {
       tanquesNecessarios,
       modo,
     };
-    const updated = [entry, ...historico];
-    setHistorico(updated);
-    saveHistorico(updated);
+    try {
+      await saveCalculoCalda({
+        id: entry.id,
+        data: entry.data,
+        talhao: entry.talhao,
+        areaTalhao: entry.areaTalhao,
+        vazaoTrabalho: entry.vazaoTrabalho,
+        capacidadeTanque: entry.capacidadeTanque,
+        produtos: entry.produtos as unknown as CalculoCaldaRecord["produtos"],
+        volumeTotalCalda: entry.volumeTotal,
+        tanquesCheios: entry.tanquesCheios,
+        volumeRestante: entry.volumeRestante,
+        tanquesNecessarios: entry.tanquesNecessarios,
+        modo: entry.modo,
+      });
+      setHistorico((prev) => [entry, ...prev]);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao salvar o histórico de caldas.");
+    }
   };
 
   const handleShare = async () => {
@@ -626,11 +662,14 @@ export default function CalculadoraCalda() {
     }
   };
 
-  const handleRemoverHistorico = (id: string) => {
-    const updated = historico.filter((h) => h.id !== id);
-    setHistorico(updated);
-    saveHistorico(updated);
-    if (expandedHistorico === id) setExpandedHistorico(null);
+  const handleRemoverHistorico = async (id: string) => {
+    try {
+      await deleteCalculoCalda(id);
+      setHistorico((prev) => prev.filter((h) => h.id !== id));
+      if (expandedHistorico === id) setExpandedHistorico(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao excluir o registro.");
+    }
   };
 
   const handleCarregarHistorico = (h: HistoricoCalda) => {
@@ -791,7 +830,7 @@ export default function CalculadoraCalda() {
                       </Badge>
                     </div>
                     <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{os.propriedade || "—"}</span>
+                      <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{os.propriedade || ""}</span>
                       <span className="flex items-center gap-1"><Package className="h-3 w-3" />{os.talhoes?.length || 0} talhão(ões)</span>
                     </div>
                   </button>
@@ -814,14 +853,14 @@ export default function CalculadoraCalda() {
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-primary" />
                     <span className="font-medium text-sm">OS {selectedOS.id}</span>
-                    {selectedOS.osExterna && <span className="text-xs text-muted-foreground">• Ext: {selectedOS.osExterna}</span>}
+                    {selectedOS.osExterna && <span className="text-xs text-muted-foreground">" Ext: {selectedOS.osExterna}</span>}
                   </div>
                   <Badge variant="outline" className="text-xs border-primary/30 text-primary">
                     {selectedOS.talhoes?.length || 0} talhão(ões)
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />{selectedOS.propriedade || "—"}
+                  <MapPin className="h-3 w-3" />{selectedOS.propriedade || ""}
                   {selectedOS.volumeCaldaHa && <> · <Droplets className="h-3 w-3" />{selectedOS.volumeCaldaHa} L/ha</>}
                 </p>
               </div>
@@ -843,7 +882,7 @@ export default function CalculadoraCalda() {
                       <div>
                         <p className="font-medium text-sm">{t.nome || `Talhão ${idx + 1}`}</p>
                         <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
-                          <span>{t.area || "—"} ha</span>
+                          <span>{t.area || ""} ha</span>
                           {t.produtos?.length > 0 && (
                             <span>{t.produtos.length} produto(s)</span>
                           )}
@@ -912,7 +951,7 @@ export default function CalculadoraCalda() {
                     <div className="rounded-lg bg-warning/10 border border-warning/20 p-3 text-xs space-y-1.5">
                       <p className="text-foreground">
                         Faixa usual do drone: <span className="font-mono font-bold">{DRONE_V_MIN}–{DRONE_V_MAX} L/ha</span> · Tanques comuns: <span className="font-mono font-bold">5–50 L</span>
-                        {" "}(terrestre: 100–200 L/ha).
+                        {" "}(terrestre: 100200 L/ha).
                       </p>
                       {vazaoTrabalho > 0 && (vazaoTrabalho < DRONE_V_MIN || vazaoTrabalho > DRONE_V_MAX) && (
                         <div className="flex items-center gap-2 flex-wrap">
@@ -930,7 +969,7 @@ export default function CalculadoraCalda() {
                       )}
                       {capacidadeTanque > 200 && (
                         <p className="text-amber-700">
-                          Tanque de {capacidadeTanque.toLocaleString("pt-BR")} L parece ser de pulverizador terrestre — informe a capacidade real do drone.
+                          Tanque de {capacidadeTanque.toLocaleString("pt-BR")} L parece ser de pulverizador terrestre  informe a capacidade real do drone.
                         </p>
                       )}
                     </div>
@@ -978,7 +1017,7 @@ export default function CalculadoraCalda() {
                                     <SelectContent>
                                       {FORMULACAO_OPTIONS.map(([key, info]) => (
                                         <SelectItem key={key} value={key} className="text-xs">
-                                          {key} — {info.descricao}
+                                          {key}  {info.descricao}
                                         </SelectItem>
                                       ))}
                                     </SelectContent>
@@ -1015,7 +1054,7 @@ export default function CalculadoraCalda() {
                     <div className="rounded-lg bg-destructive/10 border border-destructive/40 p-3 flex items-start gap-2">
                       <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
                       <div className="text-xs text-destructive">
-                        <p className="font-bold mb-1">Bloqueio de compatibilidade — mistura direta proibida:</p>
+                        <p className="font-bold mb-1">Bloqueio de compatibilidade  mistura direta proibida:</p>
                         <ul className="list-disc list-inside space-y-1">
                           {droneChecks.bloqueios.map((b, i) => (
                             <li key={`blk-${i}`}>{b}</li>
@@ -1042,7 +1081,7 @@ export default function CalculadoraCalda() {
                       </p>
                       {droneChecks.alertas.map((a, i) => (
                         <p key={`al-${i}`} className={a.nivel === "critico" ? "text-destructive" : "text-amber-700"}>
-                          • {a.texto}
+                          " {a.texto}
                         </p>
                       ))}
                       {droneChecks.alertas.length === 0 && (
@@ -1101,7 +1140,7 @@ export default function CalculadoraCalda() {
             <div className="grid grid-cols-4 gap-2 text-xs mb-3">
               <div className="border border-border rounded p-2">
                 <span className="text-muted-foreground block">Talhão</span>
-                <span className="font-bold">{talhao || "—"}</span>
+                <span className="font-bold">{talhao || ""}</span>
               </div>
               <div className="border border-border rounded p-2">
                 <span className="text-muted-foreground block">Área</span>
@@ -1548,7 +1587,7 @@ export default function CalculadoraCalda() {
                           </p>
                           <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                             <Calendar className="h-3 w-3" />
-                            {formatDate(h.data)} — {h.areaTalhao} ha — {h.tanquesNecessarios} abast.
+                            {formatDate(h.data)}  {h.areaTalhao} ha  {h.tanquesNecessarios} abast.
                           </p>
                         </div>
                         <div className="flex items-center gap-2">

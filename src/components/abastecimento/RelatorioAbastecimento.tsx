@@ -4,9 +4,9 @@ import type { LinhaHistorico } from "@/lib/equipmentFuelStorage";
 import { formatBRL } from "@/lib/utils";
 
 const fmtData = (value?: string) => {
-  if (!value) return "—";
+  if (!value) return "";
   const [y, m, d] = value.slice(0, 10).split("-");
-  if (!y || !m || !d) return "—";
+  if (!y || !m || !d) return "";
   return `${d}/${m}/${y}`;
 };
 
@@ -90,8 +90,8 @@ export const RelatorioAbastecimento = forwardRef<
       const valorTotal = linhas.reduce((s, l) => s + (l.valor_total || 0), 0);
       return {
         equipment_id: id,
-        fleet_number: linhas[linhas.length - 1]?.fleet_number || eq?.fleet_number || "—",
-        modelo: eq ? eq.equipment_model || eq.tractor_model || "—" : "Equipamento removido",
+        fleet_number: linhas[linhas.length - 1]?.fleet_number || eq?.fleet_number || "",
+        modelo: eq ? eq.equipment_model || eq.tractor_model || "" : "Equipamento removido",
         linhas,
         litros: Math.round(litros * 100) / 100,
         horas: Math.round(horas * 10) / 10,
@@ -122,7 +122,7 @@ export const RelatorioAbastecimento = forwardRef<
       : equipamentos
           .filter((e) => selecionados.includes(e.id))
           .map((e) => e.fleet_number)
-          .join(", ") || "—";
+          .join(", ") || "";
 
   return (
     <>
@@ -222,7 +222,7 @@ export const RelatorioAbastecimento = forwardRef<
           />
           <TotalBloco
             label="Média de gasto"
-            valor={totais.mediaLph != null ? `${totais.mediaLph} L/h` : "—"}
+            valor={totais.mediaLph != null ? `${totais.mediaLph} L/h` : ""}
             sub="litros ÷ horas"
           />
           <TotalBloco
@@ -242,7 +242,7 @@ export const RelatorioAbastecimento = forwardRef<
             <section key={r.equipment_id} className="mb-4">
               <div className="flex flex-wrap items-center justify-between gap-2 border border-gray-400 bg-gray-100 rounded px-2 py-1.5 mb-1.5">
                 <p className="font-bold text-[11px] uppercase">
-                  {r.fleet_number} — {r.modelo}
+                  {r.fleet_number}  {r.modelo}
                 </p>
                 <p className="text-[10px] font-medium">
                   {r.linhas.length} registro(s) · {r.litros.toLocaleString("pt-BR")} L ·{" "}
@@ -302,22 +302,22 @@ export const RelatorioAbastecimento = forwardRef<
                         {l.litros.toLocaleString("pt-BR")} L
                       </td>
                       <td className="border border-gray-400 px-1.5 py-1 text-right font-mono">
-                        {l.horasDesdeUltimo != null ? `${l.horasDesdeUltimo} h` : "—"}
+                        {l.horasDesdeUltimo != null ? `${l.horasDesdeUltimo} h` : ""}
                       </td>
                       <td className="border border-gray-400 px-1.5 py-1 text-right font-mono">
-                        {l.consumoLph != null ? `${l.consumoLph} L/h` : "—"}
+                        {l.consumoLph != null ? `${l.consumoLph} L/h` : ""}
                       </td>
                       <td className="border border-gray-400 px-1.5 py-1 whitespace-nowrap">
-                        {l.tipo_combustivel || "—"}
+                        {l.tipo_combustivel || ""}
                       </td>
                       <td className="border border-gray-400 px-1.5 py-1 text-right font-mono whitespace-nowrap">
-                        {l.valor_total > 0 ? formatBRL(l.valor_total) : "—"}
+                        {l.valor_total > 0 ? formatBRL(l.valor_total) : ""}
                       </td>
                       <td className="border border-gray-400 px-1.5 py-1">
-                        {l.posto_fornecedor || "—"}
+                        {l.posto_fornecedor || ""}
                       </td>
                       <td className="border border-gray-400 px-1.5 py-1 font-mono whitespace-nowrap">
-                        {l.os_id || "—"}
+                        {l.os_id || ""}
                       </td>
                     </tr>
                   ))}
@@ -332,7 +332,7 @@ export const RelatorioAbastecimento = forwardRef<
                       {r.horas} h
                     </td>
                     <td className="border border-gray-400 px-1.5 py-1 text-right font-mono">
-                      {r.mediaLph != null ? `${r.mediaLph} L/h` : "—"}
+                      {r.mediaLph != null ? `${r.mediaLph} L/h` : ""}
                     </td>
                     <td className="border border-gray-400 px-1.5 py-1" colSpan={2}>
                       {formatBRL(r.valorTotal)}

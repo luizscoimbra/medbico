@@ -587,7 +587,7 @@ export function OSApontamento({
                       <td className="py-1.5 font-medium">{a.fleet_number}</td>
                       <td className="py-1.5 text-right">{a.horimetro} h</td>
                       <td className="py-1.5 text-right">{a.litros.toLocaleString("pt-BR")} L</td>
-                      <td className="py-1.5">{a.tipo_combustivel || "—"}</td>
+                      <td className="py-1.5">{a.tipo_combustivel || ""}</td>
                       <td className="py-1.5 text-right font-semibold">{formatBRL(a.valor_total || 0)}</td>
                       <td className="py-1.5 text-right">
                         <Button
@@ -859,7 +859,7 @@ export function OSApontamento({
                               Sugestao de Carga para {areaDigitada.toFixed(2)} ha
                             </p>
                             <p className="text-xs text-blue-700 mt-1">
-                              Volume necessario: <strong>{(caldaNecessaria % 1 === 0 ? caldaNecessaria.toFixed(0) : caldaNecessaria.toFixed(3))}L</strong> — Tanque: <strong>{tankCapacity}L</strong>
+                              Volume necessario: <strong>{(caldaNecessaria % 1 === 0 ? caldaNecessaria.toFixed(0) : caldaNecessaria.toFixed(3))}L</strong>  Tanque: <strong>{tankCapacity}L</strong>
                             </p>
                             <div className="flex flex-wrap gap-2 mt-2">
                               <Button
@@ -1192,7 +1192,7 @@ export function OSApontamento({
                         >
                           <div className="text-left">
                             <p className="font-bold text-sm">{talhao.nome || `Talhão ${idx + 1}`}</p>
-                            <p className="text-[10px] text-muted-foreground">{talhao.area} ha — Faltante: {calc.areaFaltante.toFixed(2)} ha</p>
+                            <p className="text-[10px] text-muted-foreground">{talhao.area} ha  Faltante: {calc.areaFaltante.toFixed(2)} ha</p>
                           </div>
                           {calc.areaFaltante > 0 ? (
                             <div className="w-2 h-2 rounded-full bg-blue-500" />

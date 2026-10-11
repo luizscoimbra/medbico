@@ -699,7 +699,7 @@ export default function Drones() {
                   <TableCell className="font-mono text-sm">{horas}h</TableCell>
                   {showPercent && (
                     <TableCell className="hidden sm:table-cell font-mono text-sm">
-                      {percent !== null ? `${percent}%` : "—"}
+                      {percent !== null ? `${percent}%` : ""}
                     </TableCell>
                   )}
                   <TableCell>{droneRowActions(d)}</TableCell>
@@ -777,13 +777,13 @@ export default function Drones() {
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <InfoItem label="Modelo" value={selectedDrone.modelo} />
-                  <InfoItem label="Marca" value={selectedDrone.marca || "—"} />
+                  <InfoItem label="Marca" value={selectedDrone.marca || ""} />
                   <InfoItem label="N. Serie" value={selectedDrone.numero_serie} />
-                  <InfoItem label="Registro ANAC" value={selectedDrone.registro_anac || "—"} />
-                  <InfoItem label="Registro ANATEL" value={selectedDrone.registro_anatel || "—"} />
+                  <InfoItem label="Registro ANAC" value={selectedDrone.registro_anac || ""} />
+                  <InfoItem label="Registro ANATEL" value={selectedDrone.registro_anatel || ""} />
                   <InfoItem
                     label="MTOW"
-                    value={selectedDrone.mtow ? `${selectedDrone.mtow} kg` : "—"}
+                    value={selectedDrone.mtow ? `${selectedDrone.mtow} kg` : ""}
                   />
                   <InfoItem label="Apólice Seguro" value={selectedDrone.apolice_seguro || "—"} />
                   <InfoItem
@@ -791,7 +791,7 @@ export default function Drones() {
                     value={
                       selectedDrone.data_vencimento_seguro
                         ? new Date(selectedDrone.data_vencimento_seguro).toLocaleDateString("pt-BR")
-                        : "—"
+                        : ""
                     }
                   />
                   <InfoItem
@@ -954,7 +954,7 @@ export default function Drones() {
                                 {doc.titulo}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {DOCUMENT_TYPES[doc.tipo]} • Vence em{" "}
+                                {DOCUMENT_TYPES[doc.tipo]} " Vence em{" "}
                                 {new Date(doc.data_vencimento).toLocaleDateString("pt-BR")}
                               </p>
                             </div>
@@ -1034,10 +1034,10 @@ export default function Drones() {
                           <TableRow key={pilot.id}>
                             <TableCell className="font-medium">{pilot.nome}</TableCell>
                             <TableCell className="hidden sm:table-cell text-muted-foreground text-xs">
-                              {pilot.licenca_anac || "—"}
+                              {pilot.licenca_anac || ""}
                             </TableCell>
                             <TableCell className="hidden sm:table-cell text-muted-foreground text-xs">
-                              {pilot.telefone || "—"}
+                              {pilot.telefone || ""}
                             </TableCell>
                             <TableCell className="hidden md:table-cell">
                               {pilot.horas_voo_total || 0} h
@@ -1256,7 +1256,7 @@ export default function Drones() {
                     >
                       <TableCell className="font-medium">{drone.modelo}</TableCell>
                       <TableCell className="hidden sm:table-cell">
-                        {drone.marca || "—"}
+                        {drone.marca || ""}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-xs">
                         {drone.numero_serie}

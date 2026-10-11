@@ -1045,7 +1045,7 @@ export default function AferirVazao() {
                         : materialDrone === "liquido"
                         ? "Informe a vazão total medida pelo fluxômetro integrado (ex.: DJI Agras, XAG) em tempo real"
                         : metodoSolido === "bancada"
-                        ? "Comporta aberta na porcentagem de trabalho — pese a massa expelida em um intervalo de tempo exato"
+                        ? "Comporta aberta na porcentagem de trabalho  pese a massa expelida em um intervalo de tempo exato"
                         : "Informe a vazão máxima do sistema e a abertura atual de comporta informadas no app/manual do drone"}
                     </p>
                   </div>
@@ -1223,7 +1223,7 @@ export default function AferirVazao() {
                         <div className="space-y-2">
                           <Label className="text-sm font-semibold">Vazão real estimada</Label>
                           <div className="h-11 flex items-center px-3 rounded-md border border-border bg-muted/40 font-mono font-bold text-lg">
-                            {vazaoMax > 0 && comporta > 0 ? `${((vazaoMax * comporta) / 100).toFixed(3)} kg/min` : "—"}
+                            {vazaoMax > 0 && comporta > 0 ? `${((vazaoMax * comporta) / 100).toFixed(3)} kg/min` : ""}
                           </div>
                         </div>
                         <p className="md:col-span-3 text-xs text-muted-foreground">

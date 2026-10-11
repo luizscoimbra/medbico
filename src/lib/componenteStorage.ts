@@ -1,4 +1,5 @@
-import { get, set } from "idb-keyval";
+import { supabase } from "@/integrations/supabase/client";
+import { num, requireUserId, storageError } from "@/lib/db";
 
 export interface ComponenteCatalogo {
   id: string;
@@ -10,30 +11,51 @@ export interface ComponenteCatalogo {
   createdAt: string;
 }
 
-const STORAGE_KEY = "medbico_componentes_catalogo";
+interface ComponenteRow {
+  id: string;
+  nome: string;
+  numero_serie: string;
+  marca: string;
+  modelo: string;
+  custo: number | string;
+  created_at: string;
+}
+
+const fromRow = (row: ComponenteRow): ComponenteCatalogo => ({
+  id: row.id,
+  nome: row.nome,
+  numero_serie: row.numero_serie,
+  marca: row.marca,
+  modelo: row.modelo,
+  custo: num(row.custo),
+  createdAt: row.created_at,
+});
 
 export const saveComponente = async (componente: ComponenteCatalogo): Promise<void> => {
-  const componentes = await getAllComponentes();
-  const index = componentes.findIndex((item) => item.id === componente.id);
-
-  if (index !== -1) {
-    componentes[index] = componente;
-  } else {
-    componentes.push(componente);
-  }
-
-  await set(STORAGE_KEY, componentes);
+  const userId = await requireUserId();
+  const { error } = await supabase.from("component_catalog").upsert(
+    {
+      id: componente.id,
+      user_id: userId,
+      nome: componente.nome,
+      numero_serie: componente.numero_serie,
+      marca: componente.marca,
+      modelo: componente.modelo,
+      custo: componente.custo,
+      created_at: componente.createdAt,
+    },
+    { onConflict: "id" }
+  );
+  if (error) throw storageError("Falha ao salvar o componente", error);
 };
 
 export const getAllComponentes = async (): Promise<ComponenteCatalogo[]> => {
-  const componentes = (await get<ComponenteCatalogo[]>(STORAGE_KEY)) || [];
-  return componentes.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  const { data, error } = await supabase.from("component_catalog").select("*").order("nome");
+  if (error) throw storageError("Falha ao carregar os componentes", error);
+  return (data as ComponenteRow[]).map(fromRow);
 };
 
 export const deleteComponente = async (id: string): Promise<void> => {
-  const componentes = await getAllComponentes();
-  await set(
-    STORAGE_KEY,
-    componentes.filter((item) => item.id !== id)
-  );
+  const { error } = await supabase.from("component_catalog").delete().eq("id", id);
+  if (error) throw storageError("Falha ao excluir o componente", error);
 };

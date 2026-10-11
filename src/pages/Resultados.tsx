@@ -34,9 +34,8 @@ export default function Resultados() {
 
   const diagnosis = calculateOverallDiagnosis(currentMeasurement.readings);
 
-  const handleSaveAndNew = () => {
-    saveMeasurement(currentMeasurement);
-    toast.success("Medição salva com sucesso!");
+  const handleSaveAndNew = async () => {
+    await saveMeasurement(currentMeasurement);
     resetMeasurement();
     navigate("/nova-medicao");
   };

@@ -41,6 +41,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertTriangle,
   ArrowLeft,
+  ArrowRightLeft,
   Boxes,
   Coins,
   ExternalLink,
@@ -57,19 +58,19 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/utils";
-import { getAllAbastecimentos, type Abastecimento } from "@/lib/equipmentFuelStorage";
-import { getAllItens, type ItemManutencao, type RegistroManutencao, getAllRegistros } from "@/lib/equipmentMaintenanceStorage";
-import { getMaintenanceRecords, type MaintenanceRecord } from "@/lib/droneStorage";
+import { getAllItens, type ItemManutencao } from "@/lib/equipmentMaintenanceStorage";
 import { getAllComponentes, type ComponenteCatalogo } from "@/lib/componenteStorage";
-import { getAllOS, type OrdemServico } from "@/lib/osStorage";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 import {
   calcularKpis,
   createEntrada,
   deleteEntrada,
   getAllConfigs,
   getAllEntradas,
+  getEstoqueSnapshot,
   montarEstoque,
+  transferirEstoque,
   updateEntrada,
   upsertConfig,
   CATEGORIA_LABELS,
@@ -88,12 +89,12 @@ const dataBR = (iso: string) =>
 const numBR = (n: number) =>
   n.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 3 });
 
-/** Link para o módulo correspondente de cada categoria. */
+/** Link para o mҳdulo correspondente de cada categoria. */
 const MODULO_LINK: Record<CategoriaEstoque, { rota: string; label: string }> = {
   produto: { rota: "/cadastros", label: "Cadastro de produtos" },
-  peca: { rota: "/manutencao-equipamentos", label: "Cadastro de manutenção" },
+  peca: { rota: "/manutencao-equipamentos", label: "Cadastro de manutenҧңo" },
   acessorio: { rota: "/maintenance", label: "Componentes de drones" },
-  combustivel: { rota: "/gestao-abastecimento", label: "Gestão de abastecimento" },
+  combustivel: { rota: "/gestao-abastecimento", label: "Gestңo de abastecimento" },
 };
 
 interface FormEntrada {
@@ -117,6 +118,7 @@ const formVazio = (): FormEntrada => ({
 
 export default function Estoque() {
   const navigate = useNavigate();
+  const { activeBranch, branches } = useAuth();
 
   const [dados, setDados] = useState<DadosEstoque | null>(null);
   const [entradas, setEntradas] = useState<EntradaEstoque[]>([]);
@@ -135,35 +137,98 @@ export default function Estoque() {
   const [excluindo, setExcluindo] = useState<EntradaEstoque | null>(null);
   const [processando, setProcessando] = useState(false);
 
+  /*
+   * TransferҪncia entre filiais.
+   *
+   * O saldo ҩ por filial: o que aparece na lista ҩ o da filial ativa. Mover
+   * material para outra filial é um lançamento à parte, validado no banco — não
+   * ҩ sҳ "mudar de filial e ver outro nҺmero".
+   */
+  const [transferItem, setTransferItem] = useState<ItemEstoque | null>(null);
+  const [transferDestino, setTransferDestino] = useState<string>("");
+  const [transferQtd, setTransferQtd] = useState<string>("");
+  const [transferObs, setTransferObs] = useState<string>("");
+  const [transferAlvos, setTransferAlvos] = useState<
+    { branch_id: string; nome: string; codigo: string; saldo: number }[]
+  >([]);
+  const [transferindo, setTransferindo] = useState(false);
+
+  const abrirTransferencia = async (item: ItemEstoque) => {
+    setTransferItem(item);
+    setTransferDestino("");
+    setTransferQtd("");
+    setTransferObs("");
+    if (!activeBranch) {
+      setTransferAlvos([]);
+      return;
+    }
+    const { data, error } = await supabase.rpc("transfer_targets", {
+      p_de: activeBranch.id,
+    });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setTransferAlvos((data ?? []) as typeof transferAlvos);
+  };
+
+  const confirmarTransferencia = async () => {
+    if (!transferItem || !activeBranch) return;
+    const qtd = Number(transferQtd.replace(",", "."));
+    if (!transferDestino) {
+      toast.error("Escolha a filial de destino");
+      return;
+    }
+    if (!Number.isFinite(qtd) || qtd <= 0) {
+      toast.error("Informe uma quantidade maior que zero");
+      return;
+    }
+
+    setTransferindo(true);
+    try {
+      const r = await transferirEstoque({
+        de: activeBranch.id,
+        para: transferDestino,
+        itemKey: transferItem.itemKey,
+        itemNome: transferItem.nome,
+        quantidade: qtd,
+        observacao: transferObs,
+      });
+      const destino = transferAlvos.find((a) => a.branch_id === transferDestino);
+      toast.success(
+        `Transferido. ${activeBranch.name}: ${r.saldoOrigem} · ${destino?.nome ?? "destino"}: ${r.saldoDestino}`
+      );
+      setTransferItem(null);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha na transferҪncia");
+    } finally {
+      setTransferindo(false);
+    }
+  };
+
   const load = async () => {
     try {
-      const [
-        produtos,
-        itensManutencao,
-        acessorios,
-        entradasList,
-        configs,
-        oss,
-        registros,
-        registrosDrone,
-        abastecimentos,
-      ] = await Promise.all([
-        supabase
-          .from("registered_products")
-          .select("id, commercial_name, unit, package_size, preco_unitario")
-          .order("commercial_name"),
-        getAllItens().catch(() => [] as ItemManutencao[]),
-        getAllComponentes().catch(() => [] as ComponenteCatalogo[]),
-        getAllEntradas().catch(() => [] as EntradaEstoque[]),
-        getAllConfigs().catch(() => [] as ConfigEstoque[]),
-        getAllOS().catch(() => [] as OrdemServico[]),
-        getAllRegistros().catch(() => [] as RegistroManutencao[]),
-        getMaintenanceRecords().catch(() => [] as MaintenanceRecord[]),
-        getAllAbastecimentos().catch(() => [] as Abastecimento[]),
-      ]);
+      const [produtos, itensManutencao, acessorios, entradasList, configs, snapshot] =
+        await Promise.all([
+          supabase
+            .from("registered_products")
+            .select("id, commercial_name, unit, package_size, preco_unitario")
+            .order("commercial_name"),
+          getAllItens().catch(() => [] as ItemManutencao[]),
+          getAllComponentes().catch(() => [] as ComponenteCatalogo[]),
+          getAllEntradas().catch(() => [] as EntradaEstoque[]),
+          getAllConfigs().catch(() => [] as ConfigEstoque[]),
+          getEstoqueSnapshot().catch(() => null),
+        ]);
       if (produtos.error) throw produtos.error;
 
       setEntradas(entradasList);
+      if (!snapshot) {
+        toast.error("Erro ao calcular o saldo do estoque");
+        return;
+      }
+
       setDados(
         montarEstoque({
           produtos: (produtos.data || []) as Array<{
@@ -175,12 +240,8 @@ export default function Estoque() {
           }>,
           pecas: itensManutencao.filter((i) => i.tipo === "peca"),
           acessorios,
-          entradas: entradasList,
+          snapshot,
           configs,
-          oss,
-          registrosManutencao: registros,
-          registrosDrone,
-          abastecimentos,
         })
       );
     } catch {
@@ -285,7 +346,7 @@ export default function Estoque() {
     setProcessando(true);
     try {
       await deleteEntrada(excluindo.id);
-      toast.success("Entrada excluída (saldo atualizado)");
+      toast.success("Entrada excluҭda (saldo atualizado)");
       setExcluindo(null);
       await load();
     } catch {
@@ -299,17 +360,17 @@ export default function Estoque() {
     if (!minimoItem) return;
     const valor = parseFloat(minimoValor.replace(",", ".")) || 0;
     if (valor < 0) {
-      toast.error("O mínimo não pode ser negativo");
+      toast.error("O mҭnimo nңo pode ser negativo");
       return;
     }
     setSalvando(true);
     try {
       await upsertConfig(minimoItem.itemKey, minimoItem.categoria, valor);
-      toast.success("Estoque mínimo atualizado");
+      toast.success("Estoque mҭnimo atualizado");
       setMinimoItem(null);
       await load();
     } catch {
-      toast.error("Erro ao salvar o estoque mínimo");
+      toast.error("Erro ao salvar o estoque mҭnimo");
     } finally {
       setSalvando(false);
     }
@@ -376,7 +437,7 @@ export default function Estoque() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Abaixo do mínimo</p>
+                <p className="text-sm text-muted-foreground">Abaixo do mҭnimo</p>
                 <p
                   className={`text-2xl font-bold ${kpis.abaixoMinimo > 0 ? "text-red-500" : ""}`}
                 >
@@ -453,10 +514,10 @@ export default function Estoque() {
                     <TableRow>
                       <TableHead>Item</TableHead>
                       <TableHead className="text-right">Saldo</TableHead>
-                      <TableHead className="text-right">Mínimo</TableHead>
-                      <TableHead className="text-right">Saída total</TableHead>
-                      <TableHead>Última entrada</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
+                      <TableHead className="text-right">Mҭnimo</TableHead>
+                      <TableHead className="text-right">Saҭda total</TableHead>
+                      <TableHead>Қltima entrada</TableHead>
+                      <TableHead className="text-right">Aҧҵes</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -515,7 +576,7 @@ export default function Estoque() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              title="Definir estoque mínimo"
+                              title="Definir estoque mҭnimo"
                               onClick={() => {
                                 setMinimoItem(item);
                                 setMinimoValor(item.temConfig ? String(item.minimo) : "");
@@ -531,6 +592,15 @@ export default function Estoque() {
                             >
                               <History className="h-4 w-4" />
                             </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Transferir para outra filial"
+                              onClick={() => abrirTransferencia(item)}
+                              disabled={branches.length < 2}
+                            >
+                              <ArrowRightLeft className="h-4 w-4" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -543,13 +613,121 @@ export default function Estoque() {
         ))}
       </Tabs>
 
+      {/* DIALOG: TRANSFERÊNCIA ENTRE FILIAIS */}
+      <Dialog
+        open={!!transferItem}
+        onOpenChange={(o) => {
+          if (!transferindo) {
+            if (!o) setTransferItem(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRightLeft className="h-5 w-5 text-emerald-600" />
+              Transferir {transferItem?.nome}
+            </DialogTitle>
+            <DialogDescription>
+              Sai de <strong>{activeBranch?.name}</strong> e entra na filial de destino.
+              As duas movimentações são gravadas juntas — ou nenhuma.
+            </DialogDescription>
+          </DialogHeader>
+
+          {transferAlvos.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              Você não tem acesso a nenhuma outra filial ativa. Crie uma filial em
+              Gestão de Filiais para transferir material.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Filial de destino</Label>
+                <Select value={transferDestino} onValueChange={setTransferDestino}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Escolha a filial" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {transferAlvos.map((a) => (
+                      <SelectItem key={a.branch_id} value={a.branch_id}>
+                        {a.nome}
+                        {a.codigo ? ` · ${a.codigo}` : ""} — saldo {numBR(a.saldo)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Quantidade</Label>
+                <Input
+                  value={transferQtd}
+                  onChange={(e) => setTransferQtd(e.target.value)}
+                  inputMode="decimal"
+                  placeholder={`0 (disponível: ${numBR(transferItem?.saldo ?? 0)})`}
+                />
+                {transferItem && Number(transferQtd.replace(",", ".")) > transferItem.saldo && (
+                  <p className="text-xs text-destructive">
+                    Quantidade acima do saldo disponível nesta filial.
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Observação</Label>
+                <Textarea
+                  value={transferObs}
+                  onChange={(e) => setTransferObs(e.target.value)}
+                  placeholder="Ex: remessa para aplicação na fazenda Boa Vista"
+                  rows={2}
+                />
+              </div>
+
+              {transferDestino && (
+                <div className="rounded-lg bg-muted/50 p-3 text-xs space-y-1">
+                  <div className="flex justify-between">
+                    <span>{activeBranch?.name}</span>
+                    <span className="tabular-nums">
+                      {numBR((transferItem?.saldo ?? 0) - (Number(transferQtd.replace(",", ".")) || 0))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>{transferAlvos.find((a) => a.branch_id === transferDestino)?.nome}</span>
+                    <span className="tabular-nums">
+                      {numBR(
+                        (transferAlvos.find((a) => a.branch_id === transferDestino)?.saldo ?? 0) +
+                          (Number(transferQtd.replace(",", ".")) || 0)
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTransferItem(null)} disabled={transferindo}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmarTransferencia}
+              disabled={transferindo || transferAlvos.length === 0}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {transferindo ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ArrowRightLeft className="h-4 w-4 mr-2" />}
+              Transferir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* DIALOG: NOVA/EDITAR ENTRADA */}
       <Dialog open={entradaDialog} onOpenChange={setEntradaDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{form.id ? "Editar entrada" : "Nova entrada"}</DialogTitle>
             <DialogDescription>
-              Registre a compra/reposição de {CATEGORIA_LABELS[tab].toLowerCase()} no estoque.
+              Registre a compra/reposiҧңo de {CATEGORIA_LABELS[tab].toLowerCase()} no estoque.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -615,7 +793,7 @@ export default function Estoque() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Observação</Label>
+              <Label>Observaҧңo</Label>
               <Textarea
                 rows={2}
                 value={form.observacao}
@@ -666,7 +844,7 @@ export default function Estoque() {
                 <Card>
                   <CardContent className="pt-6 text-center">
                     <p className="text-xs text-muted-foreground">
-                      Saída (módulos)
+                      Saҭda (mҳdulos)
                     </p>
                     <p className="text-xl font-bold">{numBR(detalhe.saidaTotal)}</p>
                   </CardContent>
@@ -674,11 +852,11 @@ export default function Estoque() {
               </div>
 
               <div className="rounded-md border p-3 text-sm">
-                <p className="mb-1 font-medium">Módulo vinculado</p>
+                <p className="mb-1 font-medium">Mҳdulo vinculado</p>
                 <p className="text-muted-foreground">
-                  A saída é calculada automaticamente em{" "}
+                  A saҭda ҩ calculada automaticamente em{" "}
                   <strong>{MODULO_LINK[detalhe.categoria].label}</strong>. Saldo = entradas abaixo −
-                  consumo registrado no módulo.
+                  consumo registrado no mҳdulo.
                 </p>
               </div>
 
@@ -698,7 +876,7 @@ export default function Estoque() {
                       <TableHead className="text-right">Valor</TableHead>
                       <TableHead>Fornecedor</TableHead>
                       <TableHead>Obs.</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
+                      <TableHead className="text-right">Aҧҵes</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -754,11 +932,11 @@ export default function Estoque() {
       <Dialog open={!!minimoItem} onOpenChange={(o) => !o && setMinimoItem(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Estoque mínimo</DialogTitle>
+            <DialogTitle>Estoque mҭnimo</DialogTitle>
             <DialogDescription>{minimoItem?.nome}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label>Quantidade mínima ({minimoItem?.unidade})</Label>
+            <Label>Quantidade mҭnima ({minimoItem?.unidade})</Label>
             <Input
               type="number"
               min="0"
@@ -768,7 +946,7 @@ export default function Estoque() {
               onChange={(e) => setMinimoValor(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              O item será destacado quando o saldo ficar abaixo deste valor.
+              O item serҡ destacado quando o saldo ficar abaixo deste valor.
             </p>
           </div>
           <DialogFooter>
@@ -790,7 +968,7 @@ export default function Estoque() {
             <AlertDialogTitle>Excluir entrada?</AlertDialogTitle>
             <AlertDialogDescription>
               A entrada de {excluindo ? numBR(excluindo.quantidade) : ""} em{" "}
-              {excluindo ? dataBR(excluindo.data) : ""} será removida e o saldo recalculado.
+              {excluindo ? dataBR(excluindo.data) : ""} serҡ removida e o saldo recalculado.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

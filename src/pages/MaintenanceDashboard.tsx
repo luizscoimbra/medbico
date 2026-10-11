@@ -716,7 +716,7 @@ export default function MaintenanceDashboard() {
                 ? summary.proximaAgenda.horasRestantes > 0
                   ? `${summary.proximaAgenda.horasRestantes}h`
                   : "Atrasada"
-                : "—"}
+                : ""}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               {summary.proximaAgenda
@@ -942,10 +942,10 @@ export default function MaintenanceDashboard() {
                             <TableCell className="hidden md:table-cell whitespace-nowrap">
                               {record.custo > 0
                                 ? `R$ ${record.custo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
-                                : "—"}
+                                : ""}
                             </TableCell>
                             <TableCell className="hidden lg:table-cell">
-                              {record.responsavel || "—"}
+                              {record.responsavel || ""}
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1">
@@ -1034,7 +1034,7 @@ export default function MaintenanceDashboard() {
                             {sched.intervalo_horas > 0 && `${sched.intervalo_horas}h`}
                             {sched.intervalo_horas > 0 && sched.intervalo_dias > 0 && " / "}
                             {sched.intervalo_dias > 0 && `${sched.intervalo_dias}d`}
-                            {sched.intervalo_horas === 0 && sched.intervalo_dias === 0 && "—"}
+                            {sched.intervalo_horas === 0 && sched.intervalo_dias === 0 && ""}
                           </TableCell>
                           <TableCell className="hidden md:table-cell">
                             {sched.checklist && sched.checklist.length > 0 ? (
@@ -1042,7 +1042,7 @@ export default function MaintenanceDashboard() {
                                 {sched.checklist.length} itens
                               </span>
                             ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
+                              <span className="text-xs text-muted-foreground"></span>
                             )}
                           </TableCell>
                           <TableCell>

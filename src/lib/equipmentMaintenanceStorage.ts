@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { requireScope } from "@/lib/db";
 import type { Database, Json } from "@/integrations/supabase/types";
 import type { Equipment } from "./equipmentStorage";
 
@@ -100,9 +101,10 @@ export async function getAllItens(tipo?: TipoItemManutencao): Promise<ItemManute
 export async function createItem(
   item: Omit<ItemManutencao, "id" | "created_at" | "updated_at">
 ): Promise<ItemManutencao> {
+  const { branchId } = await requireScope();
   const { data, error } = await supabase
     .from("equipment_maintenance_items")
-    .insert(item)
+    .insert({ ...item, branch_id: branchId })
     .select()
     .single();
   if (error) throw error;
@@ -137,9 +139,10 @@ export async function getAllProgramas(equipmentId?: string): Promise<ProgramaMan
 export async function createPrograma(
   prog: Omit<ProgramaManutencao, "id" | "created_at" | "updated_at">
 ): Promise<ProgramaManutencao> {
+  const { branchId } = await requireScope();
   const { data, error } = await supabase
     .from("equipment_maintenance_schedules")
-    .insert(prog)
+    .insert({ ...prog, branch_id: branchId })
     .select()
     .single();
   if (error) throw error;
@@ -183,9 +186,10 @@ export async function getAllRegistros(equipmentId?: string): Promise<RegistroMan
 export async function createRegistro(
   rec: Omit<RegistroManutencao, "id" | "created_at" | "updated_at">
 ): Promise<RegistroManutencao> {
+  const { branchId } = await requireScope();
   const { data, error } = await supabase
     .from("equipment_maintenance_records")
-    .insert({ ...rec, itens: rec.itens as unknown as Json })
+    .insert({ ...rec, branch_id: branchId, itens: rec.itens as unknown as Json })
     .select()
     .single();
   if (error) throw error;

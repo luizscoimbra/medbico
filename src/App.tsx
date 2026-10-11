@@ -3,10 +3,12 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
 import { MeasurementProvider } from "@/context/MeasurementContext";
 import { SidebarProvider, useSidebar } from "@/context/SidebarContext";
-import { AuthProvider } from "@/context/AuthContext";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { Sidebar } from "@/components/Sidebar";
+import { runLegacyMigrationWithFeedback } from "@/lib/legacyMigration";
 import Index from "./pages/Index";
 import NovaMedicao from "./pages/NovaMedicao";
 import EntradaDados from "./pages/EntradaDados";
@@ -25,6 +27,8 @@ import Equipamentos from "./pages/Equipamentos";
 import ManutencaoEquipamentos from "./pages/ManutencaoEquipamentos";
 import GestaoAbastecimento from "./pages/GestaoAbastecimento";
 import Acessos from "./pages/Acessos";
+import Filiais from "./pages/Filiais";
+import Plataforma from "./pages/Plataforma";
 import Auth from "./pages/Auth";
 import EmailConfirmada from "./pages/EmailConfirmada";
 import NotFound from "./pages/NotFound";
@@ -37,6 +41,26 @@ import Financeiro from "./pages/Financeiro";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
+
+/**
+ * Esvazia para a nuvem o que ainda estava guardado apenas no navegador.
+ *
+ * Roda uma única vez por navegador, logo após o login. Sem isso, as ordens de
+ * serviço e títulos financeiros criados antes da migração existiriam somente
+ * na máquina onde foram digitados — exatamente o risco Crítico apontado na
+ * auditoria.
+ */
+function LegacyDataMigrator() {
+  const { user, loading } = useAuth();
+  const userId = user?.id;
+
+  useEffect(() => {
+    if (loading || !userId) return;
+    void runLegacyMigrationWithFeedback();
+  }, [userId, loading]);
+
+  return null;
+}
 
 function AppLayout() {
   const { collapsed } = useSidebar();
@@ -86,6 +110,8 @@ function AppLayout() {
             <Route path="/flight-log" element={<ProtectedRoute><FlightLog /></ProtectedRoute>} />
             <Route path="/maintenance" element={<ProtectedRoute><MaintenanceDashboard /></ProtectedRoute>} />
             <Route path="/acessos" element={<ProtectedRoute><Acessos /></ProtectedRoute>} />
+            <Route path="/filiais" element={<ProtectedRoute><Filiais /></ProtectedRoute>} />
+            <Route path="/plataforma" element={<ProtectedRoute><Plataforma /></ProtectedRoute>} />
             <Route path="/financeiro" element={<ProtectedRoute><Financeiro /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
@@ -102,6 +128,7 @@ const App = () => (
         <Toaster />
         <Sonner position="top-right" />
         <AuthProvider>
+          <LegacyDataMigrator />
           <BrowserRouter>
             <SidebarProvider>
               <AppLayout />

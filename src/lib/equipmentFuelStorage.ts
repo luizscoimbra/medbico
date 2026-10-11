@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { requireScope } from "@/lib/db";
 
 // ============================================
 // TYPES
@@ -47,9 +48,12 @@ export async function getAllAbastecimentos(equipmentId?: string): Promise<Abaste
 }
 
 export async function createAbastecimento(rec: AbastecimentoInput): Promise<Abastecimento> {
+  // A filial ativa é carimbada aqui: o banco não consegue deduzi-la, porque
+  // depende de qual filial o operador está trabalhando no momento.
+  const { branchId } = await requireScope();
   const { data, error } = await supabase
     .from("equipment_fuel_refuelings")
-    .insert(rec)
+    .insert({ ...rec, branch_id: branchId })
     .select()
     .single();
   if (error) throw error;
@@ -237,7 +241,7 @@ export function calcularConsumoPeriodo(
     linhas.push({
       equipment_id: equipmentId,
       fleet_number: a0Fleet(noPeriodo, eq),
-      modelo: eq ? `${eq.equipment_model || eq.tractor_model}`.trim() || "—" : "Equipamento removido",
+      modelo: eq ? `${eq.equipment_model || eq.tractor_model}`.trim() || "" : "Equipamento removido",
       qtd: noPeriodo.length,
       litros: Math.round(litros * 100) / 100,
       horas,
@@ -272,7 +276,7 @@ export function calcularConsumoPeriodo(
 }
 
 function a0Fleet(noPeriodo: Abastecimento[], eq?: { fleet_number: string }): string {
-  return noPeriodo[noPeriodo.length - 1]?.fleet_number || eq?.fleet_number || "—";
+  return noPeriodo[noPeriodo.length - 1]?.fleet_number || eq?.fleet_number || "";
 }
 
 /** Soma do valor total dos abastecimentos (custo agregado à OS). */

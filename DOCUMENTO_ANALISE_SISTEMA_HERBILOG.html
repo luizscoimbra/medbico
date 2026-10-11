@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatório Executivo de Auditoria e Diagnóstico - HerbiLog / MedBico</title>
+  <style>
+    /* =========================================================
+       ESTILOS GERAIS E TIPOGRAFIA DE ALTA PERFORMANCE EDITORIAL
+       ========================================================= */
+    :root {
+      --primary: #0f766e;
+      --primary-dark: #115e59;
+      --primary-light: #ccfbf1;
+      --secondary: #0369a1;
+      --accent: #d97706;
+      --danger: #b91c1c;
+      --danger-bg: #fef2f2;
+      --success: #15803d;
+      --success-bg: #f0fdf4;
+      --warning: #b45309;
+      --warning-bg: #fffbeb;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --border: #cbd5e1;
+      --bg-surface: #f8fafc;
+      --bg-white: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: var(--text-main);
+      background-color: #e2e8f0;
+      line-height: 1.55;
+      font-size: 10.5pt;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .document-container {
+      max-width: 210mm;
+      margin: 20px auto;
+      background: var(--bg-white);
+      padding: 22mm 20mm;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+      border-radius: 4px;
+    }
+
+    /* BARRA FLUTUANTE DE AÇÃO (NÃO IMPRIME) */
+    .action-bar {
+      position: sticky;
+      top: 15px;
+      z-index: 1000;
+      max-width: 210mm;
+      margin: 0 auto 15px auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0f172a;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+    }
+    .action-bar-title {
+      font-weight: 600;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-print {
+      background: #0d9488;
+      color: #fff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s;
+    }
+    .btn-print:hover {
+      background: #0f766e;
+    }
+
+    /* CAPA EXECUTIVA */
+    .cover-page {
+      padding-top: 35mm;
+      padding-bottom: 25mm;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 30mm;
+      text-align: left;
+    }
+    .badge-system {
+      display: inline-block;
+      padding: 4px 12px;
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+    }
+    .cover-title {
+      font-size: 26pt;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.2;
+      margin-bottom: 12px;
+    }
+    .cover-subtitle {
+      font-size: 14pt;
+      color: var(--text-muted);
+      font-weight: 400;
+      margin-bottom: 30px;
+      line-height: 1.4;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      background: var(--bg-surface);
+      padding: 18px;
+      border-radius: 6px;
+      border-left: 4px solid var(--primary);
+      margin-top: 25px;
+    }
+    .meta-item {
+      font-size: 9.5pt;
+    }
+    .meta-item strong {
+      display: block;
+      color: #475569;
+      font-size: 8.5pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* TIPOGRAFIA E SEÇÕES */
+    h1, h2, h3, h4 {
+      color: #0f172a;
+      font-weight: 700;
+    }
+    h2 {
+      font-size: 15pt;
+      margin-top: 26px;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 1.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    h2 .section-number {
+      background: var(--primary);
+      color: white;
+      font-size: 10pt;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+    h3 {
+      font-size: 12pt;
+      margin-top: 18px;
+      margin-bottom: 8px;
+      color: var(--primary-dark);
+    }
+    h4 {
+      font-size: 10.5pt;
+      margin-top: 12px;
+      margin-bottom: 4px;
+      color: #334155;
+    }
+    p {
+      margin-bottom: 10px;
+      text-align: justify;
+    }
+    ul, ol {
+      margin-left: 20px;
+      margin-bottom: 12px;
+    }
+    li {
+      margin-bottom: 4px;
+    }
+
+    /* TABELAS */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0 20px 0;
+      font-size: 9pt;
+      page-break-inside: avoid;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 7px 10px;
+      text-align: left;
+    }
+    th {
+      background-color: #f1f5f9;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+
+    /* CAIXAS DE DESTAQUE */
+    .callout {
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin: 14px 0;
+      border-left: 4px solid;
+      font-size: 9.5pt;
+      page-break-inside: avoid;
+    }
+    .callout-success {
+      background: var(--success-bg);
+      border-color: var(--success);
+      color: #14532d;
+    }
+    .callout-danger {
+      background: var(--danger-bg);
+      border-color: var(--danger);
+      color: #7f1d1d;
+    }
+    .callout-warning {
+      background: var(--warning-bg);
+      border-color: var(--warning);
+      color: #78350f;
+    }
+    .callout-info {
+      background: #eff6ff;
+      border-color: var(--secondary);
+      color: #1e3a8a;
+    }
+    .callout-title {
+      font-weight: 700;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* CARDS COMPARATIVOS */
+    .grid-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin: 14px 0;
+      page-break-inside: avoid;
+    }
+    .card-box {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+      background: var(--bg-surface);
+    }
+    .card-box.strong {
+      border-top: 4px solid var(--success);
+    }
+    .card-box.weak {
+      border-top: 4px solid var(--danger);
+    }
+    .card-box-title {
+      font-size: 11pt;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    /* BADGES */
+    .tag {
+      display: inline-block;
+      font-size: 7.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-right: 4px;
+    }
+    .tag-green { background: #dcfce7; color: #166534; }
+    .tag-red { background: #fee2e2; color: #991b1b; }
+    .tag-blue { background: #dbeafe; color: #1e40af; }
+    .tag-amber { background: #fef3c7; color: #92400e; }
+
+    /* QUEBRAS DE PÁGINA E IMPRESSÃO */
+    .page-break {
+      page-break-after: always;
+      break-after: page;
+    }
+
+    @media print {
+      body {
+        background: transparent;
+        color: #000;
+        font-size: 10pt;
+      }
+      .no-print, .action-bar {
+        display: none !important;
+      }
+      .document-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 18mm 16mm 18mm 16mm;
+      }
+      h2 {
+        margin-top: 20px;
+      }
+      .callout, .card-box, table, tr {
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BARRA DE CONTROLE NA TELA -->
+  <div class="action-bar no-print">
+    <div class="action-bar-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      Documento Oficial de Auditoria do Sistema HerbiLog / MedBico
+    </div>
+    <button class="btn-print" onclick="window.print()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Imprimir / Salvar em PDF
+    </button>
+  </div>
+
+  <div class="document-container">
+
+    <!-- ========================================== -->
+    <!-- CAPA EXECUTIVA                             -->
+    <!-- ========================================== -->
+    <div class="cover-page">
+      <span class="badge-system">Documento Técnico de Engenharia & Gestão Agrícola</span>
+      <h1 class="cover-title">Relatório de Diagnóstico Integral e Arquitetura do Sistema</h1>
+      <p class="cover-subtitle">Mapeamento de Funcionalidades, Regras Agronômicas, Avaliação de Maturidade Tecnológica, Pontos Fortes, Vulnerabilidades e Recomendações Estratégicas.</p>
+      
+      <div class="meta-grid">
+        <div class="meta-item">
+          <strong>Sistema Analisado</strong>
+          HerbiLog / MedBico (Gestão de Aplicações e Frotas Agrícolas)
+        </div>
+        <div class="meta-item">
+          <strong>Escopo da Análise</strong>
+          Full-Stack (Frontend, Banco de Dados, Segurança e Regras de Negócio)
+        </div>
+        <div class="meta-item">
+          <strong>Stack Principal</strong>
+          React 18, TypeScript, Vite, Supabase (PostgreSQL), IndexedDB, Tailwind CSS
+        </div>
+        <div class="meta-item">
+          <strong>Data da Emissão</strong>
+          Outubro de 2026 • Versão 1.0 Oficial
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 1. RESUMO EXECUTIVO                        -->
+    <!-- ========================================== -->
+    <h2><span class="section-number">01</span> Resumo Executivo</h2>
+    <p>
+      O <strong>HerbiLog (anteriormente originado sob a marca MedBico)</strong> é um sistema vertical especializado de gestão agrícola focado em <strong>pulverização terrestre e aérea (drones)</strong>, controle operacional de campo, gestão de frotas e implementos, abastecimento de combustível, controle de insumos e movimentação financeira.
+    </p>
+    <p>
+      A plataforma se destaca no mercado agro por transcender simples cadastros gerenciais: ela incorpora <strong>inteligência agronômica de alto rigor científico</strong>, tais como calibração de pontas de pulverização conforme norma ISO, cálculo de compatibilidade química na mistura de caldas (regras internacionais DARE e WALES), gestão de parâmetros de voo para drones agrícolas e rastreabilidade total de custos operacionais por ordem de serviço.
+    </p>
+
+    <div class="callout callout-info">
+      <div class="callout-title">Visão Sintética do Diagnóstico</div>
+      O sistema possui <strong>excepcional riqueza funcional e domínio de negócio impecável</strong>. No entanto, sua arquitetura atual apresenta uma <strong>dualidade estrutural de armazenamento</strong> (metade dos dados reside no Supabase e metade reside no navegador do cliente via IndexedDB/LocalStorage), o que representa o principal desafio de sincronização e integridade a ser equalizado.
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 2. MAPA ARQUITETURAL E TECNOLÓGICO         -->
+    <!-- ========================================== -->
+    <h2><span class="section-number">02</span> Arquitetura Tecnológica e Stack</h2>
+    <p>O ecossistema é construído sobre uma arquitetura moderna Single Page Application (SPA) com as seguintes tecnologias:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Camada</th>
+          <th>Tecnologia Adotada</th>
+          <th>Papel no Sistema</th>
+          <th>Classificação</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Frontend Core</strong></td>
+          <td>React 18 + TypeScript + Vite</td>
+          <td>Interface reativa, tipagem estática e bundling ultraveloz.</td>
+          <td><span class="tag tag-green">Excelente</span></td>
+        </tr>
+        <tr>
+          <td><strong>Estilização & UI</strong></td>
+          <td>Tailwind CSS + Radix UI + Lucide</td>
+          <td>Design System profissional, responsivo e com componentes acessíveis.</td>
+          <td><span class="tag tag-green">Excelente</span></td>
+        </tr>
+        <tr>
+          <td><strong>Backend / BaaS</strong></td>
+          <td>Supabase (PostgreSQL 15 + RLS)</td>
+          <td>Autenticação, Drones, Manutenções, Abastecimento, Estoque e Perfis.</td>
+          <td><span class="tag tag-green">Excelente</span></td>
+        </tr>
+        <tr>
+          <td><strong>Armazenamento Local</strong></td>
+          <td>IndexedDB (idb-keyval) + LocalStorage</td>
+          <td>Persistência de OS, Caldas, Bicos, Clientes, Operadores e Financeiro.</td>
+          <td><span class="tag tag-amber">Ponto de Atenção</span></td>
+        </tr>
+        <tr>
+          <td><strong>Impressão & Documentos</strong></td>
+          <td>jsPDF + html2canvas + CSS Print</td>
+          <td>Geração de laudos técnicos, ordens de serviço, receitas e comprovantes.</td>
+          <td><span class="tag tag-blue">Funcional</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="page-break"></div>
+
+    <!-- ========================================== -->
+    <!-- 3. MAPEAMENTO DETALHADO DOS MÓDULOS        -->
+    <!-- ========================================== -->
+    <h2><span class="section-number">03</span> Funcionamento Detalhado por Módulo</h2>
+
+    <h3>3.1. Operações: Aferição de Vazão e Inspeção de Bicos (MedBico)</h3>
+    <p>
+      Módulo pioneiro da ferramenta, responsável por validar a uniformidade e a acurácia das pontas de pulverização dos pulverizadores agrícolas:
+    </p>
+    <ul>
+      <li><strong>Tabela de Cores Padrão ISO:</strong> Mapeia as especificações oficiais para todas as cores (Laranja, Verde, Amarela, Lilás, Azul, Vermelha, Marrom, Cinza, Branca) com vazão teórica em galões/min e litros/min a 3 bar de pressão.</li>
+      <li><strong>Algoritmo de Diagnóstico (±10%):</strong> Analisa a vazão real coletada individualmente. Se a vazão for inferior a 90% da nominal, acusa <em>"Limpeza necessária"</em> (obstrução); se ultrapassar 110%, acusa <em>"Substituição necessária"</em> (desgaste erosivo).</li>
+      <li><strong>Regra dos 10% da Barra:</strong> Se mais de 10% dos bicos da barra apresentarem desgaste excessivo, o sistema emite alerta agronômico mandatório de troca de todo o conjunto para evitar desuniformidade na lavoura.</li>
+      <li><strong>Cálculo do Desperdício Econômico:</strong> Calcula a estimativa em Reais (R$) do defensivo que está sendo desperdiçado ou subdosado devido a bicos fora de especificação.</li>
+      <li><strong>Emissão de Laudo Técnico:</strong> Gera relatório impresso com assinatura técnica do responsável pela aferição.</li>
+    </ul>
+
+    <h3>3.2. Operações: Calculadora de Calda Agrícola e Ordem de Mistura</h3>
+    <p>
+      Ferramenta de altíssima sofisticação para o preparo seguro da calda fitossanitária:
+    </p>
+    <ul>
+      <li><strong>Dois Modos Operacionais Distintos:</strong> Modo <em>Terrestre</em> (altos volumes de água: 100 a 200 L/ha) e Modo <em>Drone</em> (baixo volume concentrado: 5 a 20 L/ha).</li>
+      <li><strong>Regra Oficial de Adição Química (WALES / DARE):</strong> O sistema ordena automaticamente os produtos na sequência exata que impede a formação de sedimentos, grumos e entupimentos de filtros:
+        <ol>
+          <li>Água inicial (70% do tanque) e Adjuvantes Corretivos de pH/quelatizantes;</li>
+          <li>Sólidos (WP - Pó Molhável, WG - Grânulos Dispersíveis, SG, SP);</li>
+          <li>Suspensões Concentradas (SC, CS, OD);</li>
+          <li>Intermediários e Suspo-emulsões (SE);</li>
+          <li>Óleos e Concentrados Emulsionáveis (EC, EW, ME);</li>
+          <li>Concentrados Solúveis (SL);</li>
+          <li>Adjuvantes surfactantes, fertilizantes foliares e redutores de espuma.</li>
+        </ol>
+      </li>
+      <li><strong>Proteção contra Incompatibilidade e Faixa de pH:</strong> Alerta o operador caso haja mistura de produtos de faixas antagônicas (ex.: produtos alcalinos com ácidos) que degradam os princípios ativos.</li>
+      <li><strong>Cálculo de Fracionamento e Tanques:</strong> Determina o número de tanques cheios, o volume exato do tanque final parcial e o número de frascos/galões comerciais que deverão ser abertos.</li>
+    </ul>
+
+    <h3>3.3. Operações: Ordens de Serviço (OS) e Apontamentos de Campo</h3>
+    <p>
+      Espinha dorsal operacional que conecta o planejamento agrônomo à execução e ao faturamento:
+    </p>
+    <ul>
+      <li><strong>Abertura de OS:</strong> Registro de cliente, propriedade, talhões, área total (ha), cultura, taxa de aplicação (L/ha), produtos e equipamentos selecionados.</li>
+      <li><strong>Apontamentos Diários:</strong> Registro de horímetro inicial e final do trator/implemento, operadores participantes, hectares realizados, volume consumido e monitoramento das condições climáticas (vento em km/h, temperatura e umidade).</li>
+      <li><strong>Integração com o Financeiro:</strong> Botão de faturamento automático que cria o título de "Contas a Receber" no valor correspondente aos serviços prestados.</li>
+    </ul>
+
+    <h3>3.4. Área do Motorista / Apoio do Caminhão Pipa</h3>
+    <p>
+      Interface minimalista e responsiva focada no operador de apoio que transporta água e calda no caminhão pipa. Permite selecionar a OS aberta, filtrar os tratores operando na frente de trabalho e conferir as cargas e volumes necessários em tempo real.
+    </p>
+
+    <div class="page-break"></div>
+
+    <h3>3.5. Drones Agrícolas: Frotas, Baterias e Logbook de Voo</h3>
+    <p>
+      Módulo de vanguarda que implementa toda a governança exigida pela aviação agrícola e órgãos reguladores:
+    </p>
+    <ul>
+      <li><strong>Aeronaves e Conformidade:</strong> Cadastro com modelo, marca, número de série, número do registro ANAC, certificado de homologação ANATEL, MTOW (peso máximo de decolagem) e controle de apólice de seguro RETA.</li>
+      <li><strong>Gestão Crítica de Baterias (LiPo/LiHV):</strong> Monitoramento do SOH (State of Health - percentual de saúde), voltagem inicial e final por ciclo, temperatura de trabalho, total de ciclos executados vs. ciclo máximo permitido pelo fabricante, e histórico de inchaços ou avarias.</li>
+      <li><strong>Logbook de Voo (Diário de Bordo):</strong> Registro obrigatório de cada surtida aérea: piloto responsável, operador de apoio, hectares pulverizados, tempo de voo (minutos), consumo de combustível do gerador (L) e clima.</li>
+      <li><strong>Plano de Manutenção Preventiva:</strong> Rotinas diárias, 50h, 100h e 200h com checklists completos de motores, hélices, bombas e sensores de radar/RTK.</li>
+    </ul>
+
+    <h3>3.6. Frotas Terrestres, Abastecimento e Manutenção Mecânica</h3>
+    <p>
+      Gestão completa de tratores, pulverizadores autopropelidos, carretas e caminhões pipa:
+    </p>
+    <ul>
+      <li><strong>Gestão de Combustível (Diesel):</strong> Lançamento com número da frota, horímetro atual, litros abastecidos, posto fornecedor e valor total. Permite associar o abastecimento a uma Ordem de Serviço específica e alimentar as Contas a Pagar.</li>
+      <li><strong>Planos de Manutenção Preventiva e Corretiva:</strong> Intervalos por horas ou dias, controle de ordens de serviço mecânicas com registro de peças aplicadas, fornecedor e custo de mão de obra.</li>
+    </ul>
+
+    <h3>3.7. Estoque Integrado</h3>
+    <p>
+      Estoque dinâmico que centraliza 4 categorias fundamentais: Combustíveis, Peças de Manutenção, Componentes de Drones e Produtos Químicos. Possui alertas automáticos de estoque mínimo e baixa automática vinculada a consumos de OS e serviços mecânicos.
+    </p>
+
+    <h3>3.8. Módulo Financeiro (Contas a Pagar e Receber)</h3>
+    <p>
+      Painel gerencial para controle de fluxo de caixa operacional:
+    </p>
+    <ul>
+      <li><strong>Contas a Receber:</strong> Alimentadas pelas Ordens de Serviço faturadas ou lançamentos manuais, com acompanhamento de prazos, baixa de recebimentos e comprovantes individuais.</li>
+      <li><strong>Contas a Pagar:</strong> Alimentadas pelos custos de abastecimento de diesel, compras de peças de manutenção e compras de estoque.</li>
+      <li><strong>Relatório e Comprovantes:</strong> Emissão de comprovantes de quitação com layout comercial para envio a clientes e fornecedores.</li>
+    </ul>
+
+    <h3>3.9. Gestão de Acessos e Perfis de Usuário (RBAC)</h3>
+    <p>
+      Controle de segurança baseado em papéis hierárquicos: <em>Administrador Master</em>, <em>Gestor</em>, <em>Operador</em> e <em>Motorista</em>. Possui capacidade de sobrescrever permissões individualmente por usuário em cada um dos 9 módulos do sistema.
+    </p>
+
+    <div class="page-break"></div>
+
+    <!-- ========================================== -->
+    <!-- 4. PONTOS FORTES E PONTOS FRACOS           -->
+    <!-- ========================================== -->
+    <h2><span class="section-number">04</span> Análise Crítica: Pontos Fortes e Pontos Fracos</h2>
+
+    <div class="grid-cards">
+      <div class="card-box strong">
+        <div class="card-box-title" style="color: var(--success);">
+          ✔ PONTOS FORTES (VANTAGENS COMPETITIVAS)
+        </div>
+        <ul style="font-size: 9pt; padding-left: 15px;">
+          <li><strong>Especialização Agronômica Rara:</strong> Domínio cirúrgico das regras de campo: calibração ISO, diluição DARE/WALES, compatibilidade e gestão de descarte.</li>
+          <li><strong>Ciclo Operacional 360° Completo:</strong> Integra desde o cálculo prévio da calda até o faturamento financeiro, passando pelo controle de combustível e desgaste de frota.</li>
+          <li><strong>Vanguarda na Gestão de Drones:</strong> Pouquíssimos sistemas no mercado tratam baterias como ativos monitoráveis com métricas de SOH e logbooks integrados a geradores.</li>
+          <li><strong>Design e Usabilidade Exemplares:</strong> Interface moderna, agradável, intuitiva, com contrastes semânticos bem trabalhados e design adaptado ao trabalho agrícola.</li>
+          <li><strong>Documentos Prontos para Impressão:</strong> Laudos, receitas agronômicas e ordens de serviço possuem visual técnico profissional que gera alta confiança no produtor rural.</li>
+          <li><strong>Permissões Granulares:</strong> O sistema de controle de acesso permite personalizar a visualização de cada operador de campo ou motorista.</li>
+        </ul>
+      </div>
+
+      <div class="card-box weak">
+        <div class="card-box-title" style="color: var(--danger);">
+          ⚠ PONTOS FRACOS E VULNERABILIDADES
+        </div>
+        <ul style="font-size: 9pt; padding-left: 15px;">
+          <li><strong>Arquitetura de Dados Fracionada (Crítico):</strong> Parte das tabelas está no Supabase (Nuvem), enquanto OS, Clientes, Financeiro e Aferições estão em IndexedDB/LocalStorage (Navegador).</li>
+          <li><strong>Risco de Perda de Dados no Cliente:</strong> Se o operador limpar o histórico/cookies do navegador ou usar uma janela anônima, os dados armazenados em IndexedDB são apagados.</li>
+          <li><strong>Falta de Sincronização Multidispositivo:</strong> Uma OS cadastrada no computador do escritório não aparece automaticamente no celular do motorista se estiver salva apenas no IndexedDB local.</li>
+          <li><strong>Regras Chumbadas no Código (Hardcode):</strong> E-mail pessoal específico presente em <code>src/lib/auth-roles.ts</code> para forçar privilégios, ferindo boas práticas de segurança.</li>
+          <li><strong>PDF via Rasterização (html2canvas):</strong> O uso de screenshot do DOM para gerar PDF pode gerar arquivos pesados, textos não selecionáveis e quebras de página imperfeitas.</li>
+          <li><strong>Ausência de Auditoria e Backups Offline:</strong> Não há rotina de exportação consolidada em lote (backup JSON/ZIP) para garantir a segurança dos dados locais.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 5. MATRIZ DE RISCO E DIAGNÓSTICO           -->
+    <!-- ========================================== -->
+    <h2><span class="section-number">05</span> Matriz de Riscos de Engenharia de Software</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Vulnerabilidade Identificada</th>
+          <th>Severidade</th>
+          <th>Probabilidade</th>
+          <th>Impacto no Negócio</th>
+          <th>Ação Mitigadora Recomendada</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Dados locais desincronizados da nuvem</strong></td>
+          <td><span class="tag tag-red">Crítica</span></td>
+          <td>Alta</td>
+          <td>Perda de histórico financeiro e ordens de serviço caso o navegador seja limpo.</td>
+          <td>Migrar 100% das entidades de IndexedDB para tabelas PostgreSQL no Supabase.</td>
+        </tr>
+        <tr>
+          <td><strong>Autenticação com e-mail hardcoded</strong></td>
+          <td><span class="tag tag-amber">Média</span></td>
+          <td>Certa</td>
+          <td>Dificuldade de manutenção e quebra do princípio de isolamento de papéis (RBAC).</td>
+          <td>Remover referências explícitas e confiar puramente nas permissões do banco Supabase.</td>
+        </tr>
+        <tr>
+          <td><strong>Inconsistência de concorrência no estoque</strong></td>
+          <td><span class="tag tag-amber">Média</span></td>
+          <td>Média</td>
+          <td>Cálculo de saldo de estoque cruzando fontes locais com remotas pode gerar divergência.</td>
+          <td>Implementar triggers e RPC no PostgreSQL para transações atômicas de estoque.</td>
+        </tr>
+        <tr>
+          <td><strong>Geração de relatórios via canvas</strong></td>
+          <td><span class="tag tag-blue">Baixa</span></td>
+          <td>Alta</td>
+          <td>Documentos impressos pesados e perda de qualidade em resoluções altas.</td>
+          <td>Adotar folhas de estilo CSS <code>@media print</code> e bibliotecas vetoriais nativas.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="page-break"></div>
+
+    <!-- ========================================== -->
+    <!-- 6. PLANO DE AÇÃO E RECOMENDAÇÕES           -->
+    <!-- ========================================== -->
+    <h2><span class="section-number">06</span> Plano Estratégico de Evolução e Recomendações</h2>
+
+    <h3>Fase 1: Estabilização e Segurança Imediata (Curto Prazo • 1 a 2 semanas)</h3>
+    <ol>
+      <li>
+        <strong>Botão Emergencial de Backup / Restauração JSON:</strong> Disponibilizar imediatamente na tela de configurações um botão que exporte todos os bancos IndexedDB e LocalStorage em um único arquivo <code>.json</code> criptografado ou compactado.
+      </li>
+      <li>
+        <strong>Saneamento de Credenciais e Perfis:</strong> Eliminar o e-mail em código estático no arquivo <code>auth-roles.ts</code>, delegando todo o controle de status e role para as tabelas <code>profiles</code> e <code>user_roles</code> do Supabase.
+      </li>
+      <li>
+        <strong>Padronização de Folhas de Estilo para Impressão:</strong> Implementar classes <code>@media print</code> para que qualquer tela do sistema gere impressões limpas nativamente através do navegador (Ctrl+P), sem depender exclusivamente de capturas por canvas.
+      </li>
+    </ol>
+
+    <h3>Fase 2: Unificação do Banco de Dados no Supabase (Médio Prazo • 3 a 4 semanas)</h3>
+    <ol>
+      <li>
+        <strong>Criação de Tabelas Relacionais na Nuvem:</strong> Criar as migrações SQL no Supabase para as seguintes tabelas que hoje vivem no cliente:
+        <ul>
+          <li><code>orders_of_service</code> e <code>os_apontamentos</code>;</li>
+          <li><code>clients</code>, <code>service_areas</code> e <code>operators</code>;</li>
+          <li><code>spray_calibrations</code> (Aferições de Vazão);</li>
+          <li><code>spray_mix_recipes</code> (Histórico de Caldas);</li>
+          <li><code>financial_receivables</code> e <code>financial_payables</code>.</li>
+        </ul>
+      </li>
+      <li>
+        <strong>Script de Migração Automática:</strong> Ao carregar o sistema, se houver registros antigos no IndexedDB do navegador do usuário, sincronizá-los automaticamente com o Supabase com <code>user_id</code> correspondente.
+      </li>
+      <li>
+        <strong>Implementação de RLS (Row Level Security):</strong> Garantir que cada empresa ou usuário acesse estritamente os seus próprios dados, habilitando multitenancy seguro.
+      </li>
+    </ol>
+
+    <h3>Fase 3: Recursos Avançados e Aplicativo PWA de Campo (Longo Prazo)</h3>
+    <ol>
+      <li>
+        <strong>PWA Offline-First com Background Sync:</strong> Configurar Service Workers para que o operador possa apontar a OS no meio do talhão (sem sinal de internet) e o sistema sincronize automaticamente assim que encontrar rede 4G ou Wi-Fi na sede.
+      </li>
+      <li>
+        <strong>Assinatura Digital Biométrica no Campo:</strong> Permitir que o produtor rural assine a Ordem de Serviço diretamente na tela do tablet ou smartphone do aplicador.
+      </li>
+      <li>
+        <strong>Integração com Telemetria e Estações Meteorológicas:</strong> Captura automática de dados de vento, umidade e temperatura via API meteorológica com base nas coordenadas GPS do talhão.
+      </li>
+    </ol>
+
+    <!-- ========================================== -->
+    <!-- 7. CONCLUSÃO GERAL                         -->
+    <!-- ========================================== -->
+    <h2><span class="section-number">07</span> Conclusão Geral</h2>
+    <p>
+      O <strong>HerbiLog / MedBico</strong> é um software de valor agronômico e mercadológico <strong>excepcional</strong>. Ele resolve dores reais e complexas do produtor e do prestador de serviço de pulverização agrícola, integrando ciência agronômica a uma interface amigável e elegante.
+    </p>
+    <p>
+      As fragilidades identificadas são estritamente de <strong>engenharia de sincronização de dados</strong> (IndexedDB vs. Supabase), cuja resolução segue um caminho técnico claro e direto. Uma vez realizada a unificação completa dos dados no banco Supabase, a plataforma atinge maturidade de produto <em>Enterprise / SaaS Comercial</em>, pronta para atender desde frotas individuais até grandes cooperativas e operadoras de aviação agrícola.
+    </p>
+
+    <div style="margin-top: 35px; padding-top: 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 8.5pt; color: var(--text-muted);">
+      <div>Documento gerado para: <strong>HerbiLog / MedBico Sistemas</strong></div>
+      <div>Auditoria e Engenharia de Software • 2026</div>
+    </div>
+
+  </div>
+
+</body>
+</html>

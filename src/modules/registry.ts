@@ -7,7 +7,8 @@ export type ModuleId =
   | "estoque"
   | "drones"
   | "financeiro"
-  | "acessos";
+  | "acessos"
+  | "plataforma";
 
 export interface ModuleDef {
   id: ModuleId;
@@ -39,8 +40,18 @@ export const MODULES: ModuleDef[] = [
     routes: ["/frotas", "/equipamentos", "/manutencao-equipamentos", "/gestao-abastecimento", "/drones", "/battery-management", "/flight-log", "/maintenance"],
   },
   { id: "financeiro", label: "Financeiro", routes: ["/financeiro"] },
-  { id: "acessos", label: "Gestão de Acessos", routes: ["/acessos"] },
+  { id: "acessos", label: "Gestão de Acessos", routes: ["/acessos", "/filiais"] },
+  { id: "plataforma", label: "Plataforma", routes: ["/plataforma"] },
 ];
+
+/**
+ * Módulos fora do alcance do administrador de uma empresa cliente.
+ *
+ * `plataforma` é o console do vendedor. Ele não entra no padrão de nenhum
+ * papel — a concessão é feita em platform_admins, no banco —, então não aparece
+ * na matriz de permissões por papel.
+ */
+export const MODULOS_EXTERNOS: ModuleId[] = ["plataforma"];
 
 export const MODULE_IDS: ModuleId[] = MODULES.map((m) => m.id);
 

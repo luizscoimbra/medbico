@@ -1,8 +1,9 @@
-import { Menu, X, Home, Plus, FlaskConical, Activity, History, BookOpen, ClipboardList, FileText, ChevronDown } from "lucide-react";
+import { Menu, X, Home, Plus, FlaskConical, Activity, History, BookOpen, ClipboardList, FileText, ChevronDown, Building2, Check } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 const mainNavItems = [
   { path: "/",                 label: "Home",              icon: Home },
@@ -21,6 +22,10 @@ export function Header() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const { branches, activeBranch, setActiveBranchId, company, suspended } = useAuth();
+  const [branchOpen, setBranchOpen] = useState(false);
+  const branchRef = useRef<HTMLDivElement>(null);
+
   // Itens visíveis na barra (primeiros 4) e no dropdown (restantes)
   const visibleItems = mainNavItems.slice(0, 4);
   const dropdownItems = mainNavItems.slice(4);
@@ -30,10 +35,21 @@ export function Header() {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
       }
+      if (branchRef.current && !branchRef.current.contains(e.target as Node)) {
+        setBranchOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Trocar de filial recarrega a tela: as telas buscaram os dados já na filial
+  // anterior, e recarregar garante que ninguém veja uma mistura das duas.
+  const trocarFilial = (id: string) => {
+    setBranchOpen(false);
+    setActiveBranchId(id);
+    window.location.reload();
+  };
 
   const isDropdownActive = dropdownItems.some(i => i.path === location.pathname);
 
@@ -107,6 +123,56 @@ export function Header() {
             </div>
           </nav>
 
+          {/* Seletor de filial */}
+          {branches.length > 0 && !suspended && (
+            <div className="relative shrink-0 hidden sm:block" ref={branchRef}>
+              <button
+                onClick={() => setBranchOpen(!branchOpen)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-card hover:bg-accent transition-colors"
+                title={`Empresa: ${company?.name ?? ""}`}
+              >
+                <Building2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                <span className="text-sm font-medium max-w-[9rem] truncate">
+                  {activeBranch?.name ?? "Filial"}
+                </span>
+                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", branchOpen && "rotate-180")} />
+              </button>
+
+              {branchOpen && (
+                <div className="absolute right-0 top-full mt-2 w-60 rounded-xl border border-border bg-popover shadow-xl animate-slide-up z-50 overflow-hidden">
+                  <div className="px-4 py-2 border-b border-border bg-muted/40">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
+                      {company?.name ?? "Empresa"}
+                    </p>
+                  </div>
+                  {branches.map((b) => (
+                    <button
+                      key={b.id}
+                      onClick={() => trocarFilial(b.id)}
+                      className={cn(
+                        "w-full flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium transition-colors text-left",
+                        b.id === activeBranch?.id
+                          ? "bg-primary/10 text-primary"
+                          : "hover:bg-accent"
+                      )}
+                    >
+                      <span className="flex flex-col">
+                        <span>{b.name}</span>
+                        {b.code && (
+                          <span className="text-[10px] uppercase text-muted-foreground">{b.code}</span>
+                        )}
+                      </span>
+                      {b.id === activeBranch?.id && <Check className="h-4 w-4 shrink-0" />}
+                    </button>
+                  ))}
+                  <div className="px-4 py-2 border-t border-border text-[10px] text-muted-foreground bg-muted/20">
+                    Trocar de filial recarrega a tela.
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Mobile Menu Button */}
           <Button
             variant="ghost"
@@ -117,6 +183,31 @@ export function Header() {
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
         </div>
+
+        {/* Filiais no menu mobile */}
+        {mobileMenuOpen && branches.length > 1 && !suspended && (
+          <div className="md:hidden px-4 py-3 border-b border-border">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-2">
+              Filial
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {branches.map((b) => (
+                <button
+                  key={b.id}
+                  onClick={() => trocarFilial(b.id)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border",
+                    b.id === activeBranch?.id
+                      ? "bg-primary text-primary-foreground border-transparent"
+                      : "border-border hover:bg-accent"
+                  )}
+                >
+                  {b.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Mobile Navigation */}
         {mobileMenuOpen && (

@@ -1,4 +1,5 @@
-import { get, set, keys, del } from "idb-keyval";
+import { supabase } from "@/integrations/supabase/client";
+import { asJsonArray, num, orNull, requireScope, storageError } from "@/lib/db";
 import type { StatusTitulo } from "./financeiroStorage";
 
 export const CATEGORIAS_PAGAR = [
@@ -34,14 +35,51 @@ export interface TituloPagar {
   criadoEm: string;        // ISO
 }
 
-const STORAGE_PREFIX = "titulo-pagar-";
-const COUNTER_KEY = "titulo-pagar-counter";
+interface TituloPagarRow {
+  id: string;
+  numero: string;
+  data_emissao: string;
+  data_vencimento: string | null;
+  fornecedor_id: string | null;
+  fornecedor_nome: string;
+  categoria: string;
+  descricao: string;
+  manutencao_id: string | null;
+  drone_id: string | null;
+  equipment_id: string | null;
+  valor: number | string;
+  status: string;
+  data_pagamento: string | null;
+  forma_pagamento: string | null;
+  observacao: string | null;
+  criado_em: string;
+}
 
+const fromRow = (row: TituloPagarRow): TituloPagar => ({
+  id: row.id,
+  numero: row.numero,
+  dataEmissao: row.data_emissao,
+  dataVencimento: row.data_vencimento ?? undefined,
+  fornecedorId: row.fornecedor_id ?? undefined,
+  fornecedorNome: row.fornecedor_nome,
+  categoria: row.categoria,
+  descricao: row.descricao,
+  manutencaoId: row.manutencao_id ?? undefined,
+  droneId: row.drone_id ?? undefined,
+  equipmentId: row.equipment_id ?? undefined,
+  valor: num(row.valor),
+  status: (row.status as StatusTitulo) ?? "aberto",
+  dataPagamento: row.data_pagamento ?? undefined,
+  formaPagamento: row.forma_pagamento ?? undefined,
+  observacao: row.observacao ?? undefined,
+  criadoEm: row.criado_em,
+});
+
+/** Numeração sequencial compartilhada entre dispositivos (sequence do Postgres). */
 async function nextNumero(): Promise<string> {
-  const current = (await get<number>(COUNTER_KEY)) || 0;
-  const next = current + 1;
-  await set(COUNTER_KEY, next);
-  return String(next).padStart(4, "0");
+  const { data, error } = await supabase.rpc("next_payable_numero");
+  if (error) throw storageError("Não foi possível gerar o número do título", error);
+  return String(data);
 }
 
 export async function criarTituloPagar(input: {
@@ -57,41 +95,44 @@ export async function criarTituloPagar(input: {
   equipmentId?: string;
   observacao?: string;
 }): Promise<TituloPagar> {
-  const titulo: TituloPagar = {
-    id: `tp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-    numero: await nextNumero(),
-    dataEmissao: input.dataEmissao || new Date().toISOString().slice(0, 10),
-    dataVencimento: input.dataVencimento || undefined,
-    fornecedorId: input.fornecedorId,
-    fornecedorNome: input.fornecedorNome,
-    categoria: input.categoria,
-    descricao: input.descricao,
-    manutencaoId: input.manutencaoId,
-    droneId: input.droneId,
-    equipmentId: input.equipmentId,
-    valor: input.valor,
-    status: "aberto",
-    observacao: input.observacao || undefined,
-    criadoEm: new Date().toISOString(),
-  };
-  await set(`${STORAGE_PREFIX}${titulo.id}`, titulo);
-  return titulo;
+  const { userId, branchId } = await requireScope();
+  const id = `tp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const { data, error } = await supabase
+    .from("financial_payables")
+    .insert({
+      id,
+      user_id: userId,
+      branch_id: branchId,
+      numero: await nextNumero(),
+      data_emissao: input.dataEmissao || new Date().toISOString().slice(0, 10),
+      data_vencimento: orNull(input.dataVencimento),
+      fornecedor_id: orNull(input.fornecedorId),
+      fornecedor_nome: input.fornecedorNome,
+      categoria: input.categoria,
+      descricao: input.descricao,
+      manutencao_id: orNull(input.manutencaoId),
+      drone_id: orNull(input.droneId),
+      equipment_id: orNull(input.equipmentId),
+      valor: input.valor,
+      status: "aberto",
+      observacao: orNull(input.observacao),
+      criado_em: new Date().toISOString(),
+    })
+    .select("*")
+    .single();
+
+  if (error) throw storageError("Falha ao criar o título a pagar", error);
+  return fromRow(data as TituloPagarRow);
 }
 
 export async function getAllTitulosPagar(): Promise<TituloPagar[]> {
-  const allKeys = await keys();
-  const titulosKeys = allKeys.filter(
-    (k) =>
-      typeof k === "string" &&
-      k !== COUNTER_KEY &&
-      k.startsWith(STORAGE_PREFIX)
-  );
-  const results: TituloPagar[] = [];
-  for (const k of titulosKeys) {
-    const val = await get<TituloPagar>(k);
-    if (val && typeof val === "object" && "criadoEm" in val) results.push(val);
-  }
-  return results.sort((a, b) => (b.criadoEm || "").localeCompare(a.criadoEm || ""));
+  const { data, error } = await supabase
+    .from("financial_payables")
+    .select("*")
+    .order("criado_em", { ascending: false });
+  if (error) throw storageError("Falha ao carregar os títulos a pagar", error);
+  return (data as TituloPagarRow[]).map(fromRow);
 }
 
 /** Manutenções que já geraram título (evita duplicidade na geração em lote). */
@@ -101,14 +142,65 @@ export async function manutencoesComTitulo(): Promise<Set<string>> {
 }
 
 export async function updateTituloPagar(id: string, patch: Partial<TituloPagar>): Promise<void> {
-  const key = `${STORAGE_PREFIX}${id}`;
-  const existing = await get<TituloPagar>(key);
-  if (!existing) return;
-  await set(key, { ...existing, ...patch });
+  const payload: Record<string, unknown> = {};
+  if ("dataVencimento" in patch) payload.data_vencimento = orNull(patch.dataVencimento);
+  if ("fornecedorId" in patch) payload.fornecedor_id = orNull(patch.fornecedorId);
+  if ("fornecedorNome" in patch) payload.fornecedor_nome = patch.fornecedorNome;
+  if ("categoria" in patch) payload.categoria = patch.categoria;
+  if ("descricao" in patch) payload.descricao = patch.descricao;
+  if ("manutencaoId" in patch) payload.manutencao_id = orNull(patch.manutencaoId);
+  if ("droneId" in patch) payload.drone_id = orNull(patch.droneId);
+  if ("equipmentId" in patch) payload.equipment_id = orNull(patch.equipmentId);
+  if ("valor" in patch) payload.valor = patch.valor;
+  if ("status" in patch) payload.status = patch.status;
+  if ("dataPagamento" in patch) payload.data_pagamento = orNull(patch.dataPagamento);
+  if ("formaPagamento" in patch) payload.forma_pagamento = orNull(patch.formaPagamento);
+  if ("observacao" in patch) payload.observacao = orNull(patch.observacao);
+
+  if (Object.keys(payload).length === 0) return;
+
+  const { error } = await supabase.from("financial_payables").update(payload).eq("id", id);
+  if (error) throw storageError("Falha ao atualizar o título a pagar", error);
+}
+
+/**
+ * Importa um título preservando id, número e datas originais.
+ *
+ * Usado pela migração do armazenamento local: o `numero` precisa ser mantido
+ * porque ele já foi impresso em comprovantes e declarado ao fornecedor.
+ */
+export async function salvarTituloPagar(titulo: TituloPagar): Promise<void> {
+  const { userId, branchId } = await requireScope();
+  const { error } = await supabase.from("financial_payables").upsert(
+    {
+      id: titulo.id,
+      user_id: userId,
+      branch_id: branchId,
+      numero: titulo.numero,
+      data_emissao: titulo.dataEmissao,
+      data_vencimento: orNull(titulo.dataVencimento),
+      fornecedor_id: orNull(titulo.fornecedorId),
+      fornecedor_nome: titulo.fornecedorNome,
+      categoria: titulo.categoria,
+      descricao: titulo.descricao,
+      manutencao_id: orNull(titulo.manutencaoId),
+      drone_id: orNull(titulo.droneId),
+      equipment_id: orNull(titulo.equipmentId),
+      valor: titulo.valor,
+      status: titulo.status,
+      data_pagamento: orNull(titulo.dataPagamento),
+      forma_pagamento: orNull(titulo.formaPagamento),
+      observacao: orNull(titulo.observacao),
+      criado_em: titulo.criadoEm,
+    },
+    { onConflict: "id" }
+  );
+  if (error) throw storageError("Falha ao importar o título a pagar", error);
 }
 
 export async function deleteTituloPagar(id: string): Promise<void> {
-  await del(`${STORAGE_PREFIX}${id}`);
+  const { error } = await supabase.from("financial_payables").delete().eq("id", id);
+  if (error) throw storageError("Falha ao excluir o título a pagar", error);
 }
 
 /** Baixa (pagamento) de um título a pagar. */

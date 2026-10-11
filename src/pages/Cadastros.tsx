@@ -35,6 +35,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { saveArea, getAllAreas, deleteArea, AreaCadastro, AreaTalhao } from "@/lib/areaStorage";
 import { saveOperador, getAllOperadores, deleteOperador, deleteAllOperadores, Operador } from "@/lib/operatorStorage";
 import { saveCliente, getAllClientes, deleteCliente, Cliente } from "@/lib/clienteStorage";
+import { getSetting, setSetting, SETTINGS_KEYS } from "@/lib/settingsStorage";
+import { saveWaterTruck, getAllWaterTrucks, deleteWaterTruck, WaterTruck } from "@/lib/waterTruckStorage";
 import { formatBRL } from "@/lib/utils";
 
 
@@ -66,13 +68,6 @@ interface Servico {
   updated_at: string;
 }
 
-interface WaterTruck {
-  id: string;
-  fleet_number: string;
-  model: string;
-  capacity: number;
-}
-
 export default function Cadastros() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -102,10 +97,7 @@ export default function Cadastros() {
   });
 
   // Water Trucks state
-  const [waterTrucks, setWaterTrucks] = useState<WaterTruck[]>(() => {
-    const saved = localStorage.getItem("waterTrucks");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [waterTrucks, setWaterTrucks] = useState<WaterTruck[]>([]);
   const [wtForm, setWtForm] = useState({
     fleet_number: "",
     model: "",
@@ -115,7 +107,7 @@ export default function Cadastros() {
 
   // Custom formulations
   const defaultFormulations = [
-    { value: "CORRETIVO", label: "CORRETIVO — Adjuvante Corretivo (pH, quelatizante)" },
+    { value: "CORRETIVO", label: "CORRETIVO  Adjuvante Corretivo (pH, quelatizante)" },
     { value: "SG", label: "SG — Granulado Solúvel" },
     { value: "SP", label: "SP — Pó Solúvel" },
     { value: "WP", label: "WP — Pó Molhável" },
@@ -130,14 +122,11 @@ export default function Cadastros() {
     { value: "EW", label: "EW — Emulsão de Óleo em Água" },
     { value: "ME", label: "ME — Microemulsão" },
     { value: "SL", label: "SL — Concentrado Solúvel" },
-    { value: "SURFACTANTE", label: "SURFACTANTE — Adjuvante Surfactante (Espalhante)" },
-    { value: "FOLIARE", label: "FOLIARE — Fertilizante Foliar" },
-    { value: "REDUTOR", label: "REDUTOR — Adjuvante Redutor de Espuma" },
+    { value: "SURFACTANTE", label: "SURFACTANTE  Adjuvante Surfactante (Espalhante)" },
+    { value: "FOLIARE", label: "FOLIARE  Fertilizante Foliar" },
+    { value: "REDUTOR", label: "REDUTOR  Adjuvante Redutor de Espuma" },
   ];
-  const [customFormulations, setCustomFormulations] = useState<{ value: string; label: string }[]>(() => {
-    const saved = localStorage.getItem("customFormulations");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [customFormulations, setCustomFormulations] = useState<{ value: string; label: string }[]>([]);
   const [newFormulation, setNewFormulation] = useState({ value: "", label: "" });
   const [formDialogOpen, setFormDialogOpen] = useState(false);
 
@@ -222,7 +211,9 @@ export default function Cadastros() {
     }
     const updated = [...customFormulations, { value: code, label: `${code} - ${desc}` }];
     setCustomFormulations(updated);
-    localStorage.setItem("customFormulations", JSON.stringify(updated));
+    setSetting(SETTINGS_KEYS.customFormulations, updated).catch((e) =>
+      toast.error(e instanceof Error ? e.message : "Falha ao salvar a formulação.")
+    );
     setProdForm((p) => ({ ...p, formulation: code }));
     setNewFormulation({ value: "", label: "" });
     setFormDialogOpen(false);
@@ -297,6 +288,21 @@ export default function Cadastros() {
     fetchOperadoresList();
     fetchClientesList();
     fetchServicosList();
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    Promise.all([
+      getAllWaterTrucks(),
+      getSetting<{ value: string; label: string }[]>(SETTINGS_KEYS.customFormulations, []),
+    ])
+      .then(([trucks, formulations]) => {
+        setWaterTrucks(trucks);
+        setCustomFormulations(formulations);
+      })
+      .catch((e) =>
+        toast.error(e instanceof Error ? e.message : "Falha ao carregar as preferências de cadastro.")
+      );
   }, [userId]);
 
   const fetchOperadoresList = async () => {
@@ -388,7 +394,7 @@ export default function Cadastros() {
       return;
     }
 
-    const baseData: Record<string, any> = {
+    const baseData = {
       commercial_name: prodForm.commercial_name.trim(),
       formulation: prodForm.formulation,
       unit: prodForm.unit,
@@ -408,8 +414,9 @@ export default function Cadastros() {
       }
       toast.success("Produto atualizado com sucesso!");
     } else {
-      baseData.user_id = userId;
-      const { error } = await supabase.from("registered_products").insert(baseData);
+      const { error } = await supabase
+        .from("registered_products")
+        .insert({ ...baseData, user_id: userId });
 
       if (error) {
         toast.error("Erro ao cadastrar produto: " + (error.message || "Erro desconhecido"));
@@ -455,49 +462,45 @@ export default function Cadastros() {
     setWtForm({ fleet_number: "", model: "", capacity: "" });
   };
 
-  const handleAddWaterTruck = (e: React.FormEvent) => {
+  const persistWaterTrucks = async (truck: WaterTruck) => {
+    try {
+      await saveWaterTruck(truck);
+      setWaterTrucks((prev) => {
+        const existe = prev.some((t) => t.id === truck.id);
+        return existe ? prev.map((t) => (t.id === truck.id ? truck : t)) : [...prev, truck];
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao salvar o caminhão pipa.");
+    }
+  };
+
+  const handleAddWaterTruck = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!wtForm.fleet_number.trim() || !wtForm.model.trim() || !wtForm.capacity.trim()) {
       toast.error("Preencha os campos obrigatórios");
       return;
     }
-    
-    if (editingWaterTruckId) {
-      const updated = waterTrucks.map(wt => 
-        wt.id === editingWaterTruckId 
-          ? { 
-              ...wt, 
-              fleet_number: wtForm.fleet_number.trim(),
-              model: wtForm.model.trim(),
-              capacity: parseFloat(wtForm.capacity) || 0
-            } 
-          : wt
-      );
-      setWaterTrucks(updated);
-      localStorage.setItem("waterTrucks", JSON.stringify(updated));
-      toast.success("Caminhão pipa atualizado!");
-      setEditingWaterTruckId(null);
-    } else {
-      const newTruck = {
-        id: crypto.randomUUID(),
-        fleet_number: wtForm.fleet_number.trim(),
-        model: wtForm.model.trim(),
-        capacity: parseFloat(wtForm.capacity) || 0
-      };
-      const updated = [...waterTrucks, newTruck];
-      setWaterTrucks(updated);
-      localStorage.setItem("waterTrucks", JSON.stringify(updated));
-      toast.success("Caminhão pipa cadastrado!");
-    }
-    
+
+    const truck: WaterTruck = {
+      id: editingWaterTruckId || crypto.randomUUID(),
+      fleet_number: wtForm.fleet_number.trim(),
+      model: wtForm.model.trim(),
+      capacity: parseFloat(wtForm.capacity) || 0,
+    };
+    await persistWaterTrucks(truck);
+    toast.success(editingWaterTruckId ? "Caminhão pipa atualizado!" : "Caminhão pipa cadastrado!");
+    setEditingWaterTruckId(null);
     setWtForm({ fleet_number: "", model: "", capacity: "" });
   };
 
-  const handleDeleteWaterTruck = (id: string) => {
-    const updated = waterTrucks.filter((t) => t.id !== id);
-    setWaterTrucks(updated);
-    localStorage.setItem("waterTrucks", JSON.stringify(updated));
-    toast.success("Caminhão pipa removido");
+  const handleDeleteWaterTruck = async (id: string) => {
+    try {
+      await deleteWaterTruck(id);
+      setWaterTrucks((prev) => prev.filter((t) => t.id !== id));
+      toast.success("Caminhão pipa removido");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao remover o caminhão pipa.");
+    }
   };
 
   // Handle Areas
@@ -923,11 +926,13 @@ export default function Cadastros() {
         }
       }
 
-      toast({ 
-        title: "Importação Concluída", 
-        description: `${successCount} registros cadastrados. ${errorCount} erros/linhas ignoradas.`,
-        variant: errorCount > 0 ? "default" : "default" 
-      });
+      if (errorCount > 0) {
+        toast.warning(
+          `Importação concluída: ${successCount} cadastrados, ${errorCount} erros/linhas ignoradas.`
+        );
+      } else {
+        toast.success(`Importação concluída: ${successCount} registros cadastrados.`);
+      }
       
       if (type === 'equipamentos') fetchEquipments();
       if (type === 'areas') fetchAreasList();
@@ -1197,10 +1202,10 @@ export default function Cadastros() {
                         <TableRow key={eq.id}>
                           <TableCell className="font-medium">{eq.fleet_number}</TableCell>
                           <TableCell>{eq.equipment_model}</TableCell>
-                          <TableCell>{eq.tractor_model || "—"}</TableCell>
+                          <TableCell>{eq.tractor_model || ""}</TableCell>
                           <TableCell>{eq.total_nozzles}</TableCell>
                           <TableCell>{eq.tank_capacity || 0} L</TableCell>
-                          <TableCell>{eq.horas_acumuladas != null ? `${eq.horas_acumuladas} h` : "—"}</TableCell>
+                          <TableCell>{eq.horas_acumuladas != null ? `${eq.horas_acumuladas} h` : ""}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Button
@@ -1590,8 +1595,8 @@ export default function Cadastros() {
                           <TableCell>{p.formulation}</TableCell>
                           <TableCell>{p.unit}</TableCell>
                           <TableCell>{p.package_size} {p.unit}</TableCell>
-                            <TableCell>{p.preco_unitario ? formatBRL(p.preco_unitario) : "—"}</TableCell>
-                            <TableCell>{p.preco_unitario && p.package_size ? formatBRL(p.preco_unitario * p.package_size) : "—"}</TableCell>
+                            <TableCell>{p.preco_unitario ? formatBRL(p.preco_unitario) : ""}</TableCell>
+                            <TableCell>{p.preco_unitario && p.package_size ? formatBRL(p.preco_unitario * p.package_size) : ""}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Button
@@ -1821,14 +1826,14 @@ export default function Cadastros() {
                         return (
                           <TableRow key={a.id}>
                             <TableCell className="font-medium text-xs sm:text-sm">{a.nome}</TableCell>
-                            <TableCell className="text-xs sm:text-sm">{a.codigo || "—"}</TableCell>
-                            <TableCell className="text-xs sm:text-sm">{a.municipio || "—"}</TableCell>
+                            <TableCell className="text-xs sm:text-sm">{a.codigo || ""}</TableCell>
+                            <TableCell className="text-xs sm:text-sm">{a.municipio || ""}</TableCell>
                             <TableCell className="text-xs sm:text-sm">{a.quantidadeTalhoes}</TableCell>
                             <TableCell className="text-xs sm:text-sm font-semibold">{totalArea.toFixed(2)}</TableCell>
                             <TableCell className="text-xs sm:text-sm">
                               {a.areaCarreador ? (
                                 <span className="text-primary font-medium">{a.areaCarreador.toFixed(2)} ha</span>
-                              ) : "—"}
+                              ) : ""}
                             </TableCell>
                             <TableCell>
                               {a.coordenadas ? (
@@ -1840,7 +1845,7 @@ export default function Cadastros() {
                                 >
                                   <MapPin className="h-3 w-3 sm:h-4 sm:w-4 mr-1" /> Rota
                                 </Button>
-                              ) : "—"}
+                              ) : ""}
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1">
@@ -2129,7 +2134,7 @@ export default function Cadastros() {
                           <TableCell className="font-medium">{o.nome}</TableCell>
                           <TableCell>{o.cracha}</TableCell>
                           <TableCell>{o.funcao}</TableCell>
-                          <TableCell>{o.setor || "—"}</TableCell>
+                          <TableCell>{o.setor || ""}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Button
@@ -2376,9 +2381,9 @@ export default function Cadastros() {
                           <TableCell className="font-medium">{s.codigo}</TableCell>
                           <TableCell>{s.descricao}</TableCell>
                           <TableCell>{s.unidade}</TableCell>
-                          <TableCell>{s.preco_unitario ? formatBRL(s.preco_unitario) : "—"}</TableCell>
-                          <TableCell>{s.aliquota_iss ? `${s.aliquota_iss}%` : "—"}</TableCell>
-                          <TableCell>{s.cnae || "—"}</TableCell>
+                          <TableCell>{s.preco_unitario ? formatBRL(s.preco_unitario) : ""}</TableCell>
+                          <TableCell>{s.aliquota_iss ? `${s.aliquota_iss}%` : ""}</TableCell>
+                          <TableCell>{s.cnae || ""}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Button
@@ -2612,9 +2617,9 @@ export default function Cadastros() {
                           <TableCell className="font-medium">
                             {c.tipo === "pessoa_fisica" ? c.nomeCompleto : (c.nomeFantasia || c.razaoSocial)}
                           </TableCell>
-                          <TableCell>{c.cpf || c.cnpj || "—"}</TableCell>
-                          <TableCell>{c.telefone || "—"}</TableCell>
-                          <TableCell>{c.cidade || "—"}</TableCell>
+                          <TableCell>{c.cpf || c.cnpj || ""}</TableCell>
+                          <TableCell>{c.telefone || ""}</TableCell>
+                          <TableCell>{c.cidade || ""}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Button

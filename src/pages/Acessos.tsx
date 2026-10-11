@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,18 +18,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  Users, 
-  UserPlus, 
-  Shield, 
-  ShieldAlert, 
-  Trash2, 
-  MessageSquare, 
-  Lock, 
+import {
+  Users,
+  UserPlus,
+  Shield,
+  ShieldAlert,
+  Trash2,
+  MessageSquare,
+  Lock,
   Unlock,
   Key,
   Puzzle,
-  RotateCcw
+  RotateCcw,
+  DatabaseBackup,
+  Download,
+  Upload,
+  Loader2,
+  HardDriveDownload
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile, UserRole, UserStatus, ROLE_LABELS } from "@/lib/auth-roles";
@@ -38,19 +43,31 @@ import {
   resolveModules,
   type ModuleOverrides,
 } from "@/lib/permissions";
-import { MODULES, MODULE_IDS, type ModuleId } from "@/modules/registry";
+import { MODULES, type ModuleId } from "@/modules/registry";
+import { MODULOS_DA_EMPRESA } from "@/lib/permissions";
 import { useAuth } from "@/context/AuthContext";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  downloadBackup,
+  exportBackup,
+  parseBackup,
+  previewBackup,
+  restoreBackup,
+  totalRegistros,
+  type BackupFile,
+} from "@/lib/backup";
+import { purgeLegacyLocalData, resetLegacyMigration } from "@/lib/legacyMigration";
 import { toast } from "sonner";
 
 export default function Acessos() {
-  const { user, refreshProfile } = useAuth();
+  const { user, profile, company, refreshProfile } = useAuth();
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -64,7 +81,6 @@ export default function Acessos() {
     full_name: "",
     phone: "",
     role: "operador" as UserRole,
-    company: "",
   });
 
   useEffect(() => {
@@ -86,10 +102,40 @@ export default function Acessos() {
     setLoading(false);
   };
 
+  /*
+   * Só o master da empresa pode criar ou promover outro administrador.
+   * A regra é repetida no banco (link_user_to_tenant), mas replicá-la aqui evita
+   * o pior desfecho: se a validação viesse depois do signUp, a conta já teria
+   * sido criada e ficaria órfã — sem empresa, invisível na lista e impossível
+   * de remover pela tela.
+   */
+  const ehMaster = profile?.role === "master";
+  const FUNCOES_ATRIBUIVEIS: UserRole[] = ehMaster
+    ? ["master", "gestor", "operador", "motorista"]
+    : ["operador", "motorista"];
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!FUNCOES_ATRIBUIVEIS.includes(form.role)) {
+      toast.error(
+        "Sua função não permite atribuir administrador. Escolha Operador ou Motorista."
+      );
+      return;
+    }
+
     setLoading(true);
 
+    /*
+     * A conta é criada sem empresa e sem função: o gatilho handle_new_user()
+     * ignora os metadados do usuário, justamente para que ninguém possa se
+     * auto-promover a administrador nem entrar na empresa de outro.
+     *
+     * A empresa e a função são atribuídas em seguida por
+     * public.link_user_to_tenant(), que valida dentro do banco que quem está
+     * chamando é administrador daquela empresa. O rótulo "Empresa/Fazenda"
+     * do formulário foi removido de propósito: ela é sempre a de quem cria.
+     */
     const { data, error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
@@ -97,26 +143,56 @@ export default function Acessos() {
         data: {
           full_name: form.full_name,
           phone: form.phone,
-          company: form.company,
-          role: form.role,
         }
       }
     });
 
     if (error) {
-      toast.error(error.message);
       setLoading(false);
+      toast.error(error.message);
       return;
     }
 
-    if (data.user) {
-      toast.success("Usuário criado com sucesso!");
-      sendWhatsApp(form.phone, form.email, form.password);
-      setForm({ email: "", password: "", full_name: "", phone: "", role: "operador", company: "" });
-      setShowAddForm(false);
-      fetchProfiles();
+    if (!data.user) {
+      setLoading(false);
+      toast.error("Conta criada, mas o Supabase não devolveu o usuário.");
+      return;
     }
+
+    const { error: linkError } = await supabase.rpc("link_user_to_tenant", {
+      target: data.user.id,
+      p_full_name: form.full_name,
+      p_phone: form.phone,
+      p_role: form.role,
+    });
+
+    if (linkError) {
+      setLoading(false);
+      toast.error(descreverErroVinculo(linkError.message));
+      fetchProfiles();
+      return;
+    }
+
+    toast.success("Usuário criado com sucesso!");
+    sendWhatsApp(form.phone, form.email, form.password);
+    setForm({ email: "", password: "", full_name: "", phone: "", role: "operador" });
+    setShowAddForm(false);
+    fetchProfiles();
     setLoading(false);
+  };
+
+  /** Traduz as recusas do banco para algo que o gestor consiga agir. */
+  const descreverErroVinculo = (mensagem: string): string => {
+    if (mensagem.includes("apenas o administrador master")) {
+      return "Conta criada, mas não foi possível vincular: somente o administrador master da empresa pode atribuir a função de administrador. Abra o e-mail do novo usuário — ele foi cadastrado sem empresa e precisa ser removido.";
+    }
+    if (mensagem.includes("apenas administradores")) {
+      return "Sua função não permite criar acessos. Peça ao administrador master da empresa.";
+    }
+    if (mensagem.includes("outra empresa")) {
+      return "Este e-mail já pertence a outra empresa e não pode ser vinculado aqui.";
+    }
+    return `Conta criada, mas não foi possível vincular à empresa: ${mensagem}`;
   };
 
   const sendWhatsApp = (phone: string, email: string, pass: string) => {
@@ -128,14 +204,11 @@ export default function Acessos() {
 
   const handleUpdateStatus = async (userId: string, status: UserStatus) => {
     setLoading(true);
-    const { error } = await supabase
-      .from('profiles')
-      .update({ status })
-      .eq('id', userId);
+    const { error } = await supabase.rpc("set_user_status", { target: userId, p_status: status });
 
     if (error) {
       console.error("Erro ao atualizar status:", error);
-      toast.error(`Erro ao atualizar status: ${error.message}`);
+      toast.error(error.message);
     } else {
       toast.success(status === 'active' ? "Usuário liberado!" : "Usuário bloqueado!");
       await fetchProfiles();
@@ -145,14 +218,11 @@ export default function Acessos() {
 
   const handleUpdateRole = async (userId: string, role: UserRole) => {
     setLoading(true);
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role })
-      .eq('id', userId);
+    const { error } = await supabase.rpc("set_user_role", { target: userId, p_role: role });
 
     if (error) {
       console.error("Erro ao atualizar função:", error);
-      toast.error(`Erro ao atualizar função: ${error.message}`);
+      toast.error(error.message);
     } else {
       toast.success("Função atualizada!");
       await fetchProfiles();
@@ -184,7 +254,7 @@ export default function Acessos() {
   const openModulesDialog = (p: UserProfile) => {
     const effective = effectiveModules(p);
     const draft: Record<string, boolean> = {};
-    MODULE_IDS.forEach((id) => {
+    MODULOS_DA_EMPRESA.forEach((id) => {
       draft[id] = effective.has(id);
     });
     setDraftModules(draft);
@@ -194,13 +264,13 @@ export default function Acessos() {
   const persistModules = async (modules: ModuleOverrides | null) => {
     if (!modulesTarget) return;
     setLoading(true);
-    const { error } = await supabase
-      .from('profiles')
-      .update({ modules })
-      .eq('id', modulesTarget.id);
+    const { error } = await supabase.rpc("set_user_modules", {
+      target: modulesTarget.id,
+      p_modules: modules,
+    });
 
     if (error) {
-      toast.error(`Erro ao salvar módulos: ${error.message}`);
+      toast.error(error.message);
     } else {
       toast.success("Módulos atualizados!");
       if (modulesTarget.id === user?.id) {
@@ -216,7 +286,7 @@ export default function Acessos() {
     if (!modulesTarget) return;
     const roleDefaults = new Set<ModuleId>(DEFAULT_ROLE_MODULES[modulesTarget.role]);
     const overrides: ModuleOverrides = {};
-    MODULE_IDS.forEach((id) => {
+    MODULOS_DA_EMPRESA.forEach((id) => {
       const desired = draftModules[id] === true;
       if (desired !== roleDefaults.has(id)) {
         overrides[id] = desired;
@@ -227,6 +297,88 @@ export default function Acessos() {
 
   const handleResetModules = async () => {
     await persistModules(null);
+  };
+
+  /* ======================================================================
+     BACKUP E RESTAURAÇÃO
+     ====================================================================== */
+
+  const [backupAberto, setBackupAberto] = useState(false);
+  const [backupProcessando, setBackupProcessando] = useState(false);
+  const [progresso, setProgresso] = useState("");
+  const [arquivoPreview, setArquivoPreview] = useState<ReturnType<typeof previewBackup> | null>(null);
+  const [arquivoBackup, setArquivoBackup] = useState<BackupFile | null>(null);
+  const [modoRestauracao, setModoRestauracao] = useState<"inserir" | "sobrescrever">("inserir");
+  const [confirmarLimpeza, setConfirmarLimpeza] = useState(false);
+  const inputArquivoRef = useRef<HTMLInputElement>(null);
+
+  const handleExportar = async () => {
+    setBackupProcessando(true);
+    setProgresso("Coletando dados...");
+    try {
+      const backup = await exportBackup((tabela, done, total) =>
+        setProgresso(`Lendo ${tabela} (${done}/${total})...`)
+      );
+      setProgresso("");
+      const nome = downloadBackup(backup);
+      toast.success(`Backup gerado: ${nome} (${totalRegistros(backup.resumo)} registros).`);
+    } catch (e) {
+      setProgresso("");
+      toast.error(e instanceof Error ? e.message : "Falha ao gerar o backup.");
+    } finally {
+      setBackupProcessando(false);
+    }
+  };
+
+  const handleSelecionarArquivo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const arquivo = e.target.files?.[0];
+    if (!arquivo) return;
+
+    try {
+      const preview = previewBackup(await arquivo.text());
+      setArquivoPreview(preview);
+      setArquivoBackup(preview.valido ? parseBackup(await arquivo.text()) : null);
+    } catch (err) {
+      setArquivoPreview({ valido: false, erro: err instanceof Error ? err.message : "arquivo inválido" });
+      setArquivoBackup(null);
+    } finally {
+      e.target.value = "";
+    }
+  };
+
+  const handleRestaurar = async () => {
+    if (!arquivoBackup) return;
+    setBackupProcessando(true);
+    setProgresso("Restaurando...");
+    try {
+      const relatorio = await restoreBackup(arquivoBackup, {
+        modo: modoRestauracao,
+        onProgress: (tabela, done, total) => setProgresso(`Restaurando ${tabela} (${done}/${total})...`),
+      });
+
+      setProgresso("");
+      if (relatorio.totalFalha === 0) {
+        toast.success(`Restauração concluída: ${relatorio.totalInserido} registros.`);
+      } else {
+        toast.warning(
+          `${relatorio.totalInserido} restaurados, mas ${relatorio.totalFalha} tabela(s) falharam.`,
+          { duration: 10000 }
+        );
+      }
+      await fetchProfiles();
+    } catch (e) {
+      setProgresso("");
+      toast.error(e instanceof Error ? e.message : "Falha ao restaurar o backup.");
+    } finally {
+      setBackupProcessando(false);
+    }
+  };
+
+  const handleLimparLegado = async () => {
+    await purgeLegacyLocalData();
+    resetLegacyMigration();
+    setConfirmarLimpeza(false);
+    toast.success("Dados locais do navegador removidos. O sistema agora usa apenas a nuvem.");
   };
 
   return (
@@ -293,25 +445,39 @@ export default function Acessos() {
                 </div>
                 <div className="space-y-2">
                   <Label>Função no Sistema</Label>
-                  <Select value={form.role} onValueChange={(v: UserRole) => setForm({...form, role: v})}>
+                  <Select
+                    value={FUNCOES_ATRIBUIVEIS.includes(form.role) ? form.role : "operador"}
+                    onValueChange={(v: UserRole) => setForm({...form, role: v})}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(ROLE_LABELS).map(([val, label]) => (
-                        <SelectItem key={val} value={val}>{label}</SelectItem>
+                      {FUNCOES_ATRIBUIVEIS.map((val) => (
+                        <SelectItem key={val} value={val}>{ROLE_LABELS[val]}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label>Empresa/Fazenda</Label>
-                  <Input 
-                    value={form.company} 
-                    onChange={e => setForm({...form, company: e.target.value})}
-                    placeholder="Opcional"
-                  />
-                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-muted-foreground">
+                  O usuário entra na empresa <strong>{profile?.company || "—"}</strong>. O acesso é
+                  atribuído pelo banco, não pelo navegador: ninguém consegue se
+                  cadastrar em outra empresa nem se promover a administrador.
+                </p>
+                {!ehMaster && (
+                  <p className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-900">
+                    <ShieldAlert className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                    <span>
+                      Você pode criar acessos de <strong>Operador</strong> e{" "}
+                      <strong>Motorista</strong>. Atribuir as funções de Gestor ou
+                      Administrador Master é restrito ao administrador master da
+                      empresa — e essa restrição é validada no banco, não apenas
+                      nesta tela.
+                    </span>
+                  </p>
+                )}
               </div>
               <div className="flex justify-end">
                 <Button type="submit" disabled={loading} className="w-full md:w-auto">
@@ -322,6 +488,30 @@ export default function Acessos() {
           </CardContent>
         </Card>
       )}
+
+      <Card className="mb-8 border-emerald-100 shadow-md">
+        <CardHeader className="flex flex-row items-start justify-between gap-4">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <DatabaseBackup className="h-5 w-5 text-emerald-600" />
+              Backup e restauração de dados
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Gera um arquivo <code>.json</code> com todos os módulos — OS, financeiro, cadastro,
+              drones, estoque — e permite restaurar o sistema em outro navegador ou computador.
+              Guarde uma cópia fora do servidor (pendrive, e-mail, nuvem).
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => setBackupAberto(true)}
+            className="shrink-0"
+          >
+            <HardDriveDownload className="h-4 w-4 mr-2" />
+            Abrir
+          </Button>
+        </CardHeader>
+      </Card>
 
       <Card className="shadow-lg overflow-hidden border-none bg-card/50 backdrop-blur-sm">
         <Table>
@@ -378,7 +568,7 @@ export default function Acessos() {
                       title="Definir módulos"
                     >
                       <Puzzle className="h-3.5 w-3.5 text-emerald-600" />
-                      {effectiveModules(p).size}/{MODULE_IDS.length}
+                      {effectiveModules(p).size}/{MODULOS_DA_EMPRESA.length}
                     </Button>
                   </TableCell>
                   <TableCell>
@@ -419,6 +609,126 @@ export default function Acessos() {
         </Table>
       </Card>
 
+      <Dialog open={backupAberto} onOpenChange={(open) => !backupProcessando && setBackupAberto(open)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DatabaseBackup className="h-5 w-5 text-emerald-600" />
+              Backup e restauração
+            </DialogTitle>
+            <DialogDescription>
+              O arquivo contém todos os registros visíveis para a sua empresa.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Exportar */}
+            <div className="rounded-xl border border-border/60 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <Download className="h-4 w-4 text-emerald-600" />
+                Gerar backup
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Exporta ordens de serviço, apontamentos de campo, financeiro, cadastros,
+                drones, frotas, estoque e usuários em um único arquivo JSON.
+              </p>
+              <Button
+                onClick={handleExportar}
+                disabled={backupProcessando}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {backupProcessando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                Baixar backup
+              </Button>
+              {progresso && <p className="text-xs text-muted-foreground">{progresso}</p>}
+            </div>
+
+            {/* Restaurar */}
+            <div className="rounded-xl border border-border/60 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <Upload className="h-4 w-4 text-emerald-600" />
+                Restaurar a partir de um arquivo
+              </div>
+
+              <input
+                ref={inputArquivoRef}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={handleSelecionarArquivo}
+              />
+              <Button variant="outline" onClick={() => inputArquivoRef.current?.click()} disabled={backupProcessando}>
+                <Upload className="h-4 w-4 mr-2" />
+                Selecionar arquivo de backup
+              </Button>
+
+              {arquivoPreview && !arquivoPreview.valido && (
+                <p className="text-sm text-destructive">{arquivoPreview.erro}</p>
+              )}
+
+              {arquivoPreview?.valido && arquivoBackup && (
+                <>
+                  <div className="rounded-lg bg-muted/50 p-3 text-xs space-y-1">
+                    <div><strong>Gerado em:</strong> {new Date(arquivoPreview.geradoEm!).toLocaleString("pt-BR")}</div>
+                    <div><strong>Empresa:</strong> {arquivoPreview.empresa || "—"}</div>
+                    <div><strong>Registros no arquivo:</strong> {totalRegistros(arquivoPreview.resumo)}</div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Como aplicar?</Label>
+                    <Select value={modoRestauracao} onValueChange={(v: "inserir" | "sobrescrever") => setModoRestauracao(v)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="inserir">Somente ausentes (recomendado)</SelectItem>
+                        <SelectItem value="sobrescrever">Substituir os dados atuais</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {modoRestauracao === "inserir"
+                        ? "Mantém o que já existe na nuvem e acrescenta o que estiver faltando. Pode repetir sem risco."
+                        : "Apaga os registros atuais antes de gravar os do arquivo. Use apenas para montar um ambiente novo."}
+                    </p>
+                  </div>
+
+                  <Button onClick={handleRestaurar} disabled={backupProcessando}>
+                    {backupProcessando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+                    Restaurar agora
+                  </Button>
+                </>
+              )}
+            </div>
+
+            {/* Limpeza do armazenamento local */}
+            <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+                <ShieldAlert className="h-4 w-4" />
+                Limpar dados antigos do navegador
+              </div>
+              <p className="text-sm text-amber-900/80">
+                Todos os módulos já gravam no servidor. Este botão apaga a cópia antiga que ficou
+                no armazenamento deste navegador. Só execute depois de gerar um backup com sucesso.
+              </p>
+              {confirmarLimpeza ? (
+                <div className="flex gap-2">
+                  <Button variant="destructive" size="sm" onClick={handleLimparLegado}>
+                    Sim, apagar os dados locais
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setConfirmarLimpeza(false)}>
+                    Cancelar
+                  </Button>
+                </div>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => setConfirmarLimpeza(true)}>
+                  Limpar armazenamento local
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog
         open={!!modulesTarget}
         onOpenChange={(open) => {
@@ -435,7 +745,7 @@ export default function Acessos() {
 
           {modulesTarget && (
             <div className="space-y-2">
-              {MODULES.map((m) => {
+              {MODULES.filter((m) => MODULOS_DA_EMPRESA.includes(m.id)).map((m) => {
                 const isRoleDefault = DEFAULT_ROLE_MODULES[modulesTarget.role].includes(m.id);
                 const checked = draftModules[m.id] === true;
                 const isException = checked !== isRoleDefault;

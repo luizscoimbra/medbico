@@ -120,7 +120,7 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(
         </div>
         <div>
           <p className="text-[9px] text-gray-500 uppercase font-semibold">Código Área</p>
-          <p className="font-medium text-[11px]">{os.codigoArea || "—"}</p>
+          <p className="font-medium text-[11px]">{os.codigoArea || ""}</p>
         </div>
         <div>
           <p className="text-[9px] text-gray-500 uppercase font-semibold">Resp. Técnico</p>
@@ -196,17 +196,17 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(
                 observacao.push(t.testemunhoArea ? `Test. ${t.testemunhoArea}m²` : "Test. Total");
               }
               if (t.testeProduto) {
-                observacao.push(`Teste: ${t.produtoTeste} (${t.produtoTesteQtd || "—"})`);
+                observacao.push(`Teste: ${t.produtoTeste} (${t.produtoTesteQtd || ""})`);
               }
-              const obsText = observacao.length > 0 ? observacao.join(" | ") : "—";
+              const obsText = observacao.length > 0 ? observacao.join(" | ") : "";
               
               const isTestemunhoTotal = t.testemunho && (!t.testemunhoArea || parseFloat(t.testemunhoArea) / 10000 >= (parseFloat(t.area) || 0));
 
               return isTestemunhoTotal && (!t.produtos || t.produtos.length === 0 || !t.produtos[0].produto) ? (
                 <tr key={i} className="bg-yellow-50">
                   <td className="border border-gray-300 px-1.5 py-1">{t.nome || `T-${i + 1}`}</td>
-                  <td className="border border-gray-300 px-1.5 py-1 text-right">{t.area || "—"}</td>
-                  <td className="border border-gray-300 px-1.5 py-1">—</td>
+                  <td className="border border-gray-300 px-1.5 py-1 text-right">{t.area || ""}</td>
+                  <td className="border border-gray-300 px-1.5 py-1"></td>
                   <td className="border border-gray-300 px-1.5 py-1 text-right">0</td>
                   <td className="border border-gray-300 px-1.5 py-1">{obsText}</td>
                 </tr>
@@ -219,12 +219,12 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(
                           {t.nome || `T-${i + 1}`}
                         </td>
                         <td className="border border-gray-300 px-1.5 py-1 text-right" rowSpan={rowSpan}>
-                          {t.area || "—"}
+                          {t.area || ""}
                         </td>
                       </>
                     )}
-                    <td className="border border-gray-300 px-1.5 py-1">{p.produto || "—"}</td>
-                    <td className="border border-gray-300 px-1.5 py-1 text-right">{p.dose || "—"}{p.unit ? ` ${p.unit}` : ""}</td>
+                    <td className="border border-gray-300 px-1.5 py-1">{p.produto || ""}</td>
+                    <td className="border border-gray-300 px-1.5 py-1 text-right">{p.dose || ""}{p.unit ? ` ${p.unit}` : ""}</td>
                     {j === 0 && (
                       <td className="border border-gray-300 px-1.5 py-1" rowSpan={rowSpan}>
                         {obsText}
@@ -268,10 +268,10 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(
                     <td className="border border-gray-300 px-1.5 py-1 text-right">{(item.totalNecessario % 1 === 0 ? item.totalNecessario.toFixed(0) : item.totalNecessario.toFixed(3))}</td>
                     <td className="border border-gray-300 px-1.5 py-1 text-center">{item.unit}</td>
                     <td className="border border-gray-300 px-1.5 py-1 text-right">
-                      {item.packageSize > 0 ? `${item.packageSize} ${item.unit}` : "—"}
+                      {item.packageSize > 0 ? `${item.packageSize} ${item.unit}` : ""}
                     </td>
                     <td className="border border-gray-300 px-1.5 py-1 text-right font-semibold">
-                      {item.qtdEmbalagens > 0 ? item.qtdEmbalagens : "—"}
+                      {item.qtdEmbalagens > 0 ? item.qtdEmbalagens : ""}
                     </td>
                   </tr>
                 ))}
@@ -394,7 +394,7 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(
                     {a.litros.toLocaleString("pt-BR")} L
                   </td>
                   <td className="border border-gray-300 px-1.5 py-1">
-                    {a.tipo_combustivel || "—"}
+                    {a.tipo_combustivel || ""}
                   </td>
                   <td className="border border-gray-300 px-1.5 py-1 text-right font-semibold">
                     R$ {(a.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}

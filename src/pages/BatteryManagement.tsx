@@ -694,7 +694,7 @@ export default function BatteryManagement() {
                           </div>
                         </TableCell>
                         <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
-                          {drone ? `${drone.marca} ${drone.modelo}` : "—"}
+                          {drone ? `${drone.marca} ${drone.modelo}` : ""}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-3 min-w-[140px]">
@@ -711,7 +711,7 @@ export default function BatteryManagement() {
                               />
                             </div>
                             <span className="text-[10px] text-muted-foreground w-6">
-                              /{cicloMaximo || "—"}
+                              /{cicloMaximo || ""}
                             </span>
                           </div>
                         </TableCell>
@@ -738,7 +738,7 @@ export default function BatteryManagement() {
                               </span>
                             </div>
                           ) : (
-                            <span className="text-muted-foreground">—</span>
+                            <span className="text-muted-foreground"></span>
                           )}
                         </TableCell>
                         <TableCell className="text-right">
@@ -800,7 +800,7 @@ export default function BatteryManagement() {
             </DialogTitle>
             {selectedBattery && (
               <DialogDescription>
-                {selectedBattery.modelo} — S/N: {selectedBattery.numero_serie}
+                {selectedBattery.modelo}  S/N: {selectedBattery.numero_serie}
                 {droneMap[selectedBattery.drone_id] &&
                   ` | Drone: ${droneMap[selectedBattery.drone_id].marca} ${droneMap[selectedBattery.drone_id].modelo}`}
               </DialogDescription>
@@ -845,10 +845,10 @@ export default function BatteryManagement() {
                             {new Date(cycle.created_at).toLocaleDateString("pt-BR")}
                           </TableCell>
                           <TableCell className="text-sm">
-                            {cycle.voltagem_inicio ? `${cycle.voltagem_inicio}V` : "—"}
+                            {cycle.voltagem_inicio ? `${cycle.voltagem_inicio}V` : ""}
                           </TableCell>
                           <TableCell className="text-sm">
-                            {cycle.voltagem_fim ? `${cycle.voltagem_fim}V` : "—"}
+                            {cycle.voltagem_fim ? `${cycle.voltagem_fim}V` : ""}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2 min-w-[100px]">
@@ -861,7 +861,7 @@ export default function BatteryManagement() {
                           <TableCell className="hidden md:table-cell text-sm">
                             {cycle.temperatura_operacao
                               ? `${cycle.temperatura_operacao}°C`
-                              : "—"}
+                              : ""}
                           </TableCell>
                           <TableCell className="hidden lg:table-cell">
                             {cycle.avarias && cycle.avarias.length > 0 ? (
@@ -873,7 +873,7 @@ export default function BatteryManagement() {
                                 ))}
                               </div>
                             ) : (
-                              <span className="text-muted-foreground text-xs">—</span>
+                              <span className="text-muted-foreground text-xs"></span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
@@ -1083,7 +1083,7 @@ export default function BatteryManagement() {
                 <option value="">Selecione o drone...</option>
                 {drones.map((d) => (
                   <option key={d.id} value={d.id}>
-                    {d.modelo} — {d.numero_serie}
+                    {d.modelo}  {d.numero_serie}
                   </option>
                 ))}
               </select>
@@ -1206,10 +1206,10 @@ export default function BatteryManagement() {
                           </p>
                         </TableCell>
                         <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
-                          {s.drone ? `${s.drone.marca} ${s.drone.modelo}` : "—"}
+                          {s.drone ? `${s.drone.marca} ${s.drone.modelo}` : ""}
                         </TableCell>
                         <TableCell className="text-sm font-mono">
-                          {s.ciclosAtuais}/{s.cicloMaximo || "—"}
+                          {s.ciclosAtuais}/{s.cicloMaximo || ""}
                         </TableCell>
                         <TableCell>{statusBadge(s.status)}</TableCell>
                         <TableCell>{rowActions(s.battery)}</TableCell>
@@ -1263,12 +1263,12 @@ export default function BatteryManagement() {
                               />
                             </div>
                             <span className="text-[10px] text-muted-foreground w-6">
-                              /{s.cicloMaximo || "—"}
+                              /{s.cicloMaximo || ""}
                             </span>
                           </div>
                         </TableCell>
                         <TableCell className="hidden sm:table-cell text-sm font-mono">
-                          {s.cicloMaximo > 0 ? `${Math.round(s.percentual)}%` : "—"}
+                          {s.cicloMaximo > 0 ? `${Math.round(s.percentual)}%` : ""}
                         </TableCell>
                         <TableCell>{statusBadge(s.status)}</TableCell>
                         <TableCell>{rowActions(s.battery)}</TableCell>
@@ -1381,11 +1381,11 @@ export default function BatteryManagement() {
                               </span>
                             </div>
                           ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
+                            <span className="text-muted-foreground text-xs"></span>
                           )}
                         </TableCell>
                         <TableCell className="hidden sm:table-cell text-sm font-mono">
-                          {s.lastSoh != null ? `${s.lastSoh}%` : "—"}
+                          {s.lastSoh != null ? `${s.lastSoh}%` : ""}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button

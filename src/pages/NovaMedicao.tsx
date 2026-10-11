@@ -238,7 +238,7 @@ function MedicaoSolo() {
                     >
                       <span className="font-medium">{eq.fleet_number}</span>
                       <span className="text-xs text-muted-foreground">
-                        {eq.equipment_model} • {eq.total_nozzles} bicos
+                        {eq.equipment_model} " {eq.total_nozzles} bicos
                       </span>
                     </button>
                   ))}
@@ -474,7 +474,7 @@ function MedicaoDrone() {
               >
                 <option value="">Selecione o drone...</option>
                 {drones.filter(d => d.status === "ativo").map(d => (
-                  <option key={d.id} value={d.id}>{d.marca} {d.modelo} — {d.numero_serie}</option>
+                  <option key={d.id} value={d.id}>{d.marca} {d.modelo}  {d.numero_serie}</option>
                 ))}
               </select>
             </div>

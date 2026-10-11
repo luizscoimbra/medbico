@@ -456,7 +456,7 @@ export default function Frotas() {
                                   <span className="text-xs font-semibold text-amber-600">
                                     {packages.toFixed(2)} {packageLabel}
                                   </span>
-                                ) : "—"}
+                                ) : ""}
                               </td>
                             </tr>
                           );
@@ -534,7 +534,7 @@ export default function Frotas() {
                           <span className="text-xs font-semibold text-amber-600">
                             {packs.toFixed(2)} {data.unit === "KG" ? "Pac" : "Gal"}
                           </span>
-                        ) : "—"}
+                        ) : ""}
                       </td>
                     </tr>
                   );

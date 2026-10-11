@@ -31,3 +31,6 @@ KEY\ ACCES\ DATABASE.txt
 
 # Backup folders
 medbico-51fa845b/
+
+# Env secrets
+.env

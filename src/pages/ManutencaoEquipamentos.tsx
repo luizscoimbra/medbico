@@ -112,7 +112,7 @@ const vencimentoPadrao = () => {
 };
 
 const dataBR = (iso: string) =>
-  iso ? new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString("pt-BR") : "—";
+  iso ? new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString("pt-BR") : "";
 
 interface FormRegistro {
   equipment_id: string;
@@ -705,7 +705,7 @@ export default function ManutencaoEquipamentos() {
             <SelectItem value="todos">Todos os equipamentos</SelectItem>
             {equipments.map((e) => (
               <SelectItem key={e.id} value={e.id}>
-                {e.fleet_number} — {e.equipment_model || "Equipamento"}
+                {e.fleet_number}  {e.equipment_model || "Equipamento"}
               </SelectItem>
             ))}
           </SelectContent>
@@ -907,7 +907,7 @@ export default function ManutencaoEquipamentos() {
                                   Pendente
                                 </Badge>
                               ) : (
-                                <span className="text-xs text-muted-foreground">—</span>
+                                <span className="text-xs text-muted-foreground"></span>
                               )}
                             </TableCell>
                             <TableCell>
@@ -1000,7 +1000,7 @@ export default function ManutencaoEquipamentos() {
                           <TableCell>
                             <p className="font-mono font-semibold">{p.fleet_number}</p>
                             <p className="text-[11px] text-muted-foreground">
-                              {p.equipamento_modelo || eqPorId[p.equipment_id]?.equipment_model || "—"}
+                              {p.equipamento_modelo || eqPorId[p.equipment_id]?.equipment_model || ""}
                             </p>
                           </TableCell>
                           <TableCell className="font-medium">{p.titulo}</TableCell>
@@ -1015,7 +1015,7 @@ export default function ManutencaoEquipamentos() {
                             {p.intervalo_dias > 0 ? `${p.intervalo_dias} dias` : ""}
                           </TableCell>
                           <TableCell className="text-center">
-                            {(p.checklist || []).length || "—"}
+                            {(p.checklist || []).length || ""}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center justify-center gap-1">
@@ -1103,7 +1103,7 @@ export default function ManutencaoEquipamentos() {
                       {itensDoCadastro.map((i) => (
                         <TableRow key={i.id}>
                           <TableCell className="font-medium">{i.nome}</TableCell>
-                          <TableCell>{i.categoria || "—"}</TableCell>
+                          <TableCell>{i.categoria || ""}</TableCell>
                           <TableCell>{i.unidade}</TableCell>
                           <TableCell className="text-right font-mono">
                             {formatBRL(i.custo)}
@@ -1169,7 +1169,7 @@ export default function ManutencaoEquipamentos() {
                   <SelectContent>
                     {equipments.map((e) => (
                       <SelectItem key={e.id} value={e.id}>
-                        {e.fleet_number} — {e.equipment_model || "Equipamento"}
+                        {e.fleet_number}  {e.equipment_model || "Equipamento"}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1281,7 +1281,7 @@ export default function ManutencaoEquipamentos() {
                           </p>
                           {doTipo.map((i) => (
                             <SelectItem key={i.id} value={i.id}>
-                              {i.nome} — {formatBRL(i.custo)}/{i.unidade}
+                              {i.nome}  {formatBRL(i.custo)}/{i.unidade}
                             </SelectItem>
                           ))}
                         </div>
@@ -1354,7 +1354,7 @@ export default function ManutencaoEquipamentos() {
                         {f.nome}
                       </SelectItem>
                     ))}
-                    <SelectItem value={LIVRE}>Digitar manualmente…</SelectItem>
+                    <SelectItem value={LIVRE}>Digitar manualmente&</SelectItem>
                   </SelectContent>
                 </Select>
                 {formReg.fornId === LIVRE && (
@@ -1441,7 +1441,7 @@ export default function ManutencaoEquipamentos() {
                   <SelectContent>
                     {equipments.map((e) => (
                       <SelectItem key={e.id} value={e.id}>
-                        {e.fleet_number} — {e.equipment_model || "Equipamento"}
+                        {e.fleet_number}  {e.equipment_model || "Equipamento"}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -196,10 +196,10 @@ export function FornecedoresDialog({
                         )}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-xs">
-                        {f.documento || "—"}
+                        {f.documento || ""}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-xs">
-                        {f.telefone || "—"}
+                        {f.telefone || ""}
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex items-center justify-center gap-1">

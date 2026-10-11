@@ -1,4 +1,5 @@
-import { get, set, keys, del } from "idb-keyval";
+import { supabase } from "@/integrations/supabase/client";
+import { orNull, requireUserId, storageError } from "@/lib/db";
 
 export interface Fornecedor {
   id: string;
@@ -9,63 +10,62 @@ export interface Fornecedor {
   createdAt: string;
 }
 
-const STORAGE_KEY = "medbico_fornecedores";
+interface FornecedorRow {
+  id: string;
+  nome: string;
+  documento: string | null;
+  telefone: string | null;
+  email: string | null;
+  created_at: string;
+}
+
+const fromRow = (row: FornecedorRow): Fornecedor => ({
+  id: row.id,
+  nome: row.nome,
+  documento: row.documento ?? undefined,
+  telefone: row.telefone ?? undefined,
+  email: row.email ?? undefined,
+  createdAt: row.created_at,
+});
 
 export const saveFornecedor = async (
   fornecedor: Omit<Fornecedor, "id" | "createdAt"> & { id?: string }
 ): Promise<Fornecedor> => {
-  const fornecedores = await getAllFornecedores();
-  const existingIndex = fornecedor.id
-    ? fornecedores.findIndex((f) => f.id === fornecedor.id)
-    : -1;
+  const userId = await requireUserId();
+  const id = fornecedor.id ?? `for-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
-  if (existingIndex >= 0) {
-    const updated = {
-      ...fornecedores[existingIndex],
-      ...fornecedor,
-      id: fornecedores[existingIndex].id,
-    } as Fornecedor;
-    fornecedores[existingIndex] = updated;
-    await set(STORAGE_KEY, fornecedores);
-    return updated;
-  }
-
-  const novo: Fornecedor = {
-    id: `for-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+  const row = {
+    id,
+    user_id: userId,
     nome: fornecedor.nome,
-    documento: fornecedor.documento || undefined,
-    telefone: fornecedor.telefone || undefined,
-    email: fornecedor.email || undefined,
-    createdAt: new Date().toISOString(),
+    documento: orNull(fornecedor.documento),
+    telefone: orNull(fornecedor.telefone),
+    email: orNull(fornecedor.email),
   };
-  fornecedores.push(novo);
-  await set(STORAGE_KEY, fornecedores);
-  return novo;
+
+  const { data, error } = await supabase
+    .from("suppliers")
+    .upsert({ ...row, created_at: new Date().toISOString() }, { onConflict: "id" })
+    .select("*")
+    .single();
+
+  if (error) throw storageError("Falha ao salvar o fornecedor", error);
+  return fromRow(data as FornecedorRow);
 };
 
 export const getAllFornecedores = async (): Promise<Fornecedor[]> => {
-  const fromSet = await get<Fornecedor[]>(STORAGE_KEY);
-  if (fromSet && fromSet.length >= 0) return [...fromSet].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
-  // Compatibilidade: lista também chaves soltas (mesmo padrão dos demais cadastros)
-  const allKeys = await keys();
-  const avulsos: Fornecedor[] = [];
-  for (const k of allKeys) {
-    if (typeof k === "string" && k.startsWith("fornecedor-")) {
-      const val = await get<Fornecedor>(k);
-      if (val && typeof val === "object" && "nome" in val) avulsos.push(val);
-    }
-  }
-  return avulsos.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  const { data, error } = await supabase.from("suppliers").select("*").order("nome");
+  if (error) throw storageError("Falha ao carregar os fornecedores", error);
+  return (data as FornecedorRow[]).map(fromRow);
 };
 
 export const getFornecedorById = async (id: string): Promise<Fornecedor | undefined> => {
-  const fornecedores = await getAllFornecedores();
-  return fornecedores.find((f) => f.id === id);
+  const { data, error } = await supabase.from("suppliers").select("*").eq("id", id).maybeSingle();
+  if (error) throw storageError("Falha ao carregar o fornecedor", error);
+  return data ? fromRow(data as FornecedorRow) : undefined;
 };
 
 export const deleteFornecedor = async (id: string): Promise<void> => {
-  const fornecedores = await getAllFornecedores();
-  const updated = fornecedores.filter((f) => f.id !== id);
-  await set(STORAGE_KEY, updated);
-  await del(`fornecedor-${id}`);
+  const { error } = await supabase.from("suppliers").delete().eq("id", id);
+  if (error) throw storageError("Falha ao excluir o fornecedor", error);
 };

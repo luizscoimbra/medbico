@@ -4,10 +4,7 @@ import { Button } from "@/components/ui/button";
 import { getAllOS, type OrdemServico } from "@/lib/osStorage";
 import { MotoristaPreview } from "@/components/os/MotoristaPreview";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Printer, FileDown, ArrowLeft, Search } from "lucide-react";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
-import { toast } from "sonner";
+import { Printer, ArrowLeft, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 
@@ -51,33 +48,6 @@ export default function AreaMotorista() {
   };
 
   const handlePrint = () => window.print();
-
-  const handlePDF = async () => {
-    if (!printRef.current) return;
-    toast.info("Gerando PDF...");
-    const canvas = await html2canvas(printRef.current, { scale: 2, useCORS: true });
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF("p", "mm", "a4");
-    const pdfW = pdf.internal.pageSize.getWidth();
-    const pdfH = (canvas.height * pdfW) / canvas.width;
-
-    const pageH = pdf.internal.pageSize.getHeight();
-    if (pdfH <= pageH) {
-      pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
-    } else {
-      let position = 0;
-      let remaining = pdfH;
-      while (remaining > 0) {
-        if (position > 0) pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, -position, pdfW, pdfH);
-        position += pageH;
-        remaining -= pageH;
-      }
-    }
-
-    pdf.save(`Fechamento-Motorista-OS-${selectedOS?.id}.pdf`);
-    toast.success("PDF salvo!");
-  };
 
   const filteredOsList = searchId.trim() === "" 
     ? osList 
@@ -173,9 +143,6 @@ export default function AreaMotorista() {
               <div className="flex flex-wrap gap-2 no-print">
                 <Button onClick={handlePrint} variant="default" size="sm">
                   <Printer className="h-4 w-4 mr-2" /> Imprimir Relatório
-                </Button>
-                <Button onClick={handlePDF} variant="outline" size="sm">
-                  <FileDown className="h-4 w-4 mr-2" /> Exportar PDF
                 </Button>
               </div>
               

@@ -82,7 +82,7 @@ const HOJE = () => new Date().toISOString().slice(0, 10);
 const inicioPadrao = () => new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
 
 const dataBR = (iso: string) =>
-  iso ? new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString("pt-BR") : "—";
+  iso ? new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString("pt-BR") : "";
 
 interface FormAbast {
   id?: string;
@@ -434,7 +434,7 @@ export default function GestaoAbastecimento() {
             <SelectItem value={TODOS}>Todos os equipamentos</SelectItem>
             {equipments.map((e) => (
               <SelectItem key={e.id} value={e.id}>
-                {e.fleet_number} — {e.equipment_model || "Equipamento"}
+                {e.fleet_number}  {e.equipment_model || "Equipamento"}
               </SelectItem>
             ))}
           </SelectContent>
@@ -480,7 +480,7 @@ export default function GestaoAbastecimento() {
               <div>
                 <p className="text-xs text-muted-foreground">Média de gasto no período</p>
                 <p className="text-xl font-heading font-bold">
-                  {consumo.totais.mediaLph != null ? `${consumo.totais.mediaLph} L/h` : "—"}
+                  {consumo.totais.mediaLph != null ? `${consumo.totais.mediaLph} L/h` : ""}
                 </p>
               </div>
             </div>
@@ -495,7 +495,7 @@ export default function GestaoAbastecimento() {
               <div>
                 <p className="text-xs text-muted-foreground">Último abastecimento</p>
                 <p className="text-xl font-heading font-bold">
-                  {ultimo ? dataBR(ultimo.data) : "—"}
+                  {ultimo ? dataBR(ultimo.data) : ""}
                 </p>
                 {ultimo && (
                   <p className="text-[11px] text-muted-foreground">
@@ -556,7 +556,7 @@ export default function GestaoAbastecimento() {
                             {c.mediaLph} L/h
                           </Badge>
                         ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
+                          <span className="text-xs text-muted-foreground"></span>
                         )}
                       </TableCell>
                     </TableRow>
@@ -568,7 +568,7 @@ export default function GestaoAbastecimento() {
                     </TableCell>
                     <TableCell className="text-right">{consumo.totais.horas} h</TableCell>
                     <TableCell className="text-right">
-                      {consumo.totais.mediaLph != null ? `${consumo.totais.mediaLph} L/h` : "—"}
+                      {consumo.totais.mediaLph != null ? `${consumo.totais.mediaLph} L/h` : ""}
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -626,7 +626,7 @@ export default function GestaoAbastecimento() {
                         {h.litros.toLocaleString("pt-BR")} L
                       </TableCell>
                       <TableCell className="text-right">
-                        {h.horasDesdeUltimo != null ? `${h.horasDesdeUltimo} h` : "—"}
+                        {h.horasDesdeUltimo != null ? `${h.horasDesdeUltimo} h` : ""}
                       </TableCell>
                       <TableCell className="text-right">
                         {h.consumoLph != null ? (
@@ -637,12 +637,12 @@ export default function GestaoAbastecimento() {
                           <span className="text-[11px] text-muted-foreground">primeiro registro</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-sm">{h.tipo_combustivel || "—"}</TableCell>
+                      <TableCell className="text-sm">{h.tipo_combustivel || ""}</TableCell>
                       <TableCell className="text-right text-sm">
-                        {h.valor_total > 0 ? formatBRL(h.valor_total) : "—"}
+                        {h.valor_total > 0 ? formatBRL(h.valor_total) : ""}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {h.posto_fornecedor || "—"}
+                        {h.posto_fornecedor || ""}
                       </TableCell>
                       <TableCell>
                         {h.os_id ? (
@@ -650,7 +650,7 @@ export default function GestaoAbastecimento() {
                             {h.os_id}
                           </Badge>
                         ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
+                          <span className="text-xs text-muted-foreground"></span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -717,7 +717,7 @@ export default function GestaoAbastecimento() {
                 <SelectContent>
                   {equipments.map((e) => (
                     <SelectItem key={e.id} value={e.id}>
-                      {e.fleet_number} — {e.equipment_model || "Equipamento"}
+                      {e.fleet_number}  {e.equipment_model || "Equipamento"}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -737,7 +737,7 @@ export default function GestaoAbastecimento() {
                   <SelectItem value={SEM_OS}>Sem OS</SelectItem>
                   {ossOrdenadas.map((os) => (
                     <SelectItem key={os.id} value={os.id}>
-                      OS {os.id} — {os.propriedade}
+                      OS {os.id}  {os.propriedade}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -809,7 +809,7 @@ export default function GestaoAbastecimento() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="aba-valor">Valor total (R$) — opcional</Label>
+                <Label htmlFor="aba-valor">Valor total (R$)  opcional</Label>
                 <Input
                   id="aba-valor"
                   inputMode="numeric"
@@ -821,7 +821,7 @@ export default function GestaoAbastecimento() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="aba-posto">Posto / fornecedor — opcional</Label>
+                <Label htmlFor="aba-posto">Posto / fornecedor  opcional</Label>
                 <Input
                   id="aba-posto"
                   placeholder="Ex.: Posto Central"
@@ -846,7 +846,7 @@ export default function GestaoAbastecimento() {
                 <p className="text-destructive flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 shrink-0" /> Horímetro menor ou igual ao do
                   último abastecimento ({preview.baseline?.horimetro} h em{" "}
-                  {preview.baseline ? dataBR(preview.baseline.data) : "—"}).
+                  {preview.baseline ? dataBR(preview.baseline.data) : ""}).
                 </p>
               ) : preview.horasDesdeUltimo != null ? (
                 <div className="grid grid-cols-3 gap-2">
@@ -854,7 +854,7 @@ export default function GestaoAbastecimento() {
                     <p className="text-[11px] text-muted-foreground">Horas trabalhadas</p>
                     <p className="font-semibold">{preview.horasDesdeUltimo} h</p>
                     <p className="text-[10px] text-muted-foreground">
-                      desde {preview.baseline ? dataBR(preview.baseline.data) : "—"}
+                      desde {preview.baseline ? dataBR(preview.baseline.data) : ""}
                     </p>
                   </div>
                   <div>
@@ -862,13 +862,13 @@ export default function GestaoAbastecimento() {
                     <p className="font-semibold">
                       {Number.isFinite(parseFloat(form.litros))
                         ? `${parseFloat(form.litros)} L`
-                        : "—"}
+                        : ""}
                     </p>
                   </div>
                   <div>
                     <p className="text-[11px] text-muted-foreground">Gasto por hora</p>
                     <p className="font-semibold text-primary">
-                      {preview.consumoLph != null ? `${preview.consumoLph} L/h` : "—"}
+                      {preview.consumoLph != null ? `${preview.consumoLph} L/h` : ""}
                     </p>
                   </div>
                 </div>
@@ -972,7 +972,7 @@ export default function GestaoAbastecimento() {
                 >
                   <Checkbox checked={selecionados.includes(e.id)} className="pointer-events-none" />
                   <span className="truncate">
-                    {e.fleet_number} — {e.equipment_model || "Equipamento"}
+                    {e.fleet_number}  {e.equipment_model || "Equipamento"}
                   </span>
                 </div>
               ))}
@@ -985,7 +985,7 @@ export default function GestaoAbastecimento() {
 
             <p className="text-xs text-muted-foreground">
               {historicoRelatorio.length} abastecimento(s) no relatório · {relDe ? new Date(`${relDe}T00:00:00`).toLocaleDateString("pt-BR") : "—"} a{" "}
-              {relAte ? new Date(`${relAte}T00:00:00`).toLocaleDateString("pt-BR") : "—"}
+              {relAte ? new Date(`${relAte}T00:00:00`).toLocaleDateString("pt-BR") : ""}
             </p>
           </div>
 

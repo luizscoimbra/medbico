@@ -69,14 +69,24 @@ export default function Auth() {
       return;
     }
     setLoading(true);
-    const { data: { user }, error } = await supabase.auth.signUp({
+
+    /*
+     * O cadastro público é self-service: o gatilho handle_new_user() cria uma
+     * empresa isolada para esta pessoa e já a registra como master dela.
+     *
+     * O trigger ignora de propósito qualquer empresa ou função enviada nos
+     * metadados — esse objeto é gravado pelo próprio usuário. Sem essa trava,
+     * dava para se cadastrar com o nome de outra empresa e cair nos dados
+     * dela, ou se auto-promover a administrador.
+     */
+    const { error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: {
         data: {
           full_name: form.full_name,
-          company: form.company,
           phone: form.phone,
+          company_name: form.company,
         },
         emailRedirectTo: `${window.location.origin}/email-confirmada`,
       },
@@ -86,29 +96,6 @@ export default function Auth() {
       setLoading(false);
       toast.error(error.message);
       return;
-    }
-
-    if (user) {
-      // Check if this is the first user to make them Master
-      const { count } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true });
-      
-      const isFirstUser = count === 0;
-
-      // Create profile record
-      const { error: profileError } = await supabase.from('profiles').insert({
-        id: user.id,
-        full_name: form.full_name,
-        phone: form.phone,
-        company: form.company,
-        role: isFirstUser ? 'master' : 'operador',
-        status: 'active',
-      });
-
-      if (profileError) {
-        console.error("Error creating profile:", profileError);
-      }
     }
 
     setLoading(false);
@@ -148,7 +135,7 @@ export default function Auth() {
                     required
                   />
                 </div>
-                <div className="space-y-2">
+<div className="space-y-2">
                   <Label htmlFor="company">Empresa / Fazenda</Label>
                   <Input
                     id="company"
@@ -157,6 +144,11 @@ export default function Auth() {
                     onChange={(e) => setForm({ ...form, company: e.target.value })}
                     required
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Cria a sua empresa e você entra como administrador dela,
+                    com acesso a todos os módulos. Ninguém mais enxerga os
+                    dados que você cadastrar aqui.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">WhatsApp (com DDD) *</Label>

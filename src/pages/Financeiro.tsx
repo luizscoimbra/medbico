@@ -28,7 +28,6 @@ import {
   CheckCircle2,
   Clock,
   ExternalLink,
-  FileDown,
   FileText,
   Printer,
   RotateCcw,
@@ -37,8 +36,6 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 import { ComprovanteTitulo } from "@/components/financeiro/ComprovanteTitulo";
 import { RelatorioMovimentacoes } from "@/components/financeiro/RelatorioMovimentacoes";
 import { ContasPagar } from "@/components/financeiro/ContasPagar";
@@ -255,76 +252,12 @@ export default function Financeiro() {
 
   const handlePrintComprovante = () => window.print();
 
-  const handlePDFComprovante = async () => {
-    const target = comprovantePrintRef.current;
-    if (!target) return;
-    try {
-      toast.info("Gerando PDF...");
-      const canvas = await html2canvas(target, { scale: 2, useCORS: true });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pdfW = pdf.internal.pageSize.getWidth();
-      const pdfH = (canvas.height * pdfW) / canvas.width;
-      const pageH = pdf.internal.pageSize.getHeight();
-
-      if (pdfH <= pageH) {
-        pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
-      } else {
-        let position = 0;
-        let remaining = pdfH;
-        while (remaining > 0) {
-          if (position > 0) pdf.addPage();
-          pdf.addImage(imgData, "PNG", 0, -position, pdfW, pdfH);
-          position += pageH;
-          remaining -= pageH;
-        }
-      }
-
-      pdf.save(`Comprovante-${comprovante?.numero || "titulo"}.pdf`);
-      toast.success("PDF salvo!");
-    } catch {
-      toast.error("Erro ao gerar PDF");
-    }
-  };
-
   const abrirRelatorio = () => {
     setRelFiltros({ ...REL_FILTROS_PADRAO, origem: activeTab });
     setRelatorioAberto(true);
   };
 
   const handlePrintRelatorio = () => window.print();
-
-  const handlePDFRelatorio = async () => {
-    const target = relatorioRef.current;
-    if (!target) return;
-    try {
-      toast.info("Gerando PDF do relatório...");
-      const canvas = await html2canvas(target, { scale: 2, useCORS: true });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pdfW = pdf.internal.pageSize.getWidth();
-      const pdfH = (canvas.height * pdfW) / canvas.width;
-      const pageH = pdf.internal.pageSize.getHeight();
-
-      if (pdfH <= pageH) {
-        pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
-      } else {
-        let position = 0;
-        let remaining = pdfH;
-        while (remaining > 0) {
-          if (position > 0) pdf.addPage();
-          pdf.addImage(imgData, "PNG", 0, -position, pdfW, pdfH);
-          position += pageH;
-          remaining -= pageH;
-        }
-      }
-
-      pdf.save(`Relatorio-Financeiro-${HOJE()}.pdf`);
-      toast.success("PDF do relatório salvo!");
-    } catch {
-      toast.error("Erro ao gerar PDF do relatório");
-    }
-  };
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl">
@@ -481,7 +414,7 @@ export default function Financeiro() {
                     <tr key={t.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3 font-mono font-semibold">{t.numero}</td>
                       <td className="px-4 py-3">
-                        <p className="font-medium">{t.clienteNome || "—"}</p>
+                        <p className="font-medium">{t.clienteNome || ""}</p>
                         {t.osId && (
                           <Link
                             to={`/ordem-servico?os=${t.osId}`}
@@ -498,7 +431,7 @@ export default function Financeiro() {
                       <td className="px-4 py-3 whitespace-nowrap">
                         {t.dataVencimento
                           ? new Date(t.dataVencimento + "T00:00:00").toLocaleDateString("pt-BR")
-                          : "—"}
+                          : ""}
                       </td>
                       <td className="px-4 py-3 text-right font-mono font-semibold whitespace-nowrap">
                         {formatBRL(t.valor)}
@@ -712,11 +645,8 @@ export default function Financeiro() {
             <Button variant="outline" onClick={() => setComprovante(null)}>
               Fechar
             </Button>
-            <Button variant="outline" onClick={handlePDFComprovante}>
-              <FileDown className="h-4 w-4 mr-1" /> Exportar PDF
-            </Button>
             <Button onClick={handlePrintComprovante}>
-              <Printer className="h-4 w-4 mr-1" /> Imprimir
+              <Printer className="h-4 w-4 mr-1" /> Imprimir / Salvar em PDF
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -829,11 +759,8 @@ export default function Financeiro() {
             <Button variant="outline" onClick={() => setRelatorioAberto(false)}>
               Fechar
             </Button>
-            <Button variant="outline" onClick={handlePDFRelatorio}>
-              <FileDown className="h-4 w-4 mr-1" /> Exportar PDF
-            </Button>
             <Button onClick={handlePrintRelatorio}>
-              <Printer className="h-4 w-4 mr-1" /> Imprimir
+              <Printer className="h-4 w-4 mr-1" /> Imprimir / Salvar em PDF
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -240,10 +240,10 @@ export const OSApontamentoPreview = forwardRef<HTMLDivElement, Props>(({ os, equ
                           </div>
                         )}
                       </td>
-                      <td className="border-b border-gray-100 px-3 py-2 text-right">{t.testemunho ? "—" : t.areaAplicada.toFixed(2)} ha</td>
-                      <td className="border-b border-gray-100 px-3 py-2 text-right">{t.testemunho ? "—" : t.bombasCheias}</td>
-                      <td className="border-b border-gray-100 px-3 py-2 text-right">{t.testemunho ? "—" : (t.cargaParcial > 0 ? (t.cargaParcial % 1 === 0 ? t.cargaParcial.toFixed(0) : t.cargaParcial.toFixed(3)) : "—")}</td>
-                      <td className="border-b border-gray-100 px-3 py-2 text-right font-bold text-gray-700">{t.testemunho ? "—" : (t.caldaRestante % 1 === 0 ? t.caldaRestante.toFixed(0) : t.caldaRestante.toFixed(3))}</td>
+                      <td className="border-b border-gray-100 px-3 py-2 text-right">{t.testemunho ? "" : t.areaAplicada.toFixed(2)} ha</td>
+                      <td className="border-b border-gray-100 px-3 py-2 text-right">{t.testemunho ? "" : t.bombasCheias}</td>
+                      <td className="border-b border-gray-100 px-3 py-2 text-right">{t.testemunho ? "" : (t.cargaParcial > 0 ? (t.cargaParcial % 1 === 0 ? t.cargaParcial.toFixed(0) : t.cargaParcial.toFixed(3)) : "")}</td>
+                      <td className="border-b border-gray-100 px-3 py-2 text-right font-bold text-gray-700">{t.testemunho ? "" : (t.caldaRestante % 1 === 0 ? t.caldaRestante.toFixed(0) : t.caldaRestante.toFixed(3))}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -252,7 +252,7 @@ export const OSApontamentoPreview = forwardRef<HTMLDivElement, Props>(({ os, equ
                     <td className="px-3 py-2 text-right text-xs text-gray-600 uppercase">Totais Trator {trator}:</td>
                     <td className="px-3 py-2 text-right text-green-700">{areaAplicadaTrator.toFixed(2)} ha</td>
                     <td className="px-3 py-2 text-right">{dados.bombasCheias}</td>
-                    <td className="px-3 py-2 text-right">{dados.cargaParcial > 0 ? (dados.cargaParcial % 1 === 0 ? dados.cargaParcial.toFixed(0) : dados.cargaParcial.toFixed(3)) : "—"}</td>
+                    <td className="px-3 py-2 text-right">{dados.cargaParcial > 0 ? (dados.cargaParcial % 1 === 0 ? dados.cargaParcial.toFixed(0) : dados.cargaParcial.toFixed(3)) : ""}</td>
                     <td className="px-3 py-2 text-right font-bold">{(dados.caldaRestante % 1 === 0 ? dados.caldaRestante.toFixed(0) : dados.caldaRestante.toFixed(3))} L</td>
                   </tr>
                 </tfoot>

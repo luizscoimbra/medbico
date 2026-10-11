@@ -3,9 +3,9 @@ import type { TituloDocumento } from "@/lib/tituloDocumento";
 import { formatBRL } from "@/lib/utils";
 
 const fmtData = (value?: string) => {
-  if (!value) return "—";
+  if (!value) return "";
   const [y, m, d] = value.slice(0, 10).split("-");
-  if (!y || !m || !d) return "—";
+  if (!y || !m || !d) return "";
   return `${d}/${m}/${y}`;
 };
 
@@ -119,9 +119,9 @@ export const ComprovanteTitulo = forwardRef<HTMLDivElement, { titulo: TituloDocu
 
           {/* Dados do título */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1.5 mb-3 border border-gray-300 rounded p-2">
-            <Campo label={pagar ? "Fornecedor" : "Cliente"} valor={t.contraparte || "—"} span />
+            <Campo label={pagar ? "Fornecedor" : "Cliente"} valor={t.contraparte || ""} span />
             <Campo label="Descrição" valor={t.descricao || "—"} span />
-            <Campo label={pagar ? "Categoria" : "OS vinculada"} valor={t.referencia || "—"} />
+            <Campo label={pagar ? "Categoria" : "OS vinculada"} valor={t.referencia || ""} />
             <Campo label="Emissão" valor={fmtData(t.dataEmissao)} />
             <Campo label="Vencimento" valor={fmtData(t.dataVencimento)} />
             <Campo label="Data do pagamento" valor={fmtData(t.dataPagamento)} />
@@ -139,7 +139,7 @@ export const ComprovanteTitulo = forwardRef<HTMLDivElement, { titulo: TituloDocu
               <p className="text-[9px] text-gray-500 uppercase font-semibold">
                 Forma de pagamento
               </p>
-              <p className="text-[11px] font-medium">{t.formaPagamento || "—"}</p>
+              <p className="text-[11px] font-medium">{t.formaPagamento || ""}</p>
             </div>
           </div>
 
@@ -157,7 +157,7 @@ export const ComprovanteTitulo = forwardRef<HTMLDivElement, { titulo: TituloDocu
             <div className="text-center flex-1" style={{ minWidth: "160px" }}>
               <div className="border-t border-black pt-1">
                 <p className="text-[10px] font-medium">{pagar ? "Fornecedor" : "Cliente / Pagador"}</p>
-                <p className="text-[9px] text-gray-500">{t.contraparte || "—"}</p>
+                <p className="text-[9px] text-gray-500">{t.contraparte || ""}</p>
               </div>
             </div>
             <div className="text-center flex-1" style={{ minWidth: "160px" }}>

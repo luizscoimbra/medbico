@@ -555,21 +555,21 @@ export default function FlightLog() {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
-                          <span className="truncate max-w-[150px]">{log.area_nome || "—"}</span>
+                          <span className="truncate max-w-[150px]">{log.area_nome || ""}</span>
                           {log.talhao && (
                             <span className="text-xs text-muted-foreground">T{log.talhao}</span>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell">{log.piloto || "—"}</TableCell>
+                      <TableCell className="hidden md:table-cell">{log.piloto || ""}</TableCell>
                       <TableCell className="hidden sm:table-cell whitespace-nowrap">
-                        {log.tempo_voo_min ? `${log.tempo_voo_min} min` : "—"}
+                        {log.tempo_voo_min ? `${log.tempo_voo_min} min` : ""}
                       </TableCell>
                       <TableCell className="hidden md:table-cell whitespace-nowrap">
-                        {log.hectares_pulverizados ? `${log.hectares_pulverizados} ha` : "—"}
+                        {log.hectares_pulverizados ? `${log.hectares_pulverizados} ha` : ""}
                       </TableCell>
                       <TableCell className="hidden lg:table-cell whitespace-nowrap">
-                        {log.volume_aplicado_l ? `${log.volume_aplicado_l} L` : "—"}
+                        {log.volume_aplicado_l ? `${log.volume_aplicado_l} L` : ""}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
@@ -967,11 +967,11 @@ export default function FlightLog() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground">Hora Início</p>
-                  <p className="font-medium">{selectedLog.hora_inicio || "—"}</p>
+                  <p className="font-medium">{selectedLog.hora_inicio || ""}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Hora Fim</p>
-                  <p className="font-medium">{selectedLog.hora_fim || "—"}</p>
+                  <p className="font-medium">{selectedLog.hora_fim || ""}</p>
                 </div>
               </div>
 
@@ -980,23 +980,23 @@ export default function FlightLog() {
                   <p className="text-xs text-muted-foreground">Área/Propriedade</p>
                   <p className="font-medium flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
-                    {selectedLog.area_nome || "—"}
+                    {selectedLog.area_nome || ""}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Talhão</p>
-                  <p className="font-medium">{selectedLog.talhao || "—"}</p>
+                  <p className="font-medium">{selectedLog.talhao || ""}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground">Cliente</p>
-                  <p className="font-medium">{selectedLog.cliente_nome || "—"}</p>
+                  <p className="font-medium">{selectedLog.cliente_nome || ""}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Cultura</p>
-                  <p className="font-medium">{selectedLog.cultura || "—"}</p>
+                  <p className="font-medium">{selectedLog.cultura || ""}</p>
                 </div>
               </div>
 
@@ -1005,12 +1005,12 @@ export default function FlightLog() {
                   <p className="text-xs text-muted-foreground">Piloto</p>
                   <p className="font-medium flex items-center gap-1">
                     <User className="h-3 w-3" />
-                    {selectedLog.piloto || "—"}
+                    {selectedLog.piloto || ""}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Operador de Apoio</p>
-                  <p className="font-medium">{selectedLog.operador_apoio || "—"}</p>
+                  <p className="font-medium">{selectedLog.operador_apoio || ""}</p>
                 </div>
               </div>
 
@@ -1021,7 +1021,7 @@ export default function FlightLog() {
                     <p className="text-xs text-muted-foreground">Tempo de Voo</p>
                     <p className="font-medium flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {selectedLog.tempo_voo_min ? `${selectedLog.tempo_voo_min} min` : "—"}
+                      {selectedLog.tempo_voo_min ? `${selectedLog.tempo_voo_min} min` : ""}
                     </p>
                   </div>
                   <div>
@@ -1030,7 +1030,7 @@ export default function FlightLog() {
                       <Leaf className="h-3 w-3" />
                       {selectedLog.hectares_pulverizados
                         ? `${selectedLog.hectares_pulverizados} ha`
-                        : "—"}
+                        : ""}
                     </p>
                   </div>
                   <div>
@@ -1039,7 +1039,7 @@ export default function FlightLog() {
                       <Droplets className="h-3 w-3" />
                       {selectedLog.volume_aplicado_l
                         ? `${selectedLog.volume_aplicado_l} L`
-                        : "—"}
+                        : ""}
                     </p>
                   </div>
                 </div>
@@ -1057,7 +1057,7 @@ export default function FlightLog() {
                         >
                           <span className="font-medium">{prod.nome}</span>
                           <span className="text-muted-foreground">
-                            — {prod.dose} {prod.unidade}
+                             {prod.dose} {prod.unidade}
                           </span>
                         </div>
                       ))}
@@ -1070,14 +1070,14 @@ export default function FlightLog() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs text-muted-foreground">Ciclos Bateria</p>
-                    <p className="font-medium">{selectedLog.ciclos_bateria || "—"}</p>
+                    <p className="font-medium">{selectedLog.ciclos_bateria || ""}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Combustível Gerador</p>
                     <p className="font-medium">
                       {selectedLog.combustivel_gerador_l
                         ? `${selectedLog.combustivel_gerador_l} L`
-                        : "—"}
+                        : ""}
                     </p>
                   </div>
                 </div>
@@ -1094,14 +1094,14 @@ export default function FlightLog() {
                         ? condicoesOptions.find(
                             (c) => c.value === selectedLog.condicoes_climaticas
                           )?.label || selectedLog.condicoes_climaticas
-                        : "—"}
+                        : ""}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Vento</p>
                     <p className="font-medium flex items-center gap-1">
                       <Wind className="h-3 w-3" />
-                      {selectedLog.vento_kmh ? `${selectedLog.vento_kmh} km/h` : "—"}
+                      {selectedLog.vento_kmh ? `${selectedLog.vento_kmh} km/h` : ""}
                     </p>
                   </div>
                   <div>
@@ -1110,7 +1110,7 @@ export default function FlightLog() {
                       <Thermometer className="h-3 w-3" />
                       {selectedLog.temperatura_c
                         ? `${selectedLog.temperatura_c} °C`
-                        : "—"}
+                        : ""}
                     </p>
                   </div>
                 </div>

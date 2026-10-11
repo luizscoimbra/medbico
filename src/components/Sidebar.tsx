@@ -27,6 +27,8 @@ import {
   Banknote,
   Fuel,
   Boxes,
+  MapPin,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/context/SidebarContext";
@@ -56,6 +58,8 @@ const navItems: NavItem[] = [
   { path: "/historico", label: "Histórico", icon: History, group: "Consultas", module: "consultas" },
   { path: "/tabela-referencia", label: "Tabela ISO", icon: BookOpen, group: "Consultas", module: "consultas" },
   { path: "/acessos", label: "Gestão de Acessos", icon: Shield, group: "Configurações", module: "acessos" },
+  { path: "/filiais", label: "Filiais", icon: MapPin, group: "Configurações", module: "acessos" },
+  { path: "/plataforma", label: "Plataforma", icon: ShieldCheck, group: "Configurações", module: "plataforma" },
   { path: "/financeiro", label: "Financeiro", icon: Banknote, group: "Financeiro", module: "financeiro" },
 ];
 
@@ -133,237 +137,238 @@ export function Sidebar() {
     if (!can("drones")) return null;
 
     return (
-    <>
-      <button
-        onClick={() => setDronesOpen(!dronesOpen)}
-        className={cn(
-          "sidebar-nav-item flex items-center gap-3 rounded-xl transition-all duration-200 relative overflow-hidden w-full text-left",
-          collapsed && !isMobile
-            ? "justify-center px-3 py-3"
-            : "px-4 py-3",
-          FROTAS_PATHS.includes(location.pathname) && !dronesOpen
-            ? "bg-white/[0.08] text-white"
-            : "text-white/50 hover:text-white/90 hover:bg-white/[0.04]"
-        )}
-      >
-        {FROTAS_PATHS.includes(location.pathname) && !dronesOpen && (
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
-        )}
-        <Truck
+      <>
+        <button
+          onClick={() => setDronesOpen(!dronesOpen)}
           className={cn(
-            "shrink-0 transition-all duration-200",
-            collapsed && !isMobile ? "h-5 w-5" : "h-[18px] w-[18px]",
-            FROTAS_PATHS.includes(location.pathname) && !dronesOpen ? "text-emerald-400" : ""
-          )}
-        />
-        <span
-          className={cn(
-            "text-sm font-medium whitespace-nowrap transition-all duration-300 flex-1",
-            collapsed && !isMobile ? "w-0 opacity-0 hidden" : "w-auto opacity-100",
-            FROTAS_PATHS.includes(location.pathname) && !dronesOpen ? "text-white" : ""
+            "sidebar-nav-item flex items-center gap-3 rounded-xl transition-all duration-200 relative overflow-hidden w-full text-left",
+            collapsed && !isMobile
+              ? "justify-center px-3 py-3"
+              : "px-4 py-3",
+            FROTAS_PATHS.includes(location.pathname) && !dronesOpen
+              ? "bg-white/[0.08] text-white"
+              : "text-white/50 hover:text-white/90 hover:bg-white/[0.04]"
           )}
         >
-          Gestão de Frotas
-        </span>
-        {!collapsed && !isMobile && (
-          <ChevronDown
+          {FROTAS_PATHS.includes(location.pathname) && !dronesOpen && (
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
+          )}
+          <Truck
             className={cn(
-              "h-4 w-4 transition-transform duration-200 shrink-0",
-              dronesOpen ? "rotate-0" : "-rotate-90"
+              "shrink-0 transition-all duration-200",
+              collapsed && !isMobile ? "h-5 w-5" : "h-[18px] w-[18px]",
+              FROTAS_PATHS.includes(location.pathname) && !dronesOpen ? "text-emerald-400" : ""
             )}
           />
-        )}
-      </button>
-
-      {/* Submenu items */}
-      <div
-        className={cn(
-          "overflow-hidden transition-all duration-300",
-          dronesOpen && !collapsed ? "max-h-[700px] opacity-100" : "max-h-0 opacity-0"
-        )}
-      >
-        <div className="flex flex-col gap-0.5 pl-4">
-          {/* Frotas - link direto */}
-          <Link
-            to="/frotas"
+          <span
             className={cn(
-              "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2.5 text-sm",
-              location.pathname === "/frotas"
-                ? "bg-white/[0.08] text-white"
-                : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
+              "text-sm font-medium whitespace-nowrap transition-all duration-300 flex-1",
+              collapsed && !isMobile ? "w-0 opacity-0 hidden" : "w-auto opacity-100",
+              FROTAS_PATHS.includes(location.pathname) && !dronesOpen ? "text-white" : ""
             )}
           >
-            <Truck className={cn("h-4 w-4 shrink-0", location.pathname === "/frotas" ? "text-emerald-400" : "")} />
-            <span className="whitespace-nowrap">Frotas</span>
-          </Link>
-
-          {/* Equipamentos - sub-submenu */}
-          <div>
-            <button
-              onClick={() => setEquipamentosOpen(!equipamentosOpen)}
+            Gestão de Frotas
+          </span>
+          {!collapsed && !isMobile && (
+            <ChevronDown
               className={cn(
-                "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2.5 text-sm w-full text-left",
-                EQUIP_MENU_PATHS.includes(location.pathname) && !equipamentosOpen
+                "h-4 w-4 transition-transform duration-200 shrink-0",
+                dronesOpen ? "rotate-0" : "-rotate-90"
+              )}
+            />
+          )}
+        </button>
+
+        {/* Submenu items */}
+        <div
+          className={cn(
+            "overflow-hidden transition-all duration-300",
+            dronesOpen && !collapsed ? "max-h-[700px] opacity-100" : "max-h-0 opacity-0"
+          )}
+        >
+          <div className="flex flex-col gap-0.5 pl-4">
+            {/* Frotas - link direto */}
+            <Link
+              to="/frotas"
+              className={cn(
+                "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2.5 text-sm",
+                location.pathname === "/frotas"
                   ? "bg-white/[0.08] text-white"
                   : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
               )}
             >
-              <Settings
+              <Truck className={cn("h-4 w-4 shrink-0", location.pathname === "/frotas" ? "text-emerald-400" : "")} />
+              <span className="whitespace-nowrap">Frotas</span>
+            </Link>
+
+            {/* Equipamentos - sub-submenu */}
+            <div>
+              <button
+                onClick={() => setEquipamentosOpen(!equipamentosOpen)}
                 className={cn(
-                  "h-4 w-4 shrink-0",
-                  EQUIP_MENU_PATHS.includes(location.pathname) && !equipamentosOpen ? "text-emerald-400" : ""
+                  "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2.5 text-sm w-full text-left",
+                  EQUIP_MENU_PATHS.includes(location.pathname) && !equipamentosOpen
+                    ? "bg-white/[0.08] text-white"
+                    : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
                 )}
-              />
-              <span className="whitespace-nowrap flex-1">Equipamentos</span>
-              <ChevronDown
+              >
+                <Settings
+                  className={cn(
+                    "h-4 w-4 shrink-0",
+                    EQUIP_MENU_PATHS.includes(location.pathname) && !equipamentosOpen ? "text-emerald-400" : ""
+                  )}
+                />
+                <span className="whitespace-nowrap flex-1">Equipamentos</span>
+                <ChevronDown
+                  className={cn(
+                    "h-3 w-3 transition-transform duration-200 shrink-0",
+                    equipamentosOpen ? "rotate-0" : "-rotate-90"
+                  )}
+                />
+              </button>
+              <div
                 className={cn(
-                  "h-3 w-3 transition-transform duration-200 shrink-0",
-                  equipamentosOpen ? "rotate-0" : "-rotate-90"
+                  "overflow-hidden transition-all duration-300",
+                  equipamentosOpen && !collapsed ? "max-h-[640px] opacity-100" : "max-h-0 opacity-0"
                 )}
-              />
-            </button>
-            <div
-              className={cn(
-                "overflow-hidden transition-all duration-300",
-                equipamentosOpen && !collapsed ? "max-h-[640px] opacity-100" : "max-h-0 opacity-0"
-              )}
-            >
-              <div className="flex flex-col gap-0.5 pl-4">
-                {/* Frota terrestre - sub-sub-submenu */}
-                <div>
-                  <button
-                    onClick={() => setFrotaTerrestreOpen(!frotaTerrestreOpen)}
-                    className={cn(
-                      "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2.5 text-sm w-full text-left",
-                      EQUIP_PATHS.includes(location.pathname) && !frotaTerrestreOpen
-                        ? "bg-white/[0.08] text-white"
-                        : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
-                    )}
-                  >
-                    <Truck
+              >
+                <div className="flex flex-col gap-0.5 pl-4">
+                  {/* Frota terrestre - sub-sub-submenu */}
+                  <div>
+                    <button
+                      onClick={() => setFrotaTerrestreOpen(!frotaTerrestreOpen)}
                       className={cn(
-                        "h-4 w-4 shrink-0",
+                        "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2.5 text-sm w-full text-left",
                         EQUIP_PATHS.includes(location.pathname) && !frotaTerrestreOpen
-                          ? "text-emerald-400"
-                          : ""
+                          ? "bg-white/[0.08] text-white"
+                          : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
                       )}
-                    />
-                    <span className="whitespace-nowrap flex-1">Frota terrestre</span>
-                    <ChevronDown
+                    >
+                      <Truck
+                        className={cn(
+                          "h-4 w-4 shrink-0",
+                          EQUIP_PATHS.includes(location.pathname) && !frotaTerrestreOpen
+                            ? "text-emerald-400"
+                            : ""
+                        )}
+                      />
+                      <span className="whitespace-nowrap flex-1">Frota terrestre</span>
+                      <ChevronDown
+                        className={cn(
+                          "h-3 w-3 transition-transform duration-200 shrink-0",
+                          frotaTerrestreOpen ? "rotate-0" : "-rotate-90"
+                        )}
+                      />
+                    </button>
+                    <div
                       className={cn(
-                        "h-3 w-3 transition-transform duration-200 shrink-0",
-                        frotaTerrestreOpen ? "rotate-0" : "-rotate-90"
+                        "overflow-hidden transition-all duration-300",
+                        frotaTerrestreOpen && !collapsed ? "max-h-[240px] opacity-100" : "max-h-0 opacity-0"
                       )}
-                    />
-                  </button>
-                  <div
-                    className={cn(
-                      "overflow-hidden transition-all duration-300",
-                      frotaTerrestreOpen && !collapsed ? "max-h-[240px] opacity-100" : "max-h-0 opacity-0"
-                    )}
-                  >
-                    <div className="flex flex-col gap-0.5 pl-4">
-                      <Link
-                        to="/equipamentos"
-                        className={cn(
-                          "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2 text-sm",
-                          location.pathname === "/equipamentos"
-                            ? "bg-white/[0.08] text-white"
-                            : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
-                        )}
-                      >
-                        <Settings
+                    >
+                      <div className="flex flex-col gap-0.5 pl-4">
+                        <Link
+                          to="/equipamentos"
                           className={cn(
-                            "h-4 w-4 shrink-0",
-                            location.pathname === "/equipamentos" ? "text-emerald-400" : ""
+                            "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2 text-sm",
+                            location.pathname === "/equipamentos"
+                              ? "bg-white/[0.08] text-white"
+                              : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
                           )}
-                        />
-                        <span className="whitespace-nowrap">Equipamentos</span>
-                      </Link>
-                      <Link
-                        to="/manutencao-equipamentos"
-                        className={cn(
-                          "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2 text-sm",
-                          location.pathname === "/manutencao-equipamentos"
-                            ? "bg-white/[0.08] text-white"
-                            : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
-                        )}
-                      >
-                        <Wrench
+                        >
+                          <Settings
+                            className={cn(
+                              "h-4 w-4 shrink-0",
+                              location.pathname === "/equipamentos" ? "text-emerald-400" : ""
+                            )}
+                          />
+                          <span className="whitespace-nowrap">Equipamentos</span>
+                        </Link>
+                        <Link
+                          to="/manutencao-equipamentos"
                           className={cn(
-                            "h-4 w-4 shrink-0",
-                            location.pathname === "/manutencao-equipamentos" ? "text-emerald-400" : ""
+                            "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2 text-sm",
+                            location.pathname === "/manutencao-equipamentos"
+                              ? "bg-white/[0.08] text-white"
+                              : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
                           )}
-                        />
-                        <span className="whitespace-nowrap">Manutenção</span>
-                      </Link>
-                      <Link
-                        to="/gestao-abastecimento"
-                        className={cn(
-                          "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2 text-sm",
-                          location.pathname === "/gestao-abastecimento"
-                            ? "bg-white/[0.08] text-white"
-                            : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
-                        )}
-                      >
-                        <Fuel
+                        >
+                          <Wrench
+                            className={cn(
+                              "h-4 w-4 shrink-0",
+                              location.pathname === "/manutencao-equipamentos" ? "text-emerald-400" : ""
+                            )}
+                          />
+                          <span className="whitespace-nowrap">Manutenção</span>
+                        </Link>
+                        <Link
+                          to="/gestao-abastecimento"
                           className={cn(
-                            "h-4 w-4 shrink-0",
-                            location.pathname === "/gestao-abastecimento" ? "text-emerald-400" : ""
+                            "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2 text-sm",
+                            location.pathname === "/gestao-abastecimento"
+                              ? "bg-white/[0.08] text-white"
+                              : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
                           )}
-                        />
-                        <span className="whitespace-nowrap">Gestão de abastecimento</span>
-                      </Link>
+                        >
+                          <Fuel
+                            className={cn(
+                              "h-4 w-4 shrink-0",
+                              location.pathname === "/gestao-abastecimento" ? "text-emerald-400" : ""
+                            )}
+                          />
+                          <span className="whitespace-nowrap">Gestão de abastecimento</span>
+                        </Link>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Frota de Drones - sub-submenu */}
-                <div>
-                  <button
-                    onClick={() => setDronesAereosOpen(!dronesAereosOpen)}
-                    className={cn(
-                      "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2.5 text-sm w-full text-left",
-                      DRONE_PATHS.includes(location.pathname) && !dronesAereosOpen
-                        ? "bg-white/[0.08] text-white"
-                        : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
-                    )}
-                  >
-                    <Plane className={cn("h-4 w-4 shrink-0", DRONE_PATHS.includes(location.pathname) && !dronesAereosOpen ? "text-emerald-400" : "")} />
-                    <span className="whitespace-nowrap flex-1">Frota de Drones</span>
-                    <ChevronDown
+                  {/* Frota de Drones - sub-submenu */}
+                  <div>
+                    <button
+                      onClick={() => setDronesAereosOpen(!dronesAereosOpen)}
                       className={cn(
-                        "h-3 w-3 transition-transform duration-200 shrink-0",
-                        dronesAereosOpen ? "rotate-0" : "-rotate-90"
+                        "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2.5 text-sm w-full text-left",
+                        DRONE_PATHS.includes(location.pathname) && !dronesAereosOpen
+                          ? "bg-white/[0.08] text-white"
+                          : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
                       )}
-                    />
-                  </button>
-                  <div
-                    className={cn(
-                      "overflow-hidden transition-all duration-300",
-                      dronesAereosOpen && !collapsed ? "max-h-[200px] opacity-100" : "max-h-0 opacity-0"
-                    )}
-                  >
-                    <div className="flex flex-col gap-0.5 pl-4">
-                      {droneSubItems.map((sub) => {
-                        const isSubActive = location.pathname === sub.path;
-                        const SubIcon = sub.icon;
-                        return (
-                          <Link
-                            key={sub.path}
-                            to={sub.path}
-                            className={cn(
-                              "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2 text-sm",
-                              isSubActive
-                                ? "bg-white/[0.08] text-white"
-                                : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
-                            )}
-                          >
-                            <SubIcon className={cn("h-4 w-4 shrink-0", isSubActive ? "text-emerald-400" : "")} />
-                            <span className="whitespace-nowrap">{sub.label}</span>
-                          </Link>
-                        );
-                      })}
+                    >
+                      <Plane className={cn("h-4 w-4 shrink-0", DRONE_PATHS.includes(location.pathname) && !dronesAereosOpen ? "text-emerald-400" : "")} />
+                      <span className="whitespace-nowrap flex-1">Frota de Drones</span>
+                      <ChevronDown
+                        className={cn(
+                          "h-3 w-3 transition-transform duration-200 shrink-0",
+                          dronesAereosOpen ? "rotate-0" : "-rotate-90"
+                        )}
+                      />
+                    </button>
+                    <div
+                      className={cn(
+                        "overflow-hidden transition-all duration-300",
+                        dronesAereosOpen && !collapsed ? "max-h-[200px] opacity-100" : "max-h-0 opacity-0"
+                      )}
+                    >
+                      <div className="flex flex-col gap-0.5 pl-4">
+                        {droneSubItems.map((sub) => {
+                          const isSubActive = location.pathname === sub.path;
+                          const SubIcon = sub.icon;
+                          return (
+                            <Link
+                              key={sub.path}
+                              to={sub.path}
+                              className={cn(
+                                "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2 text-sm",
+                                isSubActive
+                                  ? "bg-white/[0.08] text-white"
+                                  : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
+                              )}
+                            >
+                              <SubIcon className={cn("h-4 w-4 shrink-0", isSubActive ? "text-emerald-400" : "")} />
+                              <span className="whitespace-nowrap">{sub.label}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -371,8 +376,7 @@ export function Sidebar() {
             </div>
           </div>
         </div>
-      </div>
-    </>
+      </>
     );
   };
 
@@ -504,98 +508,98 @@ export function Sidebar() {
 
         {/* Cadastros Submenu */}
         {can("cadastros") && (
-        <div className="mb-2">
-          <div
-            className={cn(
-              "overflow-hidden transition-all duration-300",
-              collapsed && !isMobile ? "h-0 opacity-0 px-0 py-0" : "h-auto opacity-100 px-5 py-2"
-            )}
-          >
-            <span className="text-[10px] font-semibold tracking-widest uppercase text-white/25">
-              Configurações
-            </span>
-          </div>
-          {collapsed && !isMobile && (
-            <div className="mx-auto my-2 w-6 h-px bg-white/[0.06]" />
-          )}
-          <div className="flex flex-col gap-0.5 px-3">
-            <button
-              onClick={() => {
-                setCadastrosOpen(!cadastrosOpen);
-                navigate("/visao-geral");
-              }}
-              className={cn(
-                "sidebar-nav-item flex items-center gap-3 rounded-xl transition-all duration-200 relative overflow-hidden w-full text-left",
-                collapsed && !isMobile
-                  ? "justify-center px-3 py-3"
-                  : "px-4 py-3",
-                location.pathname === "/cadastros" && !cadastrosOpen
-                  ? "bg-white/[0.08] text-white"
-                  : "text-white/50 hover:text-white/90 hover:bg-white/[0.04]"
-              )}
-            >
-              {location.pathname === "/cadastros" && !cadastrosOpen && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
-              )}
-              <ClipboardList
-                className={cn(
-                  "shrink-0 transition-all duration-200",
-                  collapsed && !isMobile ? "h-5 w-5" : "h-[18px] w-[18px]",
-                  location.pathname === "/cadastros" && !cadastrosOpen ? "text-emerald-400" : ""
-                )}
-              />
-              <span
-                className={cn(
-                  "text-sm font-medium whitespace-nowrap transition-all duration-300 flex-1",
-                  collapsed && !isMobile ? "w-0 opacity-0 hidden" : "w-auto opacity-100",
-                  location.pathname === "/cadastros" && !cadastrosOpen ? "text-white" : ""
-                )}
-              >
-                Cadastros
-              </span>
-              {!collapsed && !isMobile && (
-                <ChevronDown
-                  className={cn(
-                    "h-4 w-4 transition-transform duration-200 shrink-0",
-                    cadastrosOpen ? "rotate-0" : "-rotate-90"
-                  )}
-                />
-              )}
-            </button>
-
-            {/* Submenu items */}
+          <div className="mb-2">
             <div
               className={cn(
                 "overflow-hidden transition-all duration-300",
-                cadastrosOpen && !collapsed ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+                collapsed && !isMobile ? "h-0 opacity-0 px-0 py-0" : "h-auto opacity-100 px-5 py-2"
               )}
             >
-              <div className="flex flex-col gap-0.5 pl-4">
-                {cadastroSubItems.map((sub) => {
-                  const isSubActive = location.pathname === "/cadastros" &&
-                    new URLSearchParams(location.search).get("tab") === sub.tab;
-                  const SubIcon = sub.icon;
+              <span className="text-[10px] font-semibold tracking-widest uppercase text-white/25">
+                Configurações
+              </span>
+            </div>
+            {collapsed && !isMobile && (
+              <div className="mx-auto my-2 w-6 h-px bg-white/[0.06]" />
+            )}
+            <div className="flex flex-col gap-0.5 px-3">
+              <button
+                onClick={() => {
+                  setCadastrosOpen(!cadastrosOpen);
+                  navigate("/visao-geral");
+                }}
+                className={cn(
+                  "sidebar-nav-item flex items-center gap-3 rounded-xl transition-all duration-200 relative overflow-hidden w-full text-left",
+                  collapsed && !isMobile
+                    ? "justify-center px-3 py-3"
+                    : "px-4 py-3",
+                  location.pathname === "/cadastros" && !cadastrosOpen
+                    ? "bg-white/[0.08] text-white"
+                    : "text-white/50 hover:text-white/90 hover:bg-white/[0.04]"
+                )}
+              >
+                {location.pathname === "/cadastros" && !cadastrosOpen && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
+                )}
+                <ClipboardList
+                  className={cn(
+                    "shrink-0 transition-all duration-200",
+                    collapsed && !isMobile ? "h-5 w-5" : "h-[18px] w-[18px]",
+                    location.pathname === "/cadastros" && !cadastrosOpen ? "text-emerald-400" : ""
+                  )}
+                />
+                <span
+                  className={cn(
+                    "text-sm font-medium whitespace-nowrap transition-all duration-300 flex-1",
+                    collapsed && !isMobile ? "w-0 opacity-0 hidden" : "w-auto opacity-100",
+                    location.pathname === "/cadastros" && !cadastrosOpen ? "text-white" : ""
+                  )}
+                >
+                  Cadastros
+                </span>
+                {!collapsed && !isMobile && (
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 transition-transform duration-200 shrink-0",
+                      cadastrosOpen ? "rotate-0" : "-rotate-90"
+                    )}
+                  />
+                )}
+              </button>
 
-                  return (
-                    <Link
-                      key={sub.tab}
-                      to={`/cadastros?tab=${sub.tab}`}
-                      className={cn(
-                        "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2.5 text-sm",
-                        isSubActive
-                          ? "bg-white/[0.08] text-white"
-                          : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
-                      )}
-                    >
-                      <SubIcon className={cn("h-4 w-4 shrink-0", isSubActive ? "text-emerald-400" : "")} />
-                      <span className="whitespace-nowrap">{sub.label}</span>
-                    </Link>
-                  );
-                })}
+              {/* Submenu items */}
+              <div
+                className={cn(
+                  "overflow-hidden transition-all duration-300",
+                  cadastrosOpen && !collapsed ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+                )}
+              >
+                <div className="flex flex-col gap-0.5 pl-4">
+                  {cadastroSubItems.map((sub) => {
+                    const isSubActive = location.pathname === "/cadastros" &&
+                      new URLSearchParams(location.search).get("tab") === sub.tab;
+                    const SubIcon = sub.icon;
+
+                    return (
+                      <Link
+                        key={sub.tab}
+                        to={`/cadastros?tab=${sub.tab}`}
+                        className={cn(
+                          "flex items-center gap-3 rounded-xl transition-all duration-200 px-4 py-2.5 text-sm",
+                          isSubActive
+                            ? "bg-white/[0.08] text-white"
+                            : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
+                        )}
+                      >
+                        <SubIcon className={cn("h-4 w-4 shrink-0", isSubActive ? "text-emerald-400" : "")} />
+                        <span className="whitespace-nowrap">{sub.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
-        </div>
         )}
       </nav>
 
@@ -618,7 +622,7 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* Collapse button — desktop only */}
+      {/* Collapse button  desktop only */}
       {!isMobile && (
         <div className="shrink-0 border-t border-white/[0.06] p-3">
           <button
