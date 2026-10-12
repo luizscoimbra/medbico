@@ -19,6 +19,21 @@ export interface Company {
   status: "trial" | "active" | "suspended";
   plan: string | null;
   created_at: string;
+  razao_social: string;
+  nome_fantasia: string;
+  ie: string;
+  im: string;
+  regime_tributario: string;
+  cnae: string;
+  logradouro: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  municipio: string;
+  uf: string;
+  cep: string;
+  telefone: string;
+  email: string;
 }
 
 export interface Branch {
@@ -28,6 +43,30 @@ export interface Branch {
   code: string | null;
   is_hq: boolean;
   status: "active" | "inactive";
+  ie: string;
+  car: string;
+  logradouro: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  municipio: string;
+  uf: string;
+  cep: string;
+  telefone: string;
+  responsavel: string;
+}
+
+/** Campos fiscais/endereço compartilhados pela Matriz e pelas filiais. */
+export interface FiscalFields {
+  ie: string;
+  logradouro: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  municipio: string;
+  uf: string;
+  cep: string;
+  telefone: string;
 }
 
 export interface CompanyContext {
@@ -64,4 +103,56 @@ export async function fetchCompanyContext(userId: string): Promise<CompanyContex
     isPlatformAdmin: !!plataforma.data,
     loading: false,
   };
+}
+
+/** Dados fiscais completos da Matriz, usados pela tela de cadastro da empresa. */
+export interface CompanyFiscalInput {
+  document: string;
+  razao_social: string;
+  nome_fantasia: string;
+  ie: string;
+  im: string;
+  regime_tributario: string;
+  cnae: string;
+  logradouro: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  municipio: string;
+  uf: string;
+  cep: string;
+  telefone: string;
+  email: string;
+}
+
+/**
+ * Grava o cadastro fiscal da Matriz.
+ *
+ * A gravação acontece via RPC (`update_company_fiscal`) porque `companies` não
+ * tem policy de UPDATE: só o administrador master da empresa pode alterar, e a
+ * guarda é feita no servidor com `current_is_company_admin()`.
+ */
+export async function saveCompanyFiscal(input: CompanyFiscalInput): Promise<void> {
+  const { error } = await supabase.rpc("update_company_fiscal", {
+    p_document: input.document,
+    p_razao_social: input.razao_social,
+    p_nome_fantasia: input.nome_fantasia,
+    p_ie: input.ie,
+    p_im: input.im,
+    p_regime_tributario: input.regime_tributario,
+    p_cnae: input.cnae,
+    p_logradouro: input.logradouro,
+    p_numero: input.numero,
+    p_complemento: input.complemento,
+    p_bairro: input.bairro,
+    p_municipio: input.municipio,
+    p_uf: input.uf,
+    p_cep: input.cep,
+    p_telefone: input.telefone,
+    p_email: input.email,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }

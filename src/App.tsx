@@ -28,6 +28,8 @@ import ManutencaoEquipamentos from "./pages/ManutencaoEquipamentos";
 import GestaoAbastecimento from "./pages/GestaoAbastecimento";
 import Acessos from "./pages/Acessos";
 import Filiais from "./pages/Filiais";
+import Empresa from "./pages/Empresa";
+import Tributacao from "./pages/Tributacao";
 import Plataforma from "./pages/Plataforma";
 import Auth from "./pages/Auth";
 import EmailConfirmada from "./pages/EmailConfirmada";
@@ -111,6 +113,8 @@ function AppLayout() {
             <Route path="/maintenance" element={<ProtectedRoute><MaintenanceDashboard /></ProtectedRoute>} />
             <Route path="/acessos" element={<ProtectedRoute><Acessos /></ProtectedRoute>} />
             <Route path="/filiais" element={<ProtectedRoute><Filiais /></ProtectedRoute>} />
+            <Route path="/empresa" element={<ProtectedRoute><Empresa /></ProtectedRoute>} />
+            <Route path="/tributacao" element={<ProtectedRoute><Tributacao /></ProtectedRoute>} />
             <Route path="/plataforma" element={<ProtectedRoute><Plataforma /></ProtectedRoute>} />
             <Route path="/financeiro" element={<ProtectedRoute><Financeiro /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />

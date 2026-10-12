@@ -37,6 +37,7 @@ import { saveOperador, getAllOperadores, deleteOperador, deleteAllOperadores, Op
 import { saveCliente, getAllClientes, deleteCliente, Cliente } from "@/lib/clienteStorage";
 import { getSetting, setSetting, SETTINGS_KEYS } from "@/lib/settingsStorage";
 import { saveWaterTruck, getAllWaterTrucks, deleteWaterTruck, WaterTruck } from "@/lib/waterTruckStorage";
+import { fetchTaxProfiles, TaxProfile } from "@/lib/taxProfilesStorage";
 import { formatBRL } from "@/lib/utils";
 
 
@@ -48,6 +49,8 @@ interface RegisteredProduct {
   unit: string;
   package_size: number;
   preco_unitario: number;
+  tax_profile_saida_id: string | null;
+  tax_profile_entrada_id: string | null;
 }
 
 interface Servico {
@@ -87,6 +90,7 @@ export default function Cadastros() {
 
   // Products state
   const [products, setProducts] = useState<RegisteredProduct[]>([]);
+  const [taxProfiles, setTaxProfiles] = useState<TaxProfile[]>([]);
   const [prodForm, setProdForm] = useState({
     commercial_name: "",
     formulation: "SL",
@@ -94,6 +98,8 @@ export default function Cadastros() {
     package_size: "",
     preco_unitario: "",
     preco_galao: "",
+    tax_profile_saida_id: "",
+    tax_profile_entrada_id: "",
   });
 
   // Water Trucks state
@@ -254,6 +260,8 @@ export default function Cadastros() {
       package_size: prod.package_size?.toString() || "",
       preco_unitario: prod.preco_unitario?.toString() || "",
       preco_galao: pkgSize > 0 && precoUnit > 0 ? (precoUnit * pkgSize).toString() : "",
+      tax_profile_saida_id: prod.tax_profile_saida_id || "",
+      tax_profile_entrada_id: prod.tax_profile_entrada_id || "",
     });
     const el = document.getElementById("form-produto");
     if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -263,6 +271,7 @@ export default function Cadastros() {
     setEditingProductId(null);
     setProdForm({
       commercial_name: "", formulation: "SL", unit: "L", package_size: "", preco_unitario: "", preco_galao: "",
+      tax_profile_saida_id: "", tax_profile_entrada_id: "",
     });
   };
 
@@ -288,6 +297,10 @@ export default function Cadastros() {
     fetchOperadoresList();
     fetchClientesList();
     fetchServicosList();
+    // Perfis da Central de Tributação: preenchem os selects do formulário de produto.
+    fetchTaxProfiles()
+      .then(setTaxProfiles)
+      .catch(() => setTaxProfiles([]));
   }, [userId]);
 
   useEffect(() => {
@@ -400,6 +413,9 @@ export default function Cadastros() {
       unit: prodForm.unit,
       package_size: size,
       preco_unitario: parseFloat(prodForm.preco_unitario) || 0,
+      // Vínculo com a Central de Tributação (null = sem perfil definido).
+      tax_profile_saida_id: prodForm.tax_profile_saida_id || null,
+      tax_profile_entrada_id: prodForm.tax_profile_entrada_id || null,
     };
 
     if (editingProductId) {
@@ -428,6 +444,7 @@ export default function Cadastros() {
     setEditingProductId(null);
     setProdForm({
       commercial_name: "", formulation: "SL", unit: "L", package_size: "", preco_unitario: "", preco_galao: "",
+      tax_profile_saida_id: "", tax_profile_entrada_id: "",
     });
     fetchProducts();
   };
@@ -1541,6 +1558,53 @@ export default function Cadastros() {
                     />
                     <p className="text-xs text-muted-foreground">
                       Preenchimento automático baseado no tamanho da embalagem
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-border/40">
+                  <div className="space-y-2">
+                    <Label htmlFor="prod_trib_saida">Tributação — Saída (venda/NF-e)</Label>
+                    <Select
+                      value={prodForm.tax_profile_saida_id || "sem"}
+                      onValueChange={(v) => setProdForm((p) => ({ ...p, tax_profile_saida_id: v === "sem" ? "" : v }))}
+                    >
+                      <SelectTrigger id="prod_trib_saida">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sem">Sem perfil de saída</SelectItem>
+                        {taxProfiles.filter((t) => t.ativo).map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.name}{t.ncm ? ` — NCM ${t.ncm}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Perfil fiscal usado na emissão da nota de venda.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="prod_trib_entrada">Tributação — Entrada (compra)</Label>
+                    <Select
+                      value={prodForm.tax_profile_entrada_id || "sem"}
+                      onValueChange={(v) => setProdForm((p) => ({ ...p, tax_profile_entrada_id: v === "sem" ? "" : v }))}
+                    >
+                      <SelectTrigger id="prod_trib_entrada">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sem">Sem perfil de entrada</SelectItem>
+                        {taxProfiles.filter((t) => t.ativo).map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.name}{t.ncm ? ` — NCM ${t.ncm}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Perfil fiscal usado na entrada de mercadoria.
                     </p>
                   </div>
                 </div>

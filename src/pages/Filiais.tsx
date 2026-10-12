@@ -29,10 +29,70 @@ interface BranchOverview {
   codigo: string;
   is_hq: boolean;
   status: string;
+  municipio: string;
+  uf: string;
+  ie: string;
   usuarios: number;
   ordens: number;
   saldo_itens: number;
 }
+
+interface FormFilial {
+  nome: string;
+  codigo: string;
+  ie: string;
+  car: string;
+  responsavel: string;
+  telefone: string;
+  logradouro: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  municipio: string;
+  uf: string;
+  cep: string;
+}
+
+const FORM_VAZIO: FormFilial = {
+  nome: "",
+  codigo: "",
+  ie: "",
+  car: "",
+  responsavel: "",
+  telefone: "",
+  logradouro: "",
+  numero: "",
+  complemento: "",
+  bairro: "",
+  municipio: "",
+  uf: "",
+  cep: "",
+};
+
+const UFS = [
+  "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
+  "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
+];
+
+/**
+ * Argumentos fiscais/endereço compartilhados por create_branch e update_branch.
+ *
+ * As RPCs regravam a linha inteira, então TODOS os campos precisam ser enviados
+ * — inclusive ao só alternar a situação, senão o endereço seria apagado.
+ */
+const argsFiscais = (f: FormFilial) => ({
+  p_ie: f.ie,
+  p_car: f.car,
+  p_responsavel: f.responsavel,
+  p_telefone: f.telefone,
+  p_logradouro: f.logradouro,
+  p_numero: f.numero,
+  p_complemento: f.complemento,
+  p_bairro: f.bairro,
+  p_municipio: f.municipio,
+  p_uf: f.uf,
+  p_cep: f.cep,
+});
 
 export default function Filiais() {
   const { company, isPlatformAdmin, profile } = useAuth();
@@ -43,7 +103,7 @@ export default function Filiais() {
 
   const [editando, setEditando] = useState<BranchOverview | null>(null);
   const [criando, setCriando] = useState(false);
-  const [form, setForm] = useState({ nome: "", codigo: "" });
+  const [form, setForm] = useState<FormFilial>(FORM_VAZIO);
 
   const [usuariosTarget, setUsuariosTarget] = useState<BranchOverview | null>(null);
   const [usuarios, setUsuarios] = useState<UserProfile[]>([]);
@@ -74,15 +134,47 @@ export default function Filiais() {
   }, [carregar]);
 
   const abrirNova = () => {
-    setForm({ nome: "", codigo: "" });
+    setForm(FORM_VAZIO);
     setEditando(null);
     setCriando(true);
   };
 
   const abrirEdicao = (b: BranchOverview) => {
-    setForm({ nome: b.nome, codigo: b.codigo || "" });
+    setForm({
+      ...FORM_VAZIO,
+      nome: b.nome,
+      codigo: b.codigo || "",
+      ie: b.ie || "",
+      municipio: b.municipio || "",
+      uf: b.uf || "",
+    });
     setCriando(false);
     setEditando(b);
+    // O resumo só traz IE/município; o endereço completo vem da linha inteira.
+    void carregarEndereco(b.branch_id);
+  };
+
+  const carregarEndereco = async (branchId: string) => {
+    const { data, error } = await supabase
+      .from("branches")
+      .select("*")
+      .eq("id", branchId)
+      .maybeSingle();
+    if (error || !data) return;
+    setForm((atual) => ({
+      ...atual,
+      ie: data.ie ?? "",
+      car: data.car ?? "",
+      responsavel: data.responsavel ?? "",
+      telefone: data.telefone ?? "",
+      logradouro: data.logradouro ?? "",
+      numero: data.numero ?? "",
+      complemento: data.complemento ?? "",
+      bairro: data.bairro ?? "",
+      municipio: data.municipio ?? "",
+      uf: data.uf ?? "",
+      cep: data.cep ?? "",
+    }));
   };
 
   const salvar = async () => {
@@ -98,8 +190,13 @@ export default function Filiais() {
           p_name: form.nome,
           p_code: form.codigo,
           p_status: editando.status,
+          ...argsFiscais(form),
         })
-      : await supabase.rpc("create_branch", { p_name: form.nome, p_code: form.codigo });
+      : await supabase.rpc("create_branch", {
+          p_name: form.nome,
+          p_code: form.codigo,
+          ...argsFiscais(form),
+        });
 
     setSalvando(false);
 
@@ -116,11 +213,31 @@ export default function Filiais() {
   const alternarStatus = async (b: BranchOverview) => {
     const novo = b.status === "active" ? "inactive" : "active";
     setSalvando(true);
+    // Reenvia o cadastro completo: a RPC regrava a linha, não só a situação.
+    const { data: linha } = await supabase
+      .from("branches")
+      .select("*")
+      .eq("id", b.branch_id)
+      .maybeSingle();
     const { error } = await supabase.rpc("update_branch", {
       p_branch: b.branch_id,
       p_name: b.nome,
       p_code: b.codigo,
       p_status: novo,
+      ...argsFiscais({
+        ...FORM_VAZIO,
+        ie: linha?.ie ?? "",
+        car: linha?.car ?? "",
+        responsavel: linha?.responsavel ?? "",
+        telefone: linha?.telefone ?? "",
+        logradouro: linha?.logradouro ?? "",
+        numero: linha?.numero ?? "",
+        complemento: linha?.complemento ?? "",
+        bairro: linha?.bairro ?? "",
+        municipio: linha?.municipio ?? "",
+        uf: linha?.uf ?? "",
+        cep: linha?.cep ?? "",
+      }),
     });
     setSalvando(false);
     if (error) {
@@ -300,6 +417,11 @@ export default function Filiais() {
                       {b.codigo && (
                         <span className="text-xs text-muted-foreground">{b.codigo}</span>
                       )}
+                      {(b.municipio || b.uf) && (
+                        <span className="text-xs text-muted-foreground">
+                          {[b.municipio, b.uf].filter(Boolean).join(" / ")}
+                        </span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -355,39 +477,140 @@ export default function Filiais() {
 
       {/* Criar / editar filial */}
       <Dialog open={criando || !!editando} onOpenChange={(o) => { if (!o) { setCriando(false); setEditando(null); } }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5 text-emerald-600" />
               {editando ? "Editar filial" : "Nova filial"}
             </DialogTitle>
             <DialogDescription>
-              A filial passa a ter os próprios dados operacionais e o próprio
-              estoque. O cadastro comercial continua compartilhado na empresa.
+              A filial é a propriedade rural: informe o endereço, a Inscrição
+              Estadual do produtor e o CAR para uso fiscal.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Nome da filial</Label>
-              <Input
-                autoFocus
-                value={form.nome}
-                onChange={(e) => setForm({ ...form, nome: e.target.value })}
-                placeholder="Ex: Filial do Interior"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2 space-y-2">
+                <Label>Nome da filial</Label>
+                <Input
+                  autoFocus
+                  value={form.nome}
+                  onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                  placeholder="Ex: Fazenda Santa Rita"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Código</Label>
+                <Input
+                  value={form.codigo}
+                  onChange={(e) => setForm({ ...form, codigo: e.target.value.toUpperCase() })}
+                  placeholder="Ex: SR"
+                  maxLength={12}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Sigla única na empresa. Vazio se não usar.
+                </p>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Código</Label>
-              <Input
-                value={form.codigo}
-                onChange={(e) => setForm({ ...form, codigo: e.target.value.toUpperCase() })}
-                placeholder="Ex: INT"
-                maxLength={12}
-              />
-              <p className="text-xs text-muted-foreground">
-                Sigla curta e única dentro da empresa. Deixe vazio se não usar.
-              </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Inscrição Estadual (IE)</Label>
+                <Input
+                  value={form.ie}
+                  onChange={(e) => setForm({ ...form, ie: e.target.value })}
+                  placeholder="Ex: ISENTO"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>CAR</Label>
+                <Input
+                  value={form.car}
+                  onChange={(e) => setForm({ ...form, car: e.target.value.toUpperCase() })}
+                  placeholder="Código do Cadastro Ambiental Rural"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Responsável</Label>
+                <Input
+                  value={form.responsavel}
+                  onChange={(e) => setForm({ ...form, responsavel: e.target.value })}
+                  placeholder="Nome do produtor"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2 space-y-2">
+                <Label>Logradouro</Label>
+                <Input
+                  value={form.logradouro}
+                  onChange={(e) => setForm({ ...form, logradouro: e.target.value })}
+                  placeholder="Rodovia, estrada, rua..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Número</Label>
+                <Input
+                  value={form.numero}
+                  onChange={(e) => setForm({ ...form, numero: e.target.value })}
+                />
+              </div>
+              <div className="md:col-span-2 space-y-2">
+                <Label>Complemento</Label>
+                <Input
+                  value={form.complemento}
+                  onChange={(e) => setForm({ ...form, complemento: e.target.value })}
+                  placeholder="Km, sede, gleba..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>CEP</Label>
+                <Input
+                  value={form.cep}
+                  onChange={(e) => setForm({ ...form, cep: e.target.value })}
+                  placeholder="00000-000"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Bairro</Label>
+                <Input
+                  value={form.bairro}
+                  onChange={(e) => setForm({ ...form, bairro: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Município</Label>
+                <Input
+                  value={form.municipio}
+                  onChange={(e) => setForm({ ...form, municipio: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>UF</Label>
+                <Select
+                  value={form.uf || undefined}
+                  onValueChange={(v) => setForm({ ...form, uf: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="UF" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {UFS.map((uf) => (
+                      <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Telefone</Label>
+                <Input
+                  value={form.telefone}
+                  onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+                  placeholder="(00) 00000-0000"
+                />
+              </div>
             </div>
           </div>
 

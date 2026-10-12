@@ -29,6 +29,8 @@ import {
   Boxes,
   MapPin,
   ShieldCheck,
+  Building,
+  Calculator,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/context/SidebarContext";
@@ -58,6 +60,8 @@ const navItems: NavItem[] = [
   { path: "/historico", label: "Histórico", icon: History, group: "Consultas", module: "consultas" },
   { path: "/tabela-referencia", label: "Tabela ISO", icon: BookOpen, group: "Consultas", module: "consultas" },
   { path: "/acessos", label: "Gestão de Acessos", icon: Shield, group: "Configurações", module: "acessos" },
+  { path: "/empresa", label: "Empresa", icon: Building, group: "Configurações", module: "acessos" },
+  { path: "/tributacao", label: "Tributação", icon: Calculator, group: "Configurações", module: "cadastros" },
   { path: "/filiais", label: "Filiais", icon: MapPin, group: "Configurações", module: "acessos" },
   { path: "/plataforma", label: "Plataforma", icon: ShieldCheck, group: "Configurações", module: "plataforma" },
   { path: "/financeiro", label: "Financeiro", icon: Banknote, group: "Financeiro", module: "financeiro" },

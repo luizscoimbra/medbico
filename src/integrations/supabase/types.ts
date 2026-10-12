@@ -165,33 +165,66 @@ export type Database = {
       }
       branches: {
         Row: {
+          bairro: string
+          car: string
+          cep: string
           code: string
           company_id: string
+          complemento: string
           created_at: string
           id: string
+          ie: string
           is_hq: boolean
+          logradouro: string
+          municipio: string
           name: string
+          numero: string
+          responsavel: string
           status: string
+          telefone: string
+          uf: string
           updated_at: string
         }
         Insert: {
+          bairro?: string
+          car?: string
+          cep?: string
           code?: string
           company_id: string
+          complemento?: string
           created_at?: string
           id?: string
+          ie?: string
           is_hq?: boolean
+          logradouro?: string
+          municipio?: string
           name: string
+          numero?: string
+          responsavel?: string
           status?: string
+          telefone?: string
+          uf?: string
           updated_at?: string
         }
         Update: {
+          bairro?: string
+          car?: string
+          cep?: string
           code?: string
           company_id?: string
+          complemento?: string
           created_at?: string
           id?: string
+          ie?: string
           is_hq?: boolean
+          logradouro?: string
+          municipio?: string
           name?: string
+          numero?: string
+          responsavel?: string
           status?: string
+          telefone?: string
+          uf?: string
           updated_at?: string
         }
         Relationships: [
@@ -277,33 +310,78 @@ export type Database = {
       }
       companies: {
         Row: {
+          bairro: string
+          cnae: string
+          cep: string
+          complemento: string
           created_at: string
           document: string
+          email: string
           id: string
+          ie: string
+          im: string
+          logradouro: string
+          municipio: string
           name: string
+          nome_fantasia: string
+          numero: string
           plan: string
+          regime_tributario: string
+          razao_social: string
           slug: string
           status: string
+          telefone: string
+          uf: string
           updated_at: string
         }
         Insert: {
+          bairro?: string
+          cnae?: string
+          cep?: string
+          complemento?: string
           created_at?: string
           document?: string
+          email?: string
           id?: string
+          ie?: string
+          im?: string
+          logradouro?: string
+          municipio?: string
           name: string
+          nome_fantasia?: string
+          numero?: string
           plan?: string
+          regime_tributario?: string
+          razao_social?: string
           slug: string
           status?: string
+          telefone?: string
+          uf?: string
           updated_at?: string
         }
         Update: {
+          bairro?: string
+          cnae?: string
+          cep?: string
+          complemento?: string
           created_at?: string
           document?: string
+          email?: string
           id?: string
+          ie?: string
+          im?: string
+          logradouro?: string
+          municipio?: string
           name?: string
+          nome_fantasia?: string
+          numero?: string
           plan?: string
+          regime_tributario?: string
+          razao_social?: string
           slug?: string
           status?: string
+          telefone?: string
+          uf?: string
           updated_at?: string
         }
         Relationships: []
@@ -1704,6 +1782,8 @@ export type Database = {
           id: string
           package_size: number
           preco_unitario: number | null
+          tax_profile_entrada_id: string | null
+          tax_profile_saida_id: string | null
           tenant_key: string
           unit: string
           updated_at: string
@@ -1717,6 +1797,8 @@ export type Database = {
           id?: string
           package_size: number
           preco_unitario?: number | null
+          tax_profile_entrada_id?: string | null
+          tax_profile_saida_id?: string | null
           tenant_key?: string
           unit: string
           updated_at?: string
@@ -1730,6 +1812,8 @@ export type Database = {
           id?: string
           package_size?: number
           preco_unitario?: number | null
+          tax_profile_entrada_id?: string | null
+          tax_profile_saida_id?: string | null
           tenant_key?: string
           unit?: string
           updated_at?: string
@@ -1741,6 +1825,20 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registered_products_tax_profile_entrada_id_fkey"
+            columns: ["tax_profile_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "tax_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registered_products_tax_profile_saida_id_fkey"
+            columns: ["tax_profile_saida_id"]
+            isOneToOne: false
+            referencedRelation: "tax_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2206,6 +2304,86 @@ export type Database = {
           },
         ]
       }
+      tax_profiles: {
+        Row: {
+          aliquota_cbs: number
+          aliquota_cofins: number
+          aliquota_icms: number
+          aliquota_ipi: number
+          aliquota_ibs: number
+          aliquota_pis: number
+          ativo: boolean
+          cclasstrib: string
+          cest: string
+          cfop: string
+          company_id: string
+          cst_csosn: string
+          cst_ibs_cbs: string
+          created_at: string
+          descricao: string
+          enquadramento_ipi: string
+          id: string
+          ncm: string
+          name: string
+          origem: string
+          updated_at: string
+        }
+        Insert: {
+          aliquota_cbs?: number
+          aliquota_cofins?: number
+          aliquota_icms?: number
+          aliquota_ipi?: number
+          aliquota_ibs?: number
+          aliquota_pis?: number
+          ativo?: boolean
+          cclasstrib?: string
+          cest?: string
+          cfop?: string
+          company_id: string
+          cst_csosn?: string
+          cst_ibs_cbs?: string
+          created_at?: string
+          descricao?: string
+          enquadramento_ipi?: string
+          id?: string
+          ncm?: string
+          name: string
+          origem?: string
+          updated_at?: string
+        }
+        Update: {
+          aliquota_cbs?: number
+          aliquota_cofins?: number
+          aliquota_icms?: number
+          aliquota_ipi?: number
+          aliquota_ibs?: number
+          aliquota_pis?: number
+          ativo?: boolean
+          cclasstrib?: string
+          cest?: string
+          cfop?: string
+          company_id?: string
+          cst_csosn?: string
+          cst_ibs_cbs?: string
+          created_at?: string
+          descricao?: string
+          enquadramento_ipi?: string
+          id?: string
+          ncm?: string
+          name?: string
+          origem?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_branches: {
         Row: {
           branch_id: string
@@ -2283,16 +2461,33 @@ export type Database = {
         Returns: {
           branch_id: string
           codigo: string
+          ie: string
           is_hq: boolean
+          municipio: string
           nome: string
           ordens: number
           saldo_itens: number
           status: string
+          uf: string
           usuarios: number
         }[]
       }
       create_branch: {
-        Args: { p_code?: string; p_name: string }
+        Args: {
+          p_bairro?: string
+          p_car?: string
+          p_cep?: string
+          p_code?: string
+          p_complemento?: string
+          p_ie?: string
+          p_logradouro?: string
+          p_municipio?: string
+          p_name: string
+          p_numero?: string
+          p_responsavel?: string
+          p_telefone?: string
+          p_uf?: string
+        }
         Returns: string
       }
       current_branch_ids: { Args: never; Returns: string[] }
@@ -2301,6 +2496,7 @@ export type Database = {
       current_is_company_admin: { Args: never; Returns: boolean }
       current_tenant_key: { Args: never; Returns: string }
       delete_stock_entry: { Args: { p_id: string }; Returns: Json }
+      delete_tax_profile: { Args: { p_id: string }; Returns: undefined }
       delete_user: { Args: { target: string }; Returns: undefined }
       is_company_admin: { Args: { p_role: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }
@@ -2439,16 +2635,71 @@ export type Database = {
       unique_tenant_slug: { Args: { p_name: string }; Returns: string }
       update_branch: {
         Args: {
+          p_bairro?: string
           p_branch: string
+          p_car?: string
+          p_cep?: string
           p_code?: string
+          p_complemento?: string
+          p_ie?: string
+          p_logradouro?: string
+          p_municipio?: string
           p_name: string
+          p_numero?: string
+          p_responsavel?: string
           p_status?: string
+          p_telefone?: string
+          p_uf?: string
+        }
+        Returns: undefined
+      }
+      update_company_fiscal: {
+        Args: {
+          p_bairro?: string
+          p_cnae?: string
+          p_cep?: string
+          p_complemento?: string
+          p_document?: string
+          p_email?: string
+          p_ie?: string
+          p_im?: string
+          p_logradouro?: string
+          p_municipio?: string
+          p_nome_fantasia?: string
+          p_numero?: string
+          p_razao_social?: string
+          p_regime_tributario?: string
+          p_telefone?: string
+          p_uf?: string
         }
         Returns: undefined
       }
       update_my_profile: {
         Args: { p_full_name: string; p_phone: string }
         Returns: undefined
+      }
+      upsert_tax_profile: {
+        Args: {
+          p_aliquota_cbs?: number
+          p_aliquota_cofins?: number
+          p_aliquota_icms?: number
+          p_aliquota_ipi?: number
+          p_aliquota_ibs?: number
+          p_aliquota_pis?: number
+          p_ativo?: boolean
+          p_cclasstrib?: string
+          p_cest?: string
+          p_cfop?: string
+          p_cst_csosn?: string
+          p_cst_ibs_cbs?: string
+          p_descricao?: string
+          p_enquadramento_ipi?: string
+          p_id?: string
+          p_name?: string
+          p_ncm?: string
+          p_origem?: string
+        }
+        Returns: string
       }
     }
     Enums: {
