@@ -416,17 +416,68 @@ export const OSPreview = forwardRef<HTMLDivElement, OSPreviewProps>(
         </div>
       )}
 
+      {/* Condições climáticas registradas no encerramento */}
+      {os.clima && (
+        <div className="mb-3">
+          <h2 className="text-[11px] font-bold uppercase mb-1 text-gray-700">Condições Climáticas da Aplicação</h2>
+          <table className="w-full border-collapse" style={{ fontSize: "10px" }}>
+            <tbody>
+              <tr className="bg-sky-50">
+                <td className="border border-gray-300 px-1.5 py-1 font-semibold">Temperatura</td>
+                <td className="border border-gray-300 px-1.5 py-1">{os.clima.temperaturaC ?? "—"} °C</td>
+                <td className="border border-gray-300 px-1.5 py-1 font-semibold">Umidade</td>
+                <td className="border border-gray-300 px-1.5 py-1">{os.clima.umidadeRelativa ?? "—"} %</td>
+                <td className="border border-gray-300 px-1.5 py-1 font-semibold">Vento</td>
+                <td className="border border-gray-300 px-1.5 py-1">
+                  {os.clima.ventoKmh ?? "—"} km/h
+                  {os.clima.ventoDirecaoGraus != null ? ` (${os.clima.ventoDirecaoGraus}°)` : ""}
+                </td>
+                <td className="border border-gray-300 px-1.5 py-1 font-semibold">Precipitação</td>
+                <td className="border border-gray-300 px-1.5 py-1">{os.clima.precipitacaoMm ?? "—"} mm</td>
+              </tr>
+              {os.clima.capturadoEm && (
+                <tr>
+                  <td colSpan={8} className="border border-gray-300 px-1.5 py-0.5 text-[9px] text-gray-500">
+                    Capturado em {new Date(os.clima.capturadoEm).toLocaleString("pt-BR")}
+                    {os.clima.fonte ? ` — fonte: ${os.clima.fonte}` : ""}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* Assinatura + Rodapé */}
-      <div className="flex items-end justify-between mt-4 pt-2">
+      <div className="flex items-end justify-between gap-4 mt-4 pt-2">
         <p className="text-[8px] text-gray-400">
           Doc. gerado por HerbiLog em {new Date().toLocaleDateString("pt-BR")}
         </p>
-        <div className="text-center" style={{ minWidth: "180px" }}>
-          <div className="border-t border-black pt-1">
-            <p className="text-[10px] font-medium">Responsável Técnico</p>
-            <p className="text-[9px] text-gray-500">{os.responsavelTecnico}</p>
+        {os.assinaturaBase64 ? (
+          <div className="text-center" style={{ minWidth: "200px" }}>
+            <img
+              src={os.assinaturaBase64}
+              alt={`Assinatura de ${os.assinadoPorNome ?? ""}`}
+              className="h-14 w-auto mx-auto object-contain"
+            />
+            <div className="border-t border-black pt-1">
+              <p className="text-[10px] font-medium">{os.assinadoPorNome}</p>
+              <p className="text-[9px] text-gray-500">
+                Encerrado em {os.assinadoEm ? new Date(os.assinadoEm).toLocaleString("pt-BR") : ""}
+                {os.assinaturaMetodo
+                  ? ` — assinatura ${os.assinaturaMetodo === "biometrica" ? "biométrica" : "por toque"}`
+                  : ""}
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="text-center" style={{ minWidth: "180px" }}>
+            <div className="border-t border-black pt-1">
+              <p className="text-[10px] font-medium">Responsável Técnico</p>
+              <p className="text-[9px] text-gray-500">{os.responsavelTecnico}</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

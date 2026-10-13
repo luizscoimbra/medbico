@@ -4,9 +4,11 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, Eye, AlertTriangle, Droplets, Clock, Settings, AlertCircle, History as HistoryIcon, ArrowRightLeft, CheckCircle2, Search, FlaskConical, Trash2, Plus, Pencil, Fuel, X } from "lucide-react";
-import type { OrdemServico, ApontamentoTalhao, MotivoParada, ProdutoDose, ServicoOS } from "@/lib/osStorage";
+import { Save, Eye, AlertTriangle, Droplets, Clock, Settings, AlertCircle, History as HistoryIcon, ArrowRightLeft, CheckCircle2, Search, FlaskConical, Trash2, Plus, Pencil, Fuel, X, CloudSun, MapPin, Loader2 } from "lucide-react";
+import type { OrdemServico, ApontamentoTalhao, MotivoParada, ProdutoDose, ServicoOS, ClimaRegistro } from "@/lib/osStorage";
 import { saveOS, MOTIVO_PARADA_LABELS } from "@/lib/osStorage";
+import { AssinaturaOS, type AssinaturaOSValue } from "@/components/os/AssinaturaOS";
+import { capturarClimaGPS, direcaoVentoTexto } from "@/lib/weatherStorage";
 import {
   getAllAbastecimentos,
   updateAbastecimento,
@@ -89,6 +91,10 @@ export function OSApontamento({
   const [selAbast, setSelAbast] = useState<string[]>([]);
   const [carregandoAbast, setCarregandoAbast] = useState(false);
   const [processandoVinculo, setProcessandoVinculo] = useState(false);
+  // Encerramento: assinatura (WebAuthn/toque) e condições climáticas (Open-Meteo)
+  const [assinatura, setAssinatura] = useState<AssinaturaOSValue | null>(null);
+  const [clima, setClima] = useState<ClimaRegistro | null>(null);
+  const [capturandoClima, setCapturandoClima] = useState(false);
 
   useEffect(() => {
     getAllOperadores().then(setOperadores);
@@ -1219,7 +1225,12 @@ export function OSApontamento({
 
       <Dialog open={showCloseOSDialog} onOpenChange={(open) => {
         setShowCloseOSDialog(open);
-        if (open) calcularItensFinanceiro();
+        if (open) {
+          calcularItensFinanceiro();
+          // Nova tentativa de encerramento começa sem assinatura/clima anteriores.
+          setAssinatura(null);
+          setClima(null);
+        }
       }}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -1414,11 +1425,74 @@ export function OSApontamento({
               {/* Total Geral */}
               <div className="bg-gray-100 px-3 py-2 border-t border-gray-300 flex justify-between items-center">
                 <span className="text-sm font-bold text-gray-800">VALOR TOTAL:</span>
-                <span className="text-lg font-heading text-emerald-700">
+                <span className="text-lg font-heading font-emerald-700 text-emerald-700">
                   {formatBRL(totalGeral + totalAbastecimentoOS)}
                 </span>
               </div>
             </div>
+
+            {/* Condições climáticas da aplicação (Open-Meteo) */}
+            <div className="rounded-lg border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className="text-xs font-bold text-sky-800 uppercase flex items-center gap-1">
+                  <CloudSun className="h-3.5 w-3.5" /> Condições climáticas da aplicação
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={async () => {
+                    setCapturandoClima(true);
+                    try {
+                      setClima(await capturarClimaGPS());
+                      toast.success("Condições climáticas capturadas!");
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : "Falha ao capturar o clima");
+                    } finally {
+                      setCapturandoClima(false);
+                    }
+                  }}
+                  disabled={capturandoClima}
+                >
+                  {capturandoClima ? (
+                    <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Capturando...</>
+                  ) : (
+                    <><MapPin className="h-3 w-3 mr-1" /> Capturar no local</>
+                  )}
+                </Button>
+              </div>
+              {clima ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                  <div className="bg-white rounded border border-sky-100 px-2 py-1.5">
+                    <span className="text-muted-foreground block">Temperatura</span>
+                    <span className="font-semibold">{clima.temperaturaC ?? "—"} °C</span>
+                  </div>
+                  <div className="bg-white rounded border border-sky-100 px-2 py-1.5">
+                    <span className="text-muted-foreground block">Umidade</span>
+                    <span className="font-semibold">{clima.umidadeRelativa ?? "—"} %</span>
+                  </div>
+                  <div className="bg-white rounded border border-sky-100 px-2 py-1.5">
+                    <span className="text-muted-foreground block">Vento</span>
+                    <span className="font-semibold">
+                      {clima.ventoKmh ?? "—"} km/h ({direcaoVentoTexto(clima.ventoDirecaoGraus)})
+                    </span>
+                  </div>
+                  <div className="bg-white rounded border border-sky-100 px-2 py-1.5">
+                    <span className="text-muted-foreground block">Precipitação</span>
+                    <span className="font-semibold">{clima.precipitacaoMm ?? "—"} mm</span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-[11px] text-sky-900/70">
+                  Recomendado: registre temperatura, umidade e vento no momento do encerramento
+                  (fonte: Open-Meteo). Opcional, mas fortalece a rastreabilidade da aplicação.
+                </p>
+              )}
+            </div>
+
+            {/* Assinatura do encerramento */}
+            <AssinaturaOS value={assinatura} onChange={setAssinatura} />
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
@@ -1428,6 +1502,10 @@ export function OSApontamento({
             <Button 
               className={totalAreaFaltante > 0.01 ? "bg-amber-600 hover:bg-amber-700" : "bg-emerald-600 hover:bg-emerald-700"}
               onClick={async () => {
+                if (!assinatura) {
+                  toast.error("A assinatura do encerramento é obrigatória. Desenhe e confirme abaixo.");
+                  return;
+                }
                 const updatedOS: OrdemServico = {
                   ...os,
                   apontamentos,
@@ -1436,6 +1514,11 @@ export function OSApontamento({
                   valorHerbicidas: subtotalProdutos || undefined,
                   valorServico: subtotalServicos || undefined,
                   valorTotal: totalGeral || undefined,
+                  assinaturaBase64: assinatura.base64,
+                  assinaturaMetodo: assinatura.metodo,
+                  assinadoPorNome: assinatura.nome,
+                  assinadoEm: new Date().toISOString(),
+                  clima: clima ?? undefined,
                 };
                 await saveOS(updatedOS);
                 toast.success("Ordem de Serviço encerrada com sucesso!");

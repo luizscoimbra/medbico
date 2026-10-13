@@ -32,6 +32,24 @@ export interface TalhaoData {
 
 export type MotivoParada = "quebra_equipamento" | "condicoes_climaticas" | "fim_turno" | "outro";
 
+/**
+ * Condições climáticas capturadas no encerramento da OS (Open-Meteo).
+ * Dado agronômico: vento e umidade definem se a aplicação era segura.
+ */
+export interface ClimaRegistro {
+  temperaturaC?: number;
+  umidadeRelativa?: number;
+  precipitacaoMm?: number;
+  ventoKmh?: number;
+  ventoDirecaoGraus?: number;
+  latitude?: number;
+  longitude?: number;
+  fonte?: string;
+  capturadoEm?: string;
+}
+
+export type AssinaturaMetodo = "biometrica" | "toque";
+
 export const MOTIVO_PARADA_LABELS: Record<MotivoParada, string> = {
   quebra_equipamento: "Quebra de Equipamento",
   condicoes_climaticas: "Condições Climáticas Impróprias",
@@ -88,6 +106,13 @@ export interface OrdemServico {
   valorHerbicidas?: number;
   valorServico?: number;
   valorTotal?: number;
+  // Assinatura do encerramento (WebAuthn/biométrica ou toque)
+  assinaturaBase64?: string;
+  assinadoEm?: string;
+  assinadoPorNome?: string;
+  assinaturaMetodo?: AssinaturaMetodo;
+  // Condições de aplicação no momento do encerramento
+  clima?: ClimaRegistro;
 }
 
 interface OsRow {
@@ -113,6 +138,11 @@ interface OsRow {
   valor_herbicidas: number | string | null;
   valor_servico: number | string | null;
   valor_total: number | string | null;
+  assinatura_base64: string | null;
+  assinado_em: string | null;
+  assinado_por_nome: string | null;
+  assinatura_metodo: string | null;
+  clima: unknown | null;
 }
 
 function getTodayPrefix(): string {
@@ -147,6 +177,11 @@ function fromRow(row: OsRow): OrdemServico {
     valorHerbicidas: row.valor_herbicidas == null ? undefined : num(row.valor_herbicidas),
     valorServico: row.valor_servico == null ? undefined : num(row.valor_servico),
     valorTotal: row.valor_total == null ? undefined : num(row.valor_total),
+    assinaturaBase64: row.assinatura_base64 ?? undefined,
+    assinadoEm: row.assinado_em ?? undefined,
+    assinadoPorNome: row.assinado_por_nome ?? undefined,
+    assinaturaMetodo: (row.assinatura_metodo as AssinaturaMetodo) ?? undefined,
+    clima: (row.clima as ClimaRegistro | null) ?? undefined,
   };
 }
 
@@ -176,6 +211,11 @@ function toRow(os: OrdemServico, userId: string, branchId: string | null) {
     valor_herbicidas: os.valorHerbicidas ?? null,
     valor_servico: os.valorServico ?? null,
     valor_total: os.valorTotal ?? null,
+    assinatura_base64: orNull(os.assinaturaBase64),
+    assinado_em: orNull(os.assinadoEm),
+    assinado_por_nome: orNull(os.assinadoPorNome),
+    assinatura_metodo: orNull(os.assinaturaMetodo),
+    clima: (os.clima as Record<string, string | number | boolean | null> | undefined) ?? null,
   };
 }
 

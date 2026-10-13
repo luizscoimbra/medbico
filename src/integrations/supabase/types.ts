@@ -1513,7 +1513,12 @@ export type Database = {
         Row: {
           aplicador: string | null
           apontamentos: Json
+          assinado_em: string | null
+          assinado_por_nome: string | null
+          assinatura_base64: string | null
+          assinatura_metodo: string | null
           branch_id: string | null
+          clima: Json | null
           cliente_id: string | null
           cliente_nome: string | null
           codigo_aplicacao: string | null
@@ -1541,7 +1546,12 @@ export type Database = {
         Insert: {
           aplicador?: string | null
           apontamentos?: Json
+          assinado_em?: string | null
+          assinado_por_nome?: string | null
+          assinatura_base64?: string | null
+          assinatura_metodo?: string | null
           branch_id?: string | null
+          clima?: Json | null
           cliente_id?: string | null
           cliente_nome?: string | null
           codigo_aplicacao?: string | null
@@ -1569,7 +1579,12 @@ export type Database = {
         Update: {
           aplicador?: string | null
           apontamentos?: Json
+          assinado_em?: string | null
+          assinado_por_nome?: string | null
+          assinatura_base64?: string | null
+          assinatura_metodo?: string | null
           branch_id?: string | null
+          clima?: Json | null
           cliente_id?: string | null
           cliente_nome?: string | null
           codigo_aplicacao?: string | null
