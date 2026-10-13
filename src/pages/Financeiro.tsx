@@ -27,10 +27,13 @@ import {
   Ban,
   CheckCircle2,
   Clock,
+  Eye,
   ExternalLink,
   FileText,
+  Pencil,
   Printer,
   RotateCcw,
+  Save,
   Search,
   Trash2,
   Wallet,
@@ -63,6 +66,7 @@ import {
   estornarTitulo,
   getAllTitulos,
   TituloReceber,
+  updateTitulo,
 } from "@/lib/financeiroStorage";
 
 const STATUS_LABEL: Record<TituloReceber["status"], string> = {
@@ -132,6 +136,18 @@ export default function Financeiro() {
   const [dataPagamento, setDataPagamento] = useState(HOJE());
   const [formaPagamento, setFormaPagamento] = useState("Pix");
   const [obsBaixa, setObsBaixa] = useState("");
+
+  // Dialog de detalhe/edição do título (clicar no registro)
+  const [detalhe, setDetalhe] = useState<TituloReceber | null>(null);
+  const [editando, setEditando] = useState(false);
+  const [editForm, setEditForm] = useState({
+    clienteNome: "",
+    descricao: "",
+    dataVencimento: "",
+    valor: "",
+    observacao: "",
+  });
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
 
   // Dialog de confirmação (estornar / cancelar / excluir)
   const [confirmacao, setConfirmacao] = useState<{ acao: AcaoConfirmar; titulo: TituloReceber } | null>(null);
@@ -224,6 +240,62 @@ export default function Financeiro() {
 
   const handleExcluir = (t: TituloReceber) => setConfirmacao({ acao: "excluir", titulo: t });
 
+  const abrirDetalhe = (t: TituloReceber) => {
+    setDetalhe(t);
+    setEditando(false);
+    setEditForm({
+      clienteNome: t.clienteNome,
+      descricao: t.descricao || "",
+      dataVencimento: t.dataVencimento || "",
+      valor: String(t.valor),
+      observacao: t.observacao || "",
+    });
+  };
+
+  const salvarEdicao = async () => {
+    if (!detalhe || salvandoEdicao) return;
+    if (!editForm.clienteNome.trim()) {
+      toast.error("Informe o nome do cliente");
+      return;
+    }
+    const valor = parseFloat(editForm.valor.replace(",", ".")) || 0;
+    if (valor <= 0) {
+      toast.error("Informe um valor maior que zero");
+      return;
+    }
+    setSalvandoEdicao(true);
+    try {
+      await updateTitulo(detalhe.id, {
+        clienteNome: editForm.clienteNome.trim(),
+        descricao: editForm.descricao.trim(),
+        dataVencimento: editForm.dataVencimento || undefined,
+        valor,
+        observacao: editForm.observacao.trim() || undefined,
+      });
+      toast.success(`Título nº ${detalhe.numero} atualizado!`);
+      setDetalhe({ ...detalhe, ...{
+        clienteNome: editForm.clienteNome.trim(),
+        descricao: editForm.descricao.trim(),
+        dataVencimento: editForm.dataVencimento || undefined,
+        valor,
+        observacao: editForm.observacao.trim() || undefined,
+      }});
+      setEditando(false);
+      await load();
+    } catch {
+      toast.error("Erro ao salvar as alterações");
+    } finally {
+      setSalvandoEdicao(false);
+    }
+  };
+
+  const abrirRecebimento = (t: TituloReceber) => {
+    setBaixarRef(t);
+    setDataPagamento(HOJE());
+    setFormaPagamento("Pix");
+    setObsBaixa("");
+  };
+
   const executarConfirmacao = async () => {
     if (!confirmacao || processando) return;
     const { acao, titulo } = confirmacao;
@@ -240,6 +312,7 @@ export default function Financeiro() {
         toast.success("Título excluído");
       }
       setConfirmacao(null);
+      setDetalhe(null);
       await load();
     } catch {
       toast.error("Erro ao executar a operação");
@@ -411,10 +484,17 @@ export default function Financeiro() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filtrados.map((t) => (
-                    <tr key={t.id} className="hover:bg-muted/30 transition-colors">
+                    <tr
+                      key={t.id}
+                      className="hover:bg-muted/30 transition-colors cursor-pointer"
+                      onClick={(e) => {
+                        // Links internos (ex.: OS) continuam navegando normalmente.
+                        if (!(e.target as HTMLElement).closest("a")) abrirDetalhe(t);
+                      }}
+                    >
                       <td className="px-4 py-3 font-mono font-semibold">{t.numero}</td>
                       <td className="px-4 py-3">
-                        <p className="font-medium">{t.clienteNome || ""}</p>
+                        <p className="font-medium">{t.clienteNome || ""}</p>
                         {t.osId && (
                           <Link
                             to={`/ordem-servico?os=${t.osId}`}
@@ -431,7 +511,7 @@ export default function Financeiro() {
                       <td className="px-4 py-3 whitespace-nowrap">
                         {t.dataVencimento
                           ? new Date(t.dataVencimento + "T00:00:00").toLocaleDateString("pt-BR")
-                          : ""}
+                          : ""}
                       </td>
                       <td className="px-4 py-3 text-right font-mono font-semibold whitespace-nowrap">
                         {formatBRL(t.valor)}
@@ -447,65 +527,19 @@ export default function Financeiro() {
                           </p>
                         )}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Comprovante"
-                            className="h-8 w-8"
-                            onClick={() => setComprovante(toDocumentoReceber(t))}
-                          >
-                            <Printer className="h-4 w-4" />
-                          </Button>
-                          {t.status === "aberto" && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-emerald-600 hover:bg-emerald-500/10"
-                              onClick={() => {
-                                setBaixarRef(t);
-                                setDataPagamento(HOJE());
-                                setFormaPagamento("Pix");
-                                setObsBaixa("");
-                              }}
-                            >
-                              <CheckCircle2 className="h-4 w-4 mr-1" /> Receber
-                            </Button>
-                          )}
-                          {t.status === "pago" && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              title="Estornar recebimento"
-                              onClick={() => handleEstornar(t)}
-                            >
-                              <RotateCcw className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {t.status !== "cancelado" && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              title="Cancelar título"
-                              className="text-warning hover:bg-warning/10"
-                              onClick={() => handleCancelar(t)}
-                            >
-                              <Ban className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {t.status === "cancelado" && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              title="Excluir título"
-                              className="text-destructive hover:bg-destructive/10"
-                              onClick={() => handleExcluir(t)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
+                      <td className="px-4 py-3 text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Ver detalhes e ações"
+                          className="h-8 w-8"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            abrirDetalhe(t);
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                       </td>
                     </tr>
                   ))}
@@ -589,6 +623,220 @@ export default function Financeiro() {
             <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={confirmarBaixa}>
               Confirmar Recebimento
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de detalhe / edição do título (clicar no registro) */}
+      <Dialog
+        open={!!detalhe}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDetalhe(null);
+            setEditando(false);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Banknote className="h-5 w-5 text-primary" />
+              Título nº {detalhe?.numero}
+            </DialogTitle>
+            <DialogDescription className="flex items-center gap-2 flex-wrap">
+              {detalhe && (
+                <Badge variant="outline" className={`text-[10px] ${STATUS_CLASS[detalhe.status]}`}>
+                  {STATUS_LABEL[detalhe.status]}
+                </Badge>
+              )}
+              {detalhe?.osId && (
+                <Link to={`/ordem-servico?os=${detalhe.osId}`} className="text-primary hover:underline text-xs">
+                  Ver OS {detalhe.osId}
+                </Link>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {detalhe && editando && detalhe.status === "aberto" ? (
+            <div className="space-y-4 py-1">
+              <div className="space-y-2">
+                <Label htmlFor="edCliente">Cliente</Label>
+                <Input
+                  id="edCliente"
+                  value={editForm.clienteNome}
+                  onChange={(e) => setEditForm((p) => ({ ...p, clienteNome: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edDescricao">Descrição</Label>
+                <Input
+                  id="edDescricao"
+                  value={editForm.descricao}
+                  onChange={(e) => setEditForm((p) => ({ ...p, descricao: e.target.value }))}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edVenc">Vencimento</Label>
+                  <Input
+                    id="edVenc"
+                    type="date"
+                    value={editForm.dataVencimento}
+                    onChange={(e) => setEditForm((p) => ({ ...p, dataVencimento: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edValor">Valor (R$)</Label>
+                  <Input
+                    id="edValor"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editForm.valor}
+                    onChange={(e) => setEditForm((p) => ({ ...p, valor: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edObs">Observação</Label>
+                <Input
+                  id="edObs"
+                  placeholder="Ex: pagamento em 2 parcelas"
+                  value={editForm.observacao}
+                  onChange={(e) => setEditForm((p) => ({ ...p, observacao: e.target.value }))}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 py-1 text-sm">
+              <div className="col-span-2">
+                <p className="text-xs text-muted-foreground">Cliente</p>
+                <p className="font-medium">{detalhe?.clienteNome}</p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-xs text-muted-foreground">Descrição</p>
+                <p className="font-medium">{detalhe?.descricao || "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Emissão</p>
+                <p className="font-medium">
+                  {detalhe
+                    ? new Date(detalhe.dataEmissao + "T00:00:00").toLocaleDateString("pt-BR")
+                    : "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Vencimento</p>
+                <p className="font-medium">
+                  {detalhe?.dataVencimento
+                    ? new Date(detalhe.dataVencimento + "T00:00:00").toLocaleDateString("pt-BR")
+                    : "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Valor</p>
+                <p className="font-heading font-bold text-lg">{formatBRL(detalhe?.valor || 0)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Observação</p>
+                <p className="font-medium">{detalhe?.observacao || "—"}</p>
+              </div>
+              {detalhe?.status === "pago" && (
+                <>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Data do recebimento</p>
+                    <p className="font-medium">
+                      {detalhe.dataPagamento
+                        ? new Date(detalhe.dataPagamento + "T00:00:00").toLocaleDateString("pt-BR")
+                        : "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Forma de pagamento</p>
+                    <p className="font-medium">{detalhe.formaPagamento || "—"}</p>
+                  </div>
+                </>
+              )}
+              {detalhe?.status !== "aberto" && (
+                <p className="col-span-2 text-xs text-muted-foreground">
+                  Títulos {detalhe?.status === "pago" ? "recebidos" : "cancelados"} são somente
+                  para consulta. Estorne ou exclua para alterar.
+                </p>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0 flex-wrap">
+            {detalhe && editando && detalhe.status === "aberto" ? (
+              <>
+                <Button variant="ghost" onClick={() => setEditando(false)} disabled={salvandoEdicao}>
+                  Voltar
+                </Button>
+                <Button
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                  onClick={salvarEdicao}
+                  disabled={salvandoEdicao}
+                >
+                  <Save className="h-4 w-4 mr-1" />
+                  {salvandoEdicao ? "Salvando..." : "Salvar alterações"}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setDetalhe(null)}>
+                  Fechar
+                </Button>
+                {detalhe && (
+                  <>
+                    {detalhe.status === "aberto" && (
+                      <Button variant="outline" onClick={() => setEditando(true)}>
+                        <Pencil className="h-4 w-4 mr-1" /> Editar
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      onClick={() => setComprovante(toDocumentoReceber(detalhe))}
+                    >
+                      <Printer className="h-4 w-4 mr-1" /> Comprovante
+                    </Button>
+                    {detalhe.status === "aberto" && (
+                      <Button
+                        className="bg-emerald-600 hover:bg-emerald-700"
+                        onClick={() => {
+                          abrirRecebimento(detalhe);
+                          setDetalhe(null);
+                        }}
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-1" /> Receber
+                      </Button>
+                    )}
+                    {detalhe.status === "pago" && (
+                      <Button variant="outline" onClick={() => handleEstornar(detalhe)}>
+                        <RotateCcw className="h-4 w-4 mr-1" /> Estornar
+                      </Button>
+                    )}
+                    {detalhe.status !== "cancelado" && (
+                      <Button
+                        variant="outline"
+                        className="text-warning border-warning/40 hover:bg-warning/10"
+                        onClick={() => handleCancelar(detalhe)}
+                      >
+                        <Ban className="h-4 w-4 mr-1" /> Cancelar
+                      </Button>
+                    )}
+                    {detalhe.status === "cancelado" && (
+                      <Button
+                        variant="outline"
+                        className="text-destructive border-destructive/40 hover:bg-destructive/10"
+                        onClick={() => handleExcluir(detalhe)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" /> Excluir
+                      </Button>
+                    )}
+                  </>
+                )}
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
