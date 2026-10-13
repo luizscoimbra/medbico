@@ -63,6 +63,14 @@ import {
   getAllRegistros as getAllRegistrosEquip,
 } from "@/lib/equipmentMaintenanceStorage";
 import { FornecedoresDialog } from "@/components/financeiro/FornecedoresDialog";
+import { RateioEditor } from "@/components/financeiro/RateioEditor";
+import {
+  getAllCentrosCusto,
+  getAllContasPlano,
+  semearPlanoDeContas,
+  type CentroCusto,
+  type ContaPlano,
+} from "@/lib/planoContasStorage";
 
 const STATUS_LABEL: Record<StatusTitulo, string> = {
   aberto: "Em aberto",
@@ -151,6 +159,8 @@ type FormTitulo = {
   valor: string;
   dataVencimento: string;
   observacao: string;
+  planoContaId: string;
+  centroCustoId: string;
 };
 
 const formVazio = (fornId: string): FormTitulo => ({
@@ -161,6 +171,8 @@ const formVazio = (fornId: string): FormTitulo => ({
   valor: "",
   dataVencimento: vencimentoPadrao(),
   observacao: "",
+  planoContaId: "",
+  centroCustoId: "",
 });
 
 interface ContasPagarProps {
@@ -174,6 +186,10 @@ export function ContasPagar({ titulos, onReload, onComprovante }: ContasPagarPro
   const [busca, setBusca] = useState("");
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [fornDialogOpen, setFornDialogOpen] = useState(false);
+
+  // Classificação obrigatória: conta do plano + departamento do título
+  const [contasPlano, setContasPlano] = useState<ContaPlano[]>([]);
+  const [centros, setCentros] = useState<CentroCusto[]>([]);
 
   // Dialog de criação/edição
   const [form, setForm] = useState<FormTitulo | null>(null);
@@ -196,11 +212,31 @@ export function ContasPagar({ titulos, onReload, onComprovante }: ContasPagarPro
   const [gerarSel, setGerarSel] = useState<string[]>([]);
   const [gerarVenc, setGerarVenc] = useState(vencimentoPadrao());
   const [gerarFornId, setGerarFornId] = useState("");
+  const [gerarCentroId, setGerarCentroId] = useState("");
 
   const loadFornecedores = async () => setFornecedores(await getAllFornecedores());
 
+  /** Preenche o plano de contas e os centros de custo (pickers do formulário). */
+  const loadClassificacao = async () => {
+    try {
+      const [c, s] = await Promise.all([getAllContasPlano(), getAllCentrosCusto()]);
+      setContasPlano(c);
+      setCentros(s);
+      if (!c.length) {
+        await semearPlanoDeContas();
+        setContasPlano(await getAllContasPlano());
+      }
+      if (!s.length) {
+        setCentros(await getAllCentrosCusto());
+      }
+    } catch {
+      toast.error("Falha ao carregar o plano de contas e os centros de custo");
+    }
+  };
+
   useEffect(() => {
     loadFornecedores();
+    loadClassificacao();
   }, []);
 
   const filtrados = useMemo(() => {
@@ -226,7 +262,12 @@ export function ContasPagar({ titulos, onReload, onComprovante }: ContasPagarPro
 
   const nomeFornecedorPorId = (id: string) => fornecedores.find((f) => f.id === id)?.nome || "";
 
-  const abrirNovo = () => setForm(formVazio(LIVRE));
+  const abrirNovo = () => {
+    const base = formVazio(LIVRE);
+    const padrao = centros.find((c) => c.padrao && c.ativo);
+    if (padrao) base.centroCustoId = padrao.id;
+    setForm(base);
+  };
 
   const abrirEditar = (t: TituloPagar) =>
     setForm({
@@ -239,6 +280,8 @@ export function ContasPagar({ titulos, onReload, onComprovante }: ContasPagarPro
       valor: t.valor ? digitosParaMoeda(String(Math.round(t.valor * 100))) : "",
       dataVencimento: t.dataVencimento || "",
       observacao: t.observacao || "",
+      planoContaId: t.planoContaId || "",
+      centroCustoId: t.centroCustoId || "",
     });
 
   const salvarForm = async () => {
@@ -258,6 +301,14 @@ export function ContasPagar({ titulos, onReload, onComprovante }: ContasPagarPro
       toast.error("Informe um valor maior que zero");
       return;
     }
+    if (!form.centroCustoId) {
+      toast.error("Informe o departamento (centro de custo)");
+      return;
+    }
+    if (!form.planoContaId) {
+      toast.error("Informe a conta do plano de contas");
+      return;
+    }
     try {
       const fornecedorId = form.fornId === LIVRE ? undefined : form.fornId;
       if (form.id) {
@@ -269,6 +320,8 @@ export function ContasPagar({ titulos, onReload, onComprovante }: ContasPagarPro
           valor,
           dataVencimento: form.dataVencimento || undefined,
           observacao: form.observacao.trim() || undefined,
+          planoContaId: form.planoContaId,
+          centroCustoId: form.centroCustoId,
         });
         toast.success("Título atualizado!");
       } else {
@@ -280,6 +333,8 @@ export function ContasPagar({ titulos, onReload, onComprovante }: ContasPagarPro
           valor,
           dataVencimento: form.dataVencimento || undefined,
           observacao: form.observacao.trim() || undefined,
+          planoContaId: form.planoContaId,
+          centroCustoId: form.centroCustoId,
         });
         toast.success(`Conta a pagar nº ${novo.numero} criada!`);
       }
@@ -340,6 +395,7 @@ export function ContasPagar({ titulos, onReload, onComprovante }: ContasPagarPro
     setGerarLista([]);
     setGerarSel([]);
     setGerarVenc(vencimentoPadrao());
+    setGerarCentroId(centros.find((c) => c.padrao && c.ativo)?.id || "");
     try {
       const [vinculadas, mapaDrones] = await Promise.all([
         manutencoesComTitulo(),
@@ -411,6 +467,10 @@ export function ContasPagar({ titulos, onReload, onComprovante }: ContasPagarPro
       toast.error("Selecione ao menos uma manutenção");
       return;
     }
+    if (!gerarCentroId) {
+      toast.error("Informe o departamento para as contas geradas");
+      return;
+    }
     setGerando(true);
     try {
       for (const m of escolhidas) {
@@ -431,6 +491,7 @@ export function ContasPagar({ titulos, onReload, onComprovante }: ContasPagarPro
           manutencaoId: m.id,
           droneId: m.droneId,
           equipmentId: m.equipmentId,
+          centroCustoId: gerarCentroId,
         });
       }
       toast.success(`${escolhidas.length} conta(s) a pagar gerada(s) das manutenções!`);
@@ -578,9 +639,23 @@ export function ContasPagar({ titulos, onReload, onComprovante }: ContasPagarPro
                     <tr key={t.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3 font-mono font-semibold">{t.numero}</td>
                       <td className="px-4 py-3">
-                        <p className="font-medium">{t.fornecedorNome || ""}</p>
+                        <p className="font-medium">{t.fornecedorNome || ""}</p>
                         {t.categoria && (
                           <p className="text-[11px] text-muted-foreground">{t.categoria}</p>
+                        )}
+                        {(t.centroCustoId || t.planoContaId) && (
+                          <p className="text-[10px] text-muted-foreground">
+                            {[
+                              t.centroCustoId
+                                ? centros.find((c) => c.id === t.centroCustoId)?.nome
+                                : undefined,
+                              t.planoContaId
+                                ? contasPlano.find((c) => c.id === t.planoContaId)?.nome
+                                : undefined,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </p>
                         )}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground text-xs">{t.descricao}</td>
@@ -778,6 +853,64 @@ export function ContasPagar({ titulos, onReload, onComprovante }: ContasPagarPro
                 />
               </div>
 
+              {/* Classificação obrigatória: sem conta e departamento o banco recusa o lançamento */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-lg border border-border/60 bg-muted/20 p-3">
+                <div className="space-y-2">
+                  <Label>Departamento (centro de custo) *</Label>
+                  <Select
+                    value={form.centroCustoId || "__nada"}
+                    onValueChange={(v) => setForm({ ...form, centroCustoId: v === "__nada" ? "" : v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o departamento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__nada">Selecione...</SelectItem>
+                      {centros
+                        .filter((c) => c.ativo || c.id === form.centroCustoId)
+                        .map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.codigo} · {c.nome}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Conta do plano de contas *</Label>
+                  <Select
+                    value={form.planoContaId || "__nada"}
+                    onValueChange={(v) => setForm({ ...form, planoContaId: v === "__nada" ? "" : v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a rubrica" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__nada">Selecione...</SelectItem>
+                      {contasPlano
+                        .filter((c) => c.ativo || c.id === form.planoContaId)
+                        .map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.codigo} · {c.nome}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="col-span-full text-[11px] text-muted-foreground">
+                  Toda despesa precisa dizer em que rubrica entra e de qual departamento ela é.
+                  {form.id && " Abaixo dá para repartir o valor entre mais de um departamento (rateio)."}
+                </p>
+              </div>
+
+              {form.id && form.centroCustoId && (
+                <RateioEditor
+                  payableId={form.id}
+                  valorTitulo={moedaParaCentavos(form.valor) / 100}
+                  centros={centros}
+                />
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="pag-venc">Vencimento</Label>
                 <Input
@@ -970,7 +1103,7 @@ export function ContasPagar({ titulos, onReload, onComprovante }: ContasPagarPro
                 })}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="gerar-venc">Vencimento padrão</Label>
                   <Input
@@ -993,6 +1126,27 @@ export function ContasPagar({ titulos, onReload, onComprovante }: ContasPagarPro
                           {f.nome}
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Departamento *</Label>
+                  <Select
+                    value={gerarCentroId || "__nada"}
+                    onValueChange={(v) => setGerarCentroId(v === "__nada" ? "" : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__nada">Selecione...</SelectItem>
+                      {centros
+                        .filter((c) => c.ativo)
+                        .map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.codigo} · {c.nome}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>

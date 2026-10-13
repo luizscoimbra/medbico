@@ -1,5 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import { requireUserId, tabelaDynamic, toJson } from "@/lib/db";
+import {
+  getAllContasPlano,
+  resolverCentroCustoAutomatico,
+  resolverContaPorCategoria,
+} from "@/lib/planoContasStorage";
 
 /**
  * Backup e restauração do sistema em arquivo único.
@@ -202,6 +207,29 @@ export function parseBackup(texto: string): BackupFile {
 }
 
 /**
+ * Backups feitos antes da classificação obrigatória trazem títulos a pagar sem
+ * departamento/conta — a trigger do banco recusaria essas linhas e a tabela
+ * inteira cairia no relatório de falha. Completa o que faltar com o mesmo
+ * fallback usado na criação (centro padrão / "Não classificado" + conta da
+ * categoria), deixando o usuário refazer a escolha depois na tela.
+ */
+async function classificarPayablesDoBackup(valores: Record<string, unknown>[]): Promise<void> {
+  const pendentes = valores.filter((v) => !v.centro_custo_id || !v.plano_conta_id);
+  if (pendentes.length === 0) return;
+
+  const centroPadrao = await resolverCentroCustoAutomatico();
+  for (const linha of pendentes) {
+    if (!linha.centro_custo_id) linha.centro_custo_id = centroPadrao;
+    if (!linha.plano_conta_id) {
+      linha.plano_conta_id = await resolverContaPorCategoria(
+        await getAllContasPlano(),
+        typeof linha.categoria === "string" ? linha.categoria : "Outros"
+      );
+    }
+  }
+}
+
+/**
  * Restaura um backup.
  *
  * Por padrão apenas insere registros ausentes (`ignoreDuplicates`), o que torna
@@ -239,6 +267,8 @@ export async function restoreBackup(
         toJson(SEM_USER_ID.has(tabela) || "user_id" in linha ? linha : { ...linha, user_id: userId }) as Record<string, unknown>
       );
       const conflito = CHAVE_PRIMARIA[tabela] ?? "id";
+
+      if (tabela === "financial_payables") await classificarPayablesDoBackup(valores);
 
       if (modo === "sobrescrever" && !SEM_USER_ID.has(tabela)) {
         // Limpa a tabela antes de reinserir, para remover linhas que não

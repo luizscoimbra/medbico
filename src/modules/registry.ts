@@ -41,7 +41,11 @@ export const MODULES: ModuleDef[] = [
     label: "Drones e Frotas",
     routes: ["/frotas", "/equipamentos", "/manutencao-equipamentos", "/gestao-abastecimento", "/drones", "/battery-management", "/flight-log", "/maintenance"],
   },
-  { id: "financeiro", label: "Financeiro", routes: ["/financeiro"] },
+  {
+    id: "financeiro",
+    label: "Financeiro",
+    routes: ["/financeiro", "/plano-de-contas", "/conciliacao", "/boletos"],
+  },
   { id: "acessos", label: "Gestão de Acessos", routes: ["/acessos", "/filiais"] },
   { id: "plataforma", label: "Plataforma", routes: ["/plataforma"] },
 ];

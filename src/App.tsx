@@ -43,6 +43,9 @@ import FlightLog from "./pages/FlightLog";
 import MaintenanceDashboard from "./pages/MaintenanceDashboard";
 import VisaoGeral from "./pages/VisaoGeral";
 import Financeiro from "./pages/Financeiro";
+import PlanoContas from "./pages/PlanoContas";
+import ConciliacaoBancaria from "./pages/ConciliacaoBancaria";
+import Boletos from "./pages/Boletos";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -123,6 +126,9 @@ function AppLayout() {
             <Route path="/tributacao" element={<ProtectedRoute><Tributacao /></ProtectedRoute>} />
             <Route path="/plataforma" element={<ProtectedRoute><Plataforma /></ProtectedRoute>} />
             <Route path="/financeiro" element={<ProtectedRoute><Financeiro /></ProtectedRoute>} />
+            <Route path="/plano-de-contas" element={<ProtectedRoute><PlanoContas /></ProtectedRoute>} />
+            <Route path="/conciliacao" element={<ProtectedRoute><ConciliacaoBancaria /></ProtectedRoute>} />
+            <Route path="/boletos" element={<ProtectedRoute><Boletos /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>

@@ -34,6 +34,9 @@ import {
   Sprout,
   ScrollText,
   RefreshCw,
+  ListTree,
+  Landmark,
+  Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/context/SidebarContext";
@@ -71,6 +74,9 @@ const navItems: NavItem[] = [
   { path: "/filiais", label: "Filiais", icon: MapPin, group: "Configurações", module: "acessos" },
   { path: "/plataforma", label: "Plataforma", icon: ShieldCheck, group: "Configurações", module: "plataforma" },
   { path: "/financeiro", label: "Financeiro", icon: Banknote, group: "Financeiro", module: "financeiro" },
+  { path: "/plano-de-contas", label: "Plano de Contas", icon: ListTree, group: "Financeiro", module: "financeiro" },
+  { path: "/conciliacao", label: "Conciliação", icon: Landmark, group: "Financeiro", module: "financeiro" },
+  { path: "/boletos", label: "Boletos", icon: Receipt, group: "Financeiro", module: "financeiro" },
 ];
 
 interface CadastroSubItem {

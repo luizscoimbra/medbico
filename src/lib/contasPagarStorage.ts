@@ -1,6 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
-import { asJsonArray, num, orNull, requireScope, storageError } from "@/lib/db";
+import { num, orNull, requireScope, storageError } from "@/lib/db";
 import type { StatusTitulo } from "./financeiroStorage";
+import {
+  getAllContasPlano,
+  resolverCentroCustoAutomatico,
+  resolverContaPorCategoria,
+} from "@/lib/planoContasStorage";
 
 export const CATEGORIAS_PAGAR = [
   "Insumos",
@@ -32,6 +37,10 @@ export interface TituloPagar {
   dataPagamento?: string;  // yyyy-mm-dd
   formaPagamento?: string;
   observacao?: string;
+  /** Conta do plano de contas — obrigatória. */
+  planoContaId?: string;
+  /** Departamento/centro de custo — obrigatório. */
+  centroCustoId?: string;
   criadoEm: string;        // ISO
 }
 
@@ -52,6 +61,8 @@ interface TituloPagarRow {
   data_pagamento: string | null;
   forma_pagamento: string | null;
   observacao: string | null;
+  plano_conta_id: string | null;
+  centro_custo_id: string | null;
   criado_em: string;
 }
 
@@ -72,6 +83,8 @@ const fromRow = (row: TituloPagarRow): TituloPagar => ({
   dataPagamento: row.data_pagamento ?? undefined,
   formaPagamento: row.forma_pagamento ?? undefined,
   observacao: row.observacao ?? undefined,
+  planoContaId: row.plano_conta_id ?? undefined,
+  centroCustoId: row.centro_custo_id ?? undefined,
   criadoEm: row.criado_em,
 });
 
@@ -80,6 +93,27 @@ async function nextNumero(): Promise<string> {
   const { data, error } = await supabase.rpc("next_payable_numero");
   if (error) throw storageError("Não foi possível gerar o número do título", error);
   return String(data);
+}
+
+/**
+ * Classificação obrigatória de todo lançamento.
+ *
+ * A interface sempre pede a escolha ao usuário (conta + departamento). Quando
+ * a origem do título não tem ninguém para perguntar — geração automática a
+ * partir de manutenções, importação do armazenamento local — o sistema cai no
+ * centro de custo padrão / "Não classificado" e na conta correspondente à
+ * categoria, para nenhum lançamento entrar sem departamento.
+ */
+async function classificar(input: {
+  planoContaId?: string;
+  centroCustoId?: string;
+  categoria: string;
+}): Promise<{ planoContaId: string; centroCustoId: string }> {
+  const centroCustoId = input.centroCustoId || (await resolverCentroCustoAutomatico());
+  const planoContaId =
+    input.planoContaId ||
+    (await resolverContaPorCategoria(await getAllContasPlano(), input.categoria));
+  return { planoContaId, centroCustoId };
 }
 
 export async function criarTituloPagar(input: {
@@ -94,9 +128,12 @@ export async function criarTituloPagar(input: {
   droneId?: string;
   equipmentId?: string;
   observacao?: string;
+  planoContaId?: string;
+  centroCustoId?: string;
 }): Promise<TituloPagar> {
   const { userId, branchId } = await requireScope();
   const id = `tp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const classificacao = await classificar(input);
 
   const { data, error } = await supabase
     .from("financial_payables")
@@ -117,12 +154,19 @@ export async function criarTituloPagar(input: {
       valor: input.valor,
       status: "aberto",
       observacao: orNull(input.observacao),
+      plano_conta_id: classificacao.planoContaId,
+      centro_custo_id: classificacao.centroCustoId,
       criado_em: new Date().toISOString(),
     })
     .select("*")
     .single();
 
-  if (error) throw storageError("Falha ao criar o título a pagar", error);
+  if (error) {
+    if (error.message?.includes("sem departamento") || error.message?.includes("plano de contas")) {
+      throw new Error(error.message);
+    }
+    throw storageError("Falha ao criar o título a pagar", error);
+  }
   return fromRow(data as TituloPagarRow);
 }
 
@@ -156,6 +200,11 @@ export async function updateTituloPagar(id: string, patch: Partial<TituloPagar>)
   if ("dataPagamento" in patch) payload.data_pagamento = orNull(patch.dataPagamento);
   if ("formaPagamento" in patch) payload.forma_pagamento = orNull(patch.formaPagamento);
   if ("observacao" in patch) payload.observacao = orNull(patch.observacao);
+  // Classificação é obrigatória: um valor vazio é ignorado em vez de apagar a
+  // coluna (a trigger do banco recusaria o lançamento sem departamento).
+  if ("planoContaId" in patch && patch.planoContaId) payload.plano_conta_id = patch.planoContaId;
+  if ("centroCustoId" in patch && patch.centroCustoId)
+    payload.centro_custo_id = patch.centroCustoId;
 
   if (Object.keys(payload).length === 0) return;
 
@@ -171,6 +220,11 @@ export async function updateTituloPagar(id: string, patch: Partial<TituloPagar>)
  */
 export async function salvarTituloPagar(titulo: TituloPagar): Promise<void> {
   const { userId, branchId } = await requireScope();
+  const classificacao = await classificar({
+    planoContaId: titulo.planoContaId,
+    centroCustoId: titulo.centroCustoId,
+    categoria: titulo.categoria,
+  });
   const { error } = await supabase.from("financial_payables").upsert(
     {
       id: titulo.id,
@@ -191,6 +245,8 @@ export async function salvarTituloPagar(titulo: TituloPagar): Promise<void> {
       data_pagamento: orNull(titulo.dataPagamento),
       forma_pagamento: orNull(titulo.formaPagamento),
       observacao: orNull(titulo.observacao),
+      plano_conta_id: classificacao.planoContaId,
+      centro_custo_id: classificacao.centroCustoId,
       criado_em: titulo.criadoEm,
     },
     { onConflict: "id" }

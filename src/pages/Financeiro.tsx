@@ -350,6 +350,15 @@ export default function Financeiro() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Link to="/plano-de-contas">
+            <Button variant="outline" size="sm">Plano de contas</Button>
+          </Link>
+          <Link to="/conciliacao">
+            <Button variant="outline" size="sm">Conciliação</Button>
+          </Link>
+          <Link to="/boletos">
+            <Button variant="outline" size="sm">Boletos</Button>
+          </Link>
           <Button variant="outline" size="sm" onClick={abrirRelatorio}>
             <FileText className="h-4 w-4 mr-1" /> Relatório
           </Button>
