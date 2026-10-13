@@ -31,6 +31,8 @@ import {
   ShieldCheck,
   Building,
   Calculator,
+  Sprout,
+  ScrollText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/context/SidebarContext";
@@ -55,6 +57,8 @@ const navItems: NavItem[] = [
   { path: "/calculadora-calda", label: "Calculadora de Calda", icon: FlaskConical, group: "Operações", module: "operacoes" },
   { path: "/aferir-vazao", label: "Aferir Vazão", icon: Activity, group: "Operações", module: "operacoes" },
   { path: "/ordem-servico", label: "Ordem de Serviço", icon: FileText, group: "Operações", module: "operacoes" },
+  { path: "/visitas", label: "Visitas de Campo", icon: Sprout, group: "Operações", module: "operacoes" },
+  { path: "/receituario", label: "Receituário Agronômico", icon: ScrollText, group: "Operações", module: "operacoes" },
   { path: "/estoque", label: "Estoque", icon: Boxes, group: "Operações", module: "estoque" },
   { path: "/area-motorista", label: "Área do Motorista", icon: Truck, group: "Operações", module: "motorista" },
   { path: "/historico", label: "Histórico", icon: History, group: "Consultas", module: "consultas" },

@@ -14,6 +14,113 @@ export type Database = {
   }
   public: {
     Tables: {
+      agrofit_produtos: {
+        Row: {
+          classe: string | null
+          classe_ambiental: string | null
+          classe_toxicologica: string | null
+          criado_em: string
+          cultura: string | null
+          formulacao: string | null
+          id: number
+          ingrediente_ativo: string | null
+          marca_comercial: string
+          modo_de_acao: string | null
+          nr_registro: string
+          organicos: string | null
+          praga_comum: string | null
+          praga_cientifico: string | null
+          situacao: string | null
+          titular: string | null
+        }
+        Insert: {
+          classe?: string | null
+          classe_ambiental?: string | null
+          classe_toxicologica?: string | null
+          criado_em?: string
+          cultura?: string | null
+          formulacao?: string | null
+          ingrediente_ativo?: string | null
+          marca_comercial: string
+          modo_de_acao?: string | null
+          nr_registro: string
+          organicos?: string | null
+          praga_comum?: string | null
+          praga_cientifico?: string | null
+          situacao?: string | null
+          titular?: string | null
+        }
+        Update: {
+          classe?: string | null
+          classe_ambiental?: string | null
+          classe_toxicologica?: string | null
+          criado_em?: string
+          cultura?: string | null
+          formulacao?: string | null
+          id?: never
+          ingrediente_ativo?: string | null
+          marca_comercial?: string
+          modo_de_acao?: string | null
+          nr_registro?: string
+          organicos?: string | null
+          praga_comum?: string | null
+          praga_cientifico?: string | null
+          situacao?: string | null
+          titular?: string | null
+        }
+        Relationships: []
+      }
+      agronomic_prescriptions: {
+        Row: {
+          assinado_em: string | null
+          assinado_por_nome: string | null
+          assinatura_base64: string | null
+          assinatura_metodo: string | null
+          atualizado_em: string
+          branch_id: string | null
+          criado_em: string
+          dados: Json
+          id: string
+          numero: string
+          status: string
+          tenant_key: string
+          user_id: string
+          visit_id: string | null
+        }
+        Insert: {
+          assinado_em?: string | null
+          assinado_por_nome?: string | null
+          assinatura_base64?: string | null
+          assinatura_metodo?: string | null
+          atualizado_em?: string
+          branch_id?: string | null
+          criado_em?: string
+          dados?: Json
+          id?: string
+          numero: string
+          status?: string
+          tenant_key?: string
+          user_id?: string
+          visit_id?: string | null
+        }
+        Update: {
+          assinado_em?: string | null
+          assinado_por_nome?: string | null
+          assinatura_base64?: string | null
+          assinatura_metodo?: string | null
+          atualizado_em?: string
+          branch_id?: string | null
+          criado_em?: string
+          dados?: Json
+          id?: string
+          numero?: string
+          status?: string
+          tenant_key?: string
+          user_id?: string
+          visit_id?: string | null
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           branch_id: string | null
@@ -330,6 +437,10 @@ export type Database = {
           razao_social: string
           slug: string
           status: string
+          tecnico_art: string
+          tecnico_crea: string
+          tecnico_nome: string
+          tecnico_titulo: string
           telefone: string
           uf: string
           updated_at: string
@@ -355,6 +466,10 @@ export type Database = {
           razao_social?: string
           slug: string
           status?: string
+          tecnico_art?: string
+          tecnico_crea?: string
+          tecnico_nome?: string
+          tecnico_titulo?: string
           telefone?: string
           uf?: string
           updated_at?: string
@@ -380,6 +495,10 @@ export type Database = {
           razao_social?: string
           slug?: string
           status?: string
+          tecnico_art?: string
+          tecnico_crea?: string
+          tecnico_nome?: string
+          tecnico_titulo?: string
           telefone?: string
           uf?: string
           updated_at?: string
@@ -978,6 +1097,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      field_visits: {
+        Row: {
+          atualizado_em: string
+          area_nome: string
+          branch_id: string | null
+          cliente_id: string | null
+          cliente_nome: string | null
+          coordenadas: string | null
+          criado_em: string
+          cultura: string | null
+          data: string
+          fase_fenologica: string | null
+          fotos: Json
+          id: string
+          observacoes: string | null
+          status: string
+          talhao_nome: string | null
+          tenant_key: string
+          user_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          area_nome?: string
+          branch_id?: string | null
+          cliente_id?: string | null
+          cliente_nome?: string | null
+          coordenadas?: string | null
+          criado_em?: string
+          cultura?: string | null
+          data?: string
+          fase_fenologica?: string | null
+          fotos?: Json
+          id: string
+          observacoes?: string | null
+          status?: string
+          talhao_nome?: string | null
+          tenant_key?: string
+          user_id?: string
+        }
+        Update: {
+          atualizado_em?: string
+          area_nome?: string
+          branch_id?: string | null
+          cliente_id?: string | null
+          cliente_nome?: string | null
+          coordenadas?: string | null
+          criado_em?: string
+          cultura?: string | null
+          data?: string
+          fase_fenologica?: string | null
+          fotos?: Json
+          id?: string
+          observacoes?: string | null
+          status?: string
+          talhao_nome?: string | null
+          tenant_key?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       financial_payables: {
         Row: {
@@ -2425,6 +2604,120 @@ export type Database = {
           },
         ]
       }
+      visit_diagnoses: {
+        Row: {
+          alvo_cientifico: string
+          alvo_comum: string | null
+          criado_em: string
+          id: string
+          observacao: string | null
+          percentual: number | null
+          severidade: string
+          tenant_key: string
+          visit_id: string
+        }
+        Insert: {
+          alvo_cientifico: string
+          alvo_comum?: string | null
+          criado_em?: string
+          id?: string
+          observacao?: string | null
+          percentual?: number | null
+          severidade: string
+          tenant_key?: string
+          visit_id: string
+        }
+        Update: {
+          alvo_cientifico?: string
+          alvo_comum?: string | null
+          criado_em?: string
+          id?: string
+          observacao?: string | null
+          percentual?: number | null
+          severidade?: string
+          tenant_key?: string
+          visit_id?: string
+        }
+        Relationships: []
+      }
+      visit_recommendations: {
+        Row: {
+          agrofit_id: number | null
+          area_ha: number | null
+          atualizado_em: string
+          branch_id: string | null
+          criado_em: string
+          dose: number | null
+          dose_unidade: string
+          id: string
+          ingrediente_ativo: string | null
+          intervalo_seguranca_dias: number | null
+          janela_fim: string | null
+          janela_inicio: string | null
+          marca_comercial: string | null
+          modo_aplicacao: string | null
+          nr_registro: string | null
+          observacao: string | null
+          periodo_reentrada_dias: number | null
+          quantidade_total: number | null
+          status: string
+          tenant_key: string
+          user_id: string
+          visit_id: string
+          volume_calda_l_ha: number | null
+        }
+        Insert: {
+          agrofit_id?: number | null
+          area_ha?: number | null
+          atualizado_em?: string
+          branch_id?: string | null
+          criado_em?: string
+          dose?: number | null
+          dose_unidade?: string
+          id: string
+          ingrediente_ativo?: string | null
+          intervalo_seguranca_dias?: number | null
+          janela_fim?: string | null
+          janela_inicio?: string | null
+          marca_comercial?: string | null
+          modo_aplicacao?: string | null
+          nr_registro?: string | null
+          observacao?: string | null
+          periodo_reentrada_dias?: number | null
+          quantidade_total?: number | null
+          status?: string
+          tenant_key?: string
+          user_id?: string
+          visit_id: string
+          volume_calda_l_ha?: number | null
+        }
+        Update: {
+          agrofit_id?: number | null
+          area_ha?: number | null
+          atualizado_em?: string
+          branch_id?: string | null
+          criado_em?: string
+          dose?: number | null
+          dose_unidade?: string
+          id?: string
+          ingrediente_ativo?: string | null
+          intervalo_seguranca_dias?: number | null
+          janela_fim?: string | null
+          janela_inicio?: string | null
+          marca_comercial?: string | null
+          modo_aplicacao?: string | null
+          nr_registro?: string | null
+          observacao?: string | null
+          periodo_reentrada_dias?: number | null
+          quantidade_total?: number | null
+          status?: string
+          tenant_key?: string
+          user_id?: string
+          visit_id?: string
+          volume_calda_l_ha?: number | null
+        }
+        Relationships: []
+      }
       water_trucks: {
         Row: {
           branch_id: string | null
@@ -2531,6 +2824,7 @@ export type Database = {
       next_os_id: { Args: { p_prefix: string }; Returns: string }
       next_payable_numero: { Args: never; Returns: string }
       next_receivable_numero: { Args: never; Returns: string }
+      next_receituario_numero: { Args: { p_prefix?: string }; Returns: string }
       norm_key: { Args: { txt: string }; Returns: string }
       platform_companies: {
         Args: never
@@ -2626,6 +2920,7 @@ export type Database = {
       stock_snapshot: { Args: { p_branch?: string }; Returns: Json }
       test_simple: { Args: never; Returns: Json }
       to_num: { Args: { txt: string }; Returns: number }
+      touch_updated_at: { Args: never; Returns: unknown }
       transfer_stock: {
         Args: {
           p_de: string
@@ -2687,6 +2982,10 @@ export type Database = {
           p_telefone?: string
           p_uf?: string
         }
+        Returns: undefined
+      }
+      update_company_tecnico: {
+        Args: { p_art?: string; p_crea?: string; p_nome?: string; p_titulo?: string }
         Returns: undefined
       }
       update_my_profile: {

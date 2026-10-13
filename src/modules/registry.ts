@@ -28,6 +28,8 @@ export const MODULES: ModuleDef[] = [
       "/calculadora-calda",
       "/aferir-vazao",
       "/ordem-servico",
+      "/visitas",
+      "/receituario",
     ],
   },
   { id: "motorista", label: "Área do Motorista", routes: ["/area-motorista"] },

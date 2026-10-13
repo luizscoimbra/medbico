@@ -21,6 +21,8 @@ import Estoque from "./pages/Estoque";
 import CalculadoraCalda from "./pages/CalculadoraCalda";
 import AferirVazao from "./pages/AferirVazao";
 import OrdemServico from "./pages/OrdemServico";
+import Visitas from "./pages/Visitas";
+import Receituario from "./pages/Receituario";
 import Drones from "./pages/Drones";
 import Frotas from "./pages/Frotas";
 import Equipamentos from "./pages/Equipamentos";
@@ -102,6 +104,8 @@ function AppLayout() {
             <Route path="/calculadora-calda" element={<ProtectedRoute><CalculadoraCalda /></ProtectedRoute>} />
             <Route path="/aferir-vazao" element={<ProtectedRoute><AferirVazao /></ProtectedRoute>} />
             <Route path="/ordem-servico" element={<ProtectedRoute><OrdemServico /></ProtectedRoute>} />
+            <Route path="/visitas" element={<ProtectedRoute><Visitas /></ProtectedRoute>} />
+            <Route path="/receituario" element={<ProtectedRoute><Receituario /></ProtectedRoute>} />
             <Route path="/area-motorista" element={<ProtectedRoute><AreaMotorista /></ProtectedRoute>} />
             <Route path="/frotas" element={<ProtectedRoute><Frotas /></ProtectedRoute>} />
             <Route path="/equipamentos" element={<ProtectedRoute><Equipamentos /></ProtectedRoute>} />

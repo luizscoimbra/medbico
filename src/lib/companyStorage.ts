@@ -34,6 +34,10 @@ export interface Company {
   cep: string;
   telefone: string;
   email: string;
+  tecnico_nome: string;
+  tecnico_titulo: string;
+  tecnico_crea: string;
+  tecnico_art: string;
 }
 
 export interface Branch {
@@ -150,6 +154,32 @@ export async function saveCompanyFiscal(input: CompanyFiscalInput): Promise<void
     p_cep: input.cep,
     p_telefone: input.telefone,
     p_email: input.email,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+/** Dados do responsável técnico legalizador (Receituário Agronômico). */
+export interface CompanyTecnicoInput {
+  tecnico_nome: string;
+  tecnico_titulo: string;
+  tecnico_crea: string;
+  tecnico_art: string;
+}
+
+/**
+ * Grava o responsável técnico da Matriz — CREA/ART exigidos no Receituário
+ * Agronômico (Lei 7.802/1989, 14.785/2023). Mesmo caminho da gravação fiscal:
+ * RPC (`update_company_tecnico`) porque `companies` não tem policy de UPDATE.
+ */
+export async function saveCompanyTecnico(input: CompanyTecnicoInput): Promise<void> {
+  const { error } = await supabase.rpc("update_company_tecnico", {
+    p_nome: input.tecnico_nome,
+    p_titulo: input.tecnico_titulo,
+    p_crea: input.tecnico_crea,
+    p_art: input.tecnico_art,
   });
 
   if (error) {

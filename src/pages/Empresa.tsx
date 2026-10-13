@@ -6,12 +6,14 @@ import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Building, Loader2, MapPin, Percent } from "lucide-react";
+import { BadgeCheck, Building, Loader2, MapPin, Percent } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import {
   saveCompanyFiscal,
+  saveCompanyTecnico,
   type CompanyFiscalInput,
+  type CompanyTecnicoInput,
 } from "@/lib/companyStorage";
 
 const REGIMES = [
@@ -46,6 +48,13 @@ const VAZIO: CompanyFiscalInput = {
   email: "",
 };
 
+const TECNICO_VAZIO: CompanyTecnicoInput = {
+  tecnico_nome: "",
+  tecnico_titulo: "",
+  tecnico_crea: "",
+  tecnico_art: "",
+};
+
 /**
  * Cadastro fiscal da Matriz.
  *
@@ -57,6 +66,7 @@ const VAZIO: CompanyFiscalInput = {
 export default function Empresa() {
   const { company, profile, loading: carregandoAuth } = useAuth();
   const [form, setForm] = useState<CompanyFiscalInput>(VAZIO);
+  const [tecnico, setTecnico] = useState<CompanyTecnicoInput>(TECNICO_VAZIO);
   const [salvando, setSalvando] = useState(false);
 
   const podeEditar = profile?.role === "master";
@@ -81,10 +91,19 @@ export default function Empresa() {
       telefone: company.telefone ?? "",
       email: company.email ?? "",
     });
+    setTecnico({
+      tecnico_nome: company.tecnico_nome ?? "",
+      tecnico_titulo: company.tecnico_titulo ?? "",
+      tecnico_crea: company.tecnico_crea ?? "",
+      tecnico_art: company.tecnico_art ?? "",
+    });
   }, [company]);
 
   const set = (campo: keyof CompanyFiscalInput, valor: string) =>
     setForm((atual) => ({ ...atual, [campo]: valor }));
+
+  const setTecnicoCampo = (campo: keyof CompanyTecnicoInput, valor: string) =>
+    setTecnico((atual) => ({ ...atual, [campo]: valor }));
 
   const salvar = async () => {
     if (!form.razao_social.trim() && !form.nome_fantasia.trim()) {
@@ -93,7 +112,7 @@ export default function Empresa() {
     }
     setSalvando(true);
     try {
-      await saveCompanyFiscal(form);
+      await Promise.all([saveCompanyFiscal(form), saveCompanyTecnico(tecnico)]);
       toast.success("Cadastro da empresa salvo!");
       window.location.reload();
     } catch (erro) {
@@ -320,6 +339,58 @@ export default function Empresa() {
                 </SelectContent>
               </Select>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg border-none bg-card/50 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <BadgeCheck className="h-4 w-4 text-emerald-600" />
+              Responsável técnico (Receituário Agronômico)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Nome do responsável técnico</Label>
+              <Input
+                value={tecnico.tecnico_nome}
+                onChange={(e) => setTecnicoCampo("tecnico_nome", e.target.value)}
+                disabled={!podeEditar}
+                placeholder="Ex: Maria Souza"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Título profissional</Label>
+              <Input
+                value={tecnico.tecnico_titulo}
+                onChange={(e) => setTecnicoCampo("tecnico_titulo", e.target.value)}
+                disabled={!podeEditar}
+                placeholder="Ex: Engenheira Agrônoma"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>CREA</Label>
+              <Input
+                value={tecnico.tecnico_crea}
+                onChange={(e) => setTecnicoCampo("tecnico_crea", e.target.value)}
+                disabled={!podeEditar}
+                placeholder="Ex: CREA-SP 123456/D"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>ART padrão (nº)</Label>
+              <Input
+                value={tecnico.tecnico_art}
+                onChange={(e) => setTecnicoCampo("tecnico_art", e.target.value)}
+                disabled={!podeEditar}
+                placeholder="Ex: SP-2026-0012345"
+              />
+            </div>
+            <p className="md:col-span-2 text-xs text-muted-foreground">
+              Estes dados são impressos em todo Receituário Agronômico emitido
+              pelo sistema (Lei 7.802/1989 e Lei 14.785/2023). Preencha uma vez
+              aqui e todos os receituários saem preenchidos.
+            </p>
           </CardContent>
         </Card>
 
