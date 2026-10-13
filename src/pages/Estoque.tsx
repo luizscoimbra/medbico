@@ -58,6 +58,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/utils";
+import { CadastrarProdutoDialog } from "@/components/CadastrarProdutoDialog";
 import { getAllItens, type ItemManutencao } from "@/lib/equipmentMaintenanceStorage";
 import { getAllComponentes, type ComponenteCatalogo } from "@/lib/componenteStorage";
 import { supabase } from "@/integrations/supabase/client";
@@ -130,6 +131,7 @@ export default function Estoque() {
 
   const [entradaDialog, setEntradaDialog] = useState(false);
   const [form, setForm] = useState<FormEntrada>(formVazio());
+  const [produtoDialog, setProdutoDialog] = useState(false);
 
   const [detalhe, setDetalhe] = useState<ItemEstoque | null>(null);
   const [minimoItem, setMinimoItem] = useState<ItemEstoque | null>(null);
@@ -497,14 +499,25 @@ export default function Estoque() {
                   onChange={(e) => setBusca(e.target.value)}
                 />
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate(MODULO_LINK[categoria].rota)}
-              >
-                <ExternalLink className="mr-2 h-4 w-4" />
-                {MODULO_LINK[categoria].label}
-              </Button>
+              {categoria === "produto" ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setProdutoDialog(true)}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Cadastrar Produto
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(MODULO_LINK[categoria].rota)}
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  {MODULO_LINK[categoria].label}
+                </Button>
+              )}
             </div>
 
             <Card>
@@ -982,6 +995,13 @@ export default function Estoque() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* POPUP: CADASTRAR PRODUTO */}
+      <CadastrarProdutoDialog
+        open={produtoDialog}
+        onOpenChange={setProdutoDialog}
+        onSaved={() => void load()}
+      />
     </div>
   );
 }

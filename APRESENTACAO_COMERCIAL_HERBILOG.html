@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HerbiLog — Apresentação Comercial do Sistema</title>
+<style>
+  :root {
+    --verde: #059669;
+    --verde-escuro: #065f46;
+    --verde-claro: #ecfdf5;
+    --cinza: #4b5563;
+    --claro: #f9fafb;
+    --borda: #e5e7eb;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    color: #111827;
+    line-height: 1.65;
+    background: #fff;
+  }
+  .capa {
+    background: linear-gradient(135deg, #064e3b 0%, #059669 60%, #34d399 100%);
+    color: #fff;
+    padding: 90px 40px;
+    text-align: center;
+  }
+  .capa h1 { font-size: 3rem; letter-spacing: -1px; }
+  .capa .sub { font-size: 1.25rem; opacity: .92; margin-top: 10px; }
+  .capa .tag {
+    display: inline-block; margin-top: 24px; padding: 8px 20px;
+    background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.35);
+    border-radius: 999px; font-size: .95rem;
+  }
+  main { max-width: 1000px; margin: 0 auto; padding: 50px 28px 90px; }
+  h2 {
+    font-size: 1.7rem; color: var(--verde-escuro);
+    margin: 52px 0 6px; padding-bottom: 8px; border-bottom: 3px solid var(--verde);
+  }
+  h3 { font-size: 1.15rem; margin: 26px 0 8px; color: #065f46; }
+  p, li { color: #1f2937; }
+  .lead { font-size: 1.08rem; color: var(--cinza); margin: 12px 0 8px; }
+  ul, ol { margin: 8px 0 8px 22px; }
+  li { margin: 5px 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin: 18px 0; }
+  .card {
+    background: var(--claro); border: 1px solid var(--borda);
+    border-radius: 14px; padding: 18px 20px;
+  }
+  .card h4 { color: var(--verde-escuro); font-size: 1.02rem; margin-bottom: 6px; }
+  .card ul { margin-left: 18px; }
+  .destaque {
+    background: var(--verde-claro); border-left: 5px solid var(--verde);
+    border-radius: 0 12px 12px 0; padding: 16px 20px; margin: 18px 0;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: .95rem; }
+  th, td { border: 1px solid var(--borda); padding: 10px 12px; text-align: left; vertical-align: top; }
+  th { background: var(--verde-claro); color: var(--verde-escuro); }
+  .rotina { margin: 10px 0 14px; padding-left: 0; list-style: none; }
+  .rotina li { padding-left: 18px; position: relative; }
+  .rotina li::before { content: "▸"; position: absolute; left: 0; color: var(--verde); font-weight: 700; }
+  .rodape {
+    margin-top: 70px; padding-top: 20px; border-top: 2px solid var(--borda);
+    color: var(--cinza); font-size: .9rem; text-align: center;
+  }
+  .badge {
+    display: inline-block; background: #fff; color: var(--verde-escuro);
+    border: 1px solid var(--verde); border-radius: 999px;
+    font-size: .78rem; font-weight: 600; padding: 2px 10px; margin-left: 6px;
+    vertical-align: middle;
+  }
+  @media print {
+    .capa { padding: 60px 20px; }
+    h2 { page-break-after: avoid; }
+    .card, table { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<header class="capa">
+  <h1>HerbiLog</h1>
+  <p class="sub">Gestão integrada de pulverização, frota, estoque e conformidade fiscal<br/>para agronegócio e agricultura de precisão</p>
+  <span class="tag">Apresentação Comercial · Sistema web multiempresa</span>
+</header>
+
+<main>
+
+<h2>1. Resumo executivo</h2>
+<p class="lead">
+  O <strong>HerbiLog</strong> é um sistema web de gestão operacional e fiscal para empresas que operam
+  pulverização agrícola (terrestre e aérea), caminhões-pipa, drones e aplicações de defensivos.
+  Ele substitui planilhas, cadernos de campo e programas isolados por uma única plataforma
+  multiempresa, multi-unidade e multiusuário, com dados centralizados na nuvem.
+</p>
+<div class="destaque">
+  <strong>Em uma frase:</strong> o HerbiLog conecta o campo ao escritório — da medição da vazão no
+  bico ao destaque de CBS/IBS na nota fiscal —, com rastreabilidade completa, controle de estoque
+  por propriedade e conformidade desde a Fase 1 da Reforma Tributária.
+</div>
+
+<h2>2. Para quem é</h2>
+<ul>
+  <li><strong>Empresas de aplicação agrícola</strong> (pulverização terrestre e aérea) com uma ou várias unidades/filiais;</li>
+  <li><strong>Cooperativas e revendas</strong> que controlam estoque de defensivos, adubos e insumos por cliente/propriedade;</li>
+  <li><strong>Produtores rurais com frota própria</strong> (caminhões-pipa, tratores, drones) que precisam de controle de aplicações, combustível e manutenção;</li>
+  <li><strong>Operações com drones</strong> (agricultura de precisão, inspeção) que precisam de logbook de voo, baterias e manutenção de frota;</li>
+  <li><strong>Contadores e gestores</strong> que exigem dados fiscais corretos (NCM, CFOP, CBS/IBS) ligados aos produtos efetivamente vendidos.</li>
+</ul>
+
+<h2>3. Rotinas do sistema — visão completa</h2>
+<p class="lead">O sistema é organizado em módulos com permissões por papel. Abaixo, todas as rotinas principais.</p>
+
+<h3>3.1 Painel (Início e Visão Geral)</h3>
+<ul class="rotina">
+  <li>Página inicial com atalhos operacionais e resumo do dia;</li>
+  <li>Visão geral com indicadores consolidados da operação;</li>
+  <li>Troca de filial (propriedade) afeta imediatamente todos os dados exibidos.</li>
+</ul>
+
+<h3>3.2 Operações — o coração do sistema</h3>
+<div class="grid">
+  <div class="card">
+    <h4>Nova Medição</h4>
+    <ul>
+      <li>Registro completo de aplicação: produto, cultura, dose, área, equipamento;</li>
+      <li>Cálculo automático de volume de calda e quantidade de produto;</li>
+      <li>Vínculo com cliente, área/talhão e operador;</li>
+      <li>Geração de Ordem de Serviço associada;</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>Calculadora de Calda</h4>
+    <ul>
+      <li>Cálculo rápido de diluição: dose × área → litros de calda e embalagens;</li>
+      <li>Ajuste por concentração e volume por hectare;</li>
+      <li>Uso no escritório ou no campo (responsivo).</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>Aferição de Vazão</h4>
+    <ul>
+      <li>Cadastro e cálculo de vazão por bico/boquilha;</li>
+      <li>Comparação com referências e detecção de desvio;</li>
+      <li>Histórico de aferições por equipamento (rastreabilidade).</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>Ordem de Serviço (OS)</h4>
+    <ul>
+      <li>Criação, numeração sequencial e acompanhamento por status;</li>
+      <li>Atribuição a motorista/equipamento/cliente/área;</li>
+      <li>Apontamento de campo (início, fim, consumo);</li>
+      <li>Prévia para o motorista e exportação.</li>
+    </ul>
+  </div>
+</div>
+
+<h3>3.3 Área do Motorista</h3>
+<ul class="rotina">
+  <li>Visão simplificada das OS atribuídas ao usuário;</li>
+  <li>Registro de apontamento em campo (início/fim, observações);</li>
+  <li>Impressão e compartilhamento da ordem do dia.</li>
+</ul>
+
+<h3>3.4 Consultas</h3>
+<ul class="rotina">
+  <li><strong>Histórico</strong> de medições e aplicações com filtros por período, produto, cliente e área;</li>
+  <li><strong>Tabela de Referência ISO</strong> para consulta técnica no campo.</li>
+</ul>
+
+<h3>3.5 Cadastros (base operacional)</h3>
+<div class="grid">
+  <div class="card">
+    <h4>Produtos (insumos)</h4>
+    <ul>
+      <li>Nome comercial, formulação (SC, EC, SL…), unidade, embalagem e preço;</li>
+      <li><strong>Vínculo com a Central de Tributação</strong> (perfil de saída e de entrada);</li>
+      <li>Importação em massa via CSV.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>Áreas e Talhões</h4>
+    <ul>
+      <li>Cadastro de áreas por cliente com talhões, coordenadas e área de carreador;</li>
+      <li>Base para medição, OS e cálculo de dose.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>Frota e Equipamentos</h4>
+    <ul>
+      <li>Pulverizadores, tratores, caminhões-pipa (capacidade e frota);</li>
+      <li>Horas acumuladas e leitura para manutenção.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>Pessoas e Cadastros auxiliares</h4>
+    <ul>
+      <li>Operadores, clientes (PF/PJ com dados fiscais), serviços (com tributação ISS);</li>
+      <li>Tipos de aplicação e formulações customizadas.</li>
+    </ul>
+  </div>
+</div>
+
+<h3>3.6 Estoque</h3>
+<ul class="rotina">
+  <li>Entradas de estoque (quantidade, valor, fornecedor, data) e saídas automáticas ligadas às medições e módulos;</li>
+  <li><strong>Saldo por filial/propriedade</strong>: entradas − consumo = saldo, com KPIs;</li>
+  <li><strong>Transferência entre filiais</strong> com registro atômico;</li>
+  <li>Estoque mínimo por item com alerta visual (itens abaixo do mínimo destacados);</li>
+  <li>Cadastro de produto direto no módulo, via <em>popup</em>, sem sair da tela;</li>
+  <li>Histórico de entradas, edição e exclusão com recálculo de saldo;</li>
+  <li>KPIs: valor em estoque, entradas do período, saídas totais.</li>
+</ul>
+
+<h3>3.7 Drones e Frotas</h3>
+<div class="grid">
+  <div class="card">
+    <h4>Frota terrestre</h4>
+    <ul>
+      <li>Equipamentos, manutenção preventiva/corretiva (itens e registros);</li>
+      <li>Gestão de abastecimento por equipamento (litros, valor, km/hora).</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>Frota de drones</h4>
+    <ul>
+      <li>Cadastro de drones e componentes;</li>
+      <li><strong>Logbook de voo</strong> (registro de missões);</li>
+      <li><strong>Gestão de baterias</strong> (ciclos, saúde, carga);</li>
+      <li>Manutenção de drones com painel de status.</li>
+    </ul>
+  </div>
+</div>
+
+<h3>3.8 Financeiro</h3>
+<ul class="rotina">
+  <li>Contas a receber e a pagar com numeração automática (títulos);</li>
+  <li>Emissão, vencimento, baixa e situação dos títulos;</li>
+  <li>Relatórios financeiros por período.</li>
+</ul>
+
+<h3>3.9 Gestão de Acessos, Empresa e Filiais</h3>
+<ul class="rotina">
+  <li><strong>Usuários</strong>: convite por e-mail, papel (master, gestor, operador, motorista…), ativação/bloqueio;</li>
+  <li><strong>Permissões por módulo</strong>: cada usuário vê apenas os módulos liberados;</li>
+  <li><strong>Filiais (propriedades rurais)</strong>: criação com endereço, IE do produtor e CAR; usuários são vinculados às filiais que podem operar;</li>
+  <li><strong>Empresa (Matriz)</strong>: cadastro fiscal completo — razão social, CNPJ/CPF, IE, IM, regime tributário, CNAE, endereço e contato;</li>
+  <li><strong>Backup</strong>: exportação e restauração dos dados do usuário (inclui empresas, filiais, estoque e financeiro).</li>
+</ul>
+
+<h3>3.10 Central de Tributação <span class="badge">adequada à Reforma 2027</span></h3>
+<ul class="rotina">
+  <li>Cadastro de <strong>perfis de tributação</strong> por empresa (NCM, CEST, CFOP, CST/CSOSN, origem e alíquotas);</li>
+  <li>Cada produto referencia um perfil de <strong>saída</strong> (venda/NF-e) e um de <strong>entrada</strong> (compra) — nada de repetir imposto em cada produto;</li>
+  <li><strong>Campos da Reforma Tributária</strong>: CBS, IBS, CST IBS/CBS e cClassTrib, exigidos na NF-e a partir de 2027 (inclusive para Simples Nacional);</li>
+  <li>Campos do regime anterior (PIS/COFINS/IPI) mantidos como histórico até 31/12/2026;</li>
+  <li>Seed automático de perfis de exemplo do agronegócio para toda empresa nova.</li>
+</ul>
+
+<h3>3.11 Plataforma (console do fornecedor)</h3>
+<ul class="rotina">
+  <li>Gestão de todas as empresas clientes (criação, status, usuários, filiais);</li>
+  <li>Acesso restrito aos administradores da plataforma (fora do alcance das empresas clientes).</li>
+</ul>
+
+<h2>4. Diferenciais do sistema</h2>
+<div class="grid">
+  <div class="card">
+    <h4>🔒 Multiempresa de verdade</h4>
+    <p>Isolamento de dados aplicado <strong>no banco (Row Level Security)</strong>, não apenas na interface. Uma empresa jamais enxerga dados de outra — e cada propriedade (filial) tem estoque, OS e saldo próprios.</p>
+  </div>
+  <div class="card">
+    <h4>🧾 Pronto para a Reforma Tributária</h4>
+    <p>Central de Tributação com CBS, IBS, CST IBS/CBS e cClassTrib — o destaque exigido pela NF-e desde 2026 e obrigatório em 2027 está coberto no cadastro.</p>
+  </div>
+  <div class="card">
+    <h4>📐 Cálculo agronômico embarcado</h4>
+    <p>Calda, vazão e dose calculados com as regras do dia a dia da pulverização, com histórico rastreável por equipamento, operador e cliente.</p>
+  </div>
+  <div class="card">
+    <h4>🚁 Único com drones + terrestre</h4>
+    <p>Frota de tratores, pipas e drones no mesmo sistema: logbook de voo, baterias, manutenção e abastecimento integrados à operação de aplicação.</p>
+  </div>
+  <div class="card">
+    <h4>📊 Estoque por propriedade</h4>
+    <p>Saldo, mínimo e transferências entre filiais — cada fazenda enxerga o próprio estoque; a matriz enxerga tudo.</p>
+  </div>
+  <div class="card">
+    <h4>🔐 Permissões granulares</h4>
+    <p>Papéis e módulos configuráveis: o motorista vê só a OS do dia; o operador vê o estoque da sua filial; o master fiscaliza a operação inteira.</p>
+  </div>
+</div>
+
+<h2>5. Vantagens de utilizar o sistema</h2>
+<ol>
+  <li><strong>Eliminação de planilhas soltas:</strong> um único lugar para medições, estoque, fiscal e financeiro — sem versões divergentes de planilha.</li>
+  <li><strong>Rastreabilidade total:</strong> toda aplicação tem produto, dose, área, equipamento, operador, data e OS associados — defesa técnica em auditorias e passivos.</li>
+  <li><strong>Decisão com dados:</strong> visão geral e KPIs de estoque, frota e financeiro atualizados em tempo real.</li>
+  <li><strong>Conformidade fiscal antecipada:</strong> a empresa já nasce com a base tributária pronta para 2027 (CBS/IBS), evitando retrabalho quando o emissor de NF-e for ligado.</li>
+  <li><strong>Escala multi-unidade sem dor:</strong> abrir uma nova fazenda/filial é cadastro — usuários, estoque e relatórios já respeitam o isolamento por propriedade.</li>
+  <li><strong>Operação de campo no celular:</strong> telas responsivas para motorista e apontamento no momento da aplicação.</li>
+  <li><strong>Menos erro de digitação:</strong> cálculos automáticos de calda, vazão e estoque; numeração sequencial de OS e títulos.</li>
+  <li><strong>Segurança:</strong> autenticação, isolamento no banco e backup exportável dos dados.</li>
+  <li><strong>Custo operacional menor:</strong> substitui múltiplas ferramentas (planilhas, cadernos, controle de estoque em papel, sistemas de frota isolados).</li>
+</ol>
+
+<h2>6. Arquitetura e segurança (resumo técnico)</h2>
+<table>
+  <tr><th>Aspecto</th><th>Como o HerbiLog entrega</th></tr>
+  <tr><td>Plataforma</td><td>Web application (SPA) — funciona em computador, tablet e celular, sem instalação.</td></tr>
+  <tr><td>Banco de dados</td><td>PostgreSQL gerenciado (Supabase), com Row Level Security por empresa e filial.</td></tr>
+  <tr><td>Multiempresa</td><td>Modelo companies → branches (Matriz e Filiais/propriedades), com vínculo de usuários por filial.</td></tr>
+  <tr><td>Perfis de acesso</td><td>Papéis (master, gestor, operador, motorista…) com matriz de permissões por módulo.</td></tr>
+  <tr><td>Fiscal</td><td>Cadastro fiscal de empresa/filiais + Central de Tributação (NCM/CFOP/CST/CBS/IBS/cClassTrib).</td></tr>
+  <tr><td>Backup</td><td>Exportação e restauração dos dados operacionais pela própria interface.</td></tr>
+  <tr><td>Evolução</td><td>Rotas de deploy contínuo; migrações de banco versionadas.</td></tr>
+</table>
+
+<h2>7. Próximos passos previstos (roadmap)</h2>
+<ul class="rotina">
+  <li><strong>Modo offline (PWA)</strong>: operação de campo sem sinal, com sincronização automática;</li>
+  <li><strong>Assinatura biométrica</strong> de ordens de serviço e apontamentos;</li>
+  <li><strong>Integração com API meteorológica</strong> para registro de condições de aplicação;</li>
+  <li><strong>Emissão de documentos fiscais</strong> usando os perfis da Central de Tributação.</li>
+</ul>
+
+<h2>8. Por onde começar</h2>
+<div class="destaque">
+  <ol style="margin-left:18px">
+    <li>Cadastro da <strong>Empresa</strong> (dados fiscais) e das <strong>Filiais</strong> (propriedades);</li>
+    <li>Importação de <strong>produtos</strong> e vínculo com os perfis de <strong>Tributação</strong>;</li>
+    <li>Cadastro de <strong>áreas, frota e usuários</strong> por filial;</li>
+    <li>Primeira <strong>Medição</strong> e Ordem de Serviço — o campo entra no sistema no mesmo dia.</li>
+  </ol>
+</div>
+
+<p class="lead" style="margin-top:36px">
+  O HerbiLog foi desenhado para a operação real do agronegócio: rápido no campo, completo no
+  escritório e alinhado às exigências fiscais que entram em vigor em janeiro de 2027.
+</p>
+
+<div class="rodape">
+  HerbiLog — Gestão de pulverização, frota, estoque e conformidade fiscal<br/>
+  Documento de apresentação comercial · Sistema web multiempresa
+</div>
+
+</main>
+</body>
+</html>
