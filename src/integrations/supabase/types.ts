@@ -70,6 +70,126 @@ export type Database = {
         }
         Relationships: []
       }
+      agrofit_staging: {
+        Row: {
+          classe: string | null
+          classe_ambiental: string | null
+          classe_toxicologica: string | null
+          cultura: string | null
+          formulacao: string | null
+          id: number
+          ingrediente_ativo: string | null
+          marca_comercial: string
+          modo_de_acao: string | null
+          nr_registro: string
+          organicos: string | null
+          praga_comum: string | null
+          praga_cientifico: string | null
+          situacao: string | null
+          titular: string | null
+        }
+        Insert: {
+          classe?: string | null
+          classe_ambiental?: string | null
+          classe_toxicologica?: string | null
+          cultura?: string | null
+          formulacao?: string | null
+          id?: number
+          ingrediente_ativo?: string | null
+          marca_comercial: string
+          modo_de_acao?: string | null
+          nr_registro: string
+          organicos?: string | null
+          praga_comum?: string | null
+          praga_cientifico?: string | null
+          situacao?: string | null
+          titular?: string | null
+        }
+        Update: {
+          classe?: string | null
+          classe_ambiental?: string | null
+          classe_toxicologica?: string | null
+          cultura?: string | null
+          formulacao?: string | null
+          id?: never
+          ingrediente_ativo?: string | null
+          marca_comercial?: string
+          modo_de_acao?: string | null
+          nr_registro?: string
+          organicos?: string | null
+          praga_comum?: string | null
+          praga_cientifico?: string | null
+          situacao?: string | null
+          titular?: string | null
+        }
+        Relationships: []
+      }
+      agrofit_sync_history: {
+        Row: {
+          adicionados: number
+          cadastro_atualizados: number
+          detalhes: Json
+          executado_em: string
+          fonte_alterada: boolean
+          id: string
+          mensagem: string
+          modificados: number
+          origem: string
+          removidos: number
+          status: string
+          total_final: number
+        }
+        Insert: {
+          adicionados?: number
+          cadastro_atualizados?: number
+          detalhes?: Json
+          executado_em?: string
+          fonte_alterada?: boolean
+          id?: string
+          mensagem?: string
+          modificados?: number
+          origem?: string
+          removidos?: number
+          status: string
+          total_final?: number
+        }
+        Update: {
+          adicionados?: number
+          cadastro_atualizados?: number
+          detalhes?: Json
+          executado_em?: string
+          fonte_alterada?: boolean
+          id?: string
+          mensagem?: string
+          modificados?: number
+          origem?: string
+          removidos?: number
+          status?: string
+          total_final?: number
+        }
+        Relationships: []
+      }
+      agrofit_sync_state: {
+        Row: {
+          atualizado_em: string
+          fonte_modified: string
+          id: boolean
+          ultima_execucao: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          fonte_modified?: string
+          id?: boolean
+          ultima_execucao?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          fonte_modified?: string
+          id?: boolean
+          ultima_execucao?: string | null
+        }
+        Relationships: []
+      }
       agronomic_prescriptions: {
         Row: {
           assinado_em: string | null
@@ -1969,11 +2089,14 @@ export type Database = {
       }
       registered_products: {
         Row: {
+          agrofit_formulacao: string
           branch_id: string | null
           commercial_name: string
           created_at: string
           formulation: string
           id: string
+          ingredientes_ativos: string
+          nr_registro_mapa: string
           package_size: number
           preco_unitario: number | null
           tax_profile_entrada_id: string | null
@@ -1984,11 +2107,14 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          agrofit_formulacao?: string
           branch_id?: string | null
           commercial_name: string
           created_at?: string
           formulation: string
           id?: string
+          ingredientes_ativos?: string
+          nr_registro_mapa?: string
           package_size: number
           preco_unitario?: number | null
           tax_profile_entrada_id?: string | null
@@ -1999,11 +2125,14 @@ export type Database = {
           user_id: string
         }
         Update: {
+          agrofit_formulacao?: string
           branch_id?: string | null
           commercial_name?: string
           created_at?: string
           formulation?: string
           id?: string
+          ingredientes_ativos?: string
+          nr_registro_mapa?: string
           package_size?: number
           preco_unitario?: number | null
           tax_profile_entrada_id?: string | null
@@ -2764,6 +2893,33 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      agrofit_apply_sync: {
+        Args: { p_fonte_alterada?: boolean; p_mensagem?: string; p_origem?: string }
+        Returns: Json
+      }
+      agrofit_clear_staging: {
+        Args: Record<string, never>
+        Returns: undefined
+      }
+      agrofit_row_jsonb: {
+        Args: {
+          p_classe: string
+          p_classe_ambiental: string
+          p_classe_toxicologica: string
+          p_cultura: string
+          p_formulacao: string
+          p_ingrediente_ativo: string
+          p_marca_comercial: string
+          p_modo_de_acao: string
+          p_nr_registro: string
+          p_organicos: string
+          p_praga_cientifico: string
+          p_praga_comum: string
+          p_situacao: string
+          p_titular: string
+        }
+        Returns: Json
+      }
       branch_overview: {
         Args: never
         Returns: {

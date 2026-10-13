@@ -39,6 +39,9 @@ import { getSetting, setSetting, SETTINGS_KEYS } from "@/lib/settingsStorage";
 import { saveWaterTruck, getAllWaterTrucks, deleteWaterTruck, WaterTruck } from "@/lib/waterTruckStorage";
 import { fetchTaxProfiles, TaxProfile } from "@/lib/taxProfilesStorage";
 import { formatBRL } from "@/lib/utils";
+import { ProdutoAgrofitInput } from "@/components/receituario/ProdutoAgrofitInput";
+import { formulacaoSincronizada } from "@/lib/fieldVisitStorage";
+import { Textarea } from "@/components/ui/textarea";
 
 
 
@@ -51,6 +54,9 @@ interface RegisteredProduct {
   preco_unitario: number;
   tax_profile_saida_id: string | null;
   tax_profile_entrada_id: string | null;
+  nr_registro_mapa: string;
+  agrofit_formulacao: string;
+  ingredientes_ativos: string;
 }
 
 interface Servico {
@@ -100,6 +106,9 @@ export default function Cadastros() {
     preco_galao: "",
     tax_profile_saida_id: "",
     tax_profile_entrada_id: "",
+    nr_registro_mapa: "",
+    agrofit_formulacao: "",
+    ingredientes_ativos: "",
   });
 
   // Water Trucks state
@@ -255,13 +264,16 @@ export default function Cadastros() {
     const pkgSize = prod.package_size || 0;
     setProdForm({
       commercial_name: prod.commercial_name || "",
-      formulation: prod.formulation || "SL",
+      formulation: formulacaoSincronizada(prod.agrofit_formulacao, prod.formulation || "SL", allFormulations),
       unit: prod.unit || "L",
       package_size: prod.package_size?.toString() || "",
       preco_unitario: prod.preco_unitario?.toString() || "",
       preco_galao: pkgSize > 0 && precoUnit > 0 ? (precoUnit * pkgSize).toString() : "",
       tax_profile_saida_id: prod.tax_profile_saida_id || "",
       tax_profile_entrada_id: prod.tax_profile_entrada_id || "",
+      nr_registro_mapa: prod.nr_registro_mapa || "",
+      agrofit_formulacao: prod.agrofit_formulacao || "",
+      ingredientes_ativos: prod.ingredientes_ativos || "",
     });
     const el = document.getElementById("form-produto");
     if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -272,6 +284,7 @@ export default function Cadastros() {
     setProdForm({
       commercial_name: "", formulation: "SL", unit: "L", package_size: "", preco_unitario: "", preco_galao: "",
       tax_profile_saida_id: "", tax_profile_entrada_id: "",
+      nr_registro_mapa: "", agrofit_formulacao: "", ingredientes_ativos: "",
     });
   };
 
@@ -416,6 +429,10 @@ export default function Cadastros() {
       // Vínculo com a Central de Tributação (null = sem perfil definido).
       tax_profile_saida_id: prodForm.tax_profile_saida_id || null,
       tax_profile_entrada_id: prodForm.tax_profile_entrada_id || null,
+      // Dados da base oficial Agrofit/MAPA.
+      nr_registro_mapa: prodForm.nr_registro_mapa.trim(),
+      agrofit_formulacao: prodForm.agrofit_formulacao.trim(),
+      ingredientes_ativos: prodForm.ingredientes_ativos.trim(),
     };
 
     if (editingProductId) {
@@ -445,6 +462,7 @@ export default function Cadastros() {
     setProdForm({
       commercial_name: "", formulation: "SL", unit: "L", package_size: "", preco_unitario: "", preco_galao: "",
       tax_profile_saida_id: "", tax_profile_entrada_id: "",
+      nr_registro_mapa: "", agrofit_formulacao: "", ingredientes_ativos: "",
     });
     fetchProducts();
   };
@@ -537,7 +555,7 @@ export default function Cadastros() {
     }
   };
 
-  const updateTalhaoForm = (idx: number, field: keyof AreaTalhao, value: any) => {
+  const updateTalhaoForm = <K extends keyof AreaTalhao>(idx: number, field: K, value: AreaTalhao[K]) => {
     const updated = [...talhoesForm];
     updated[idx] = { ...updated[idx], [field]: value };
     setTalhoesForm(updated);
@@ -1419,12 +1437,25 @@ export default function Cadastros() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="prod_name">Nome Comercial *</Label>
-                    <Input
+                    <ProdutoAgrofitInput
                       id="prod_name"
-                      placeholder="Ex: Roundup Original"
+                      placeholder="Ex: Roundup Original (busca na base Agrofit)"
                       value={prodForm.commercial_name}
-                      onChange={(e) => setProdForm((p) => ({ ...p, commercial_name: e.target.value }))}
-                      required
+                      onTextoChange={(texto) => setProdForm((p) => ({ ...p, commercial_name: texto }))}
+                      onSelecionar={(prod) =>
+                        setProdForm((p) => ({
+                          ...p,
+                          commercial_name: prod.marcaComercial,
+                          nr_registro_mapa: prod.nrRegistro || "",
+                          agrofit_formulacao: prod.formulacao || "",
+                          ingredientes_ativos: prod.ingredienteAtivo || "",
+                          formulation: formulacaoSincronizada(
+                            prod.formulacao,
+                            p.formulation,
+                            allFormulations
+                          ),
+                        }))
+                      }
                     />
                   </div>
                   <div className="space-y-2">
@@ -1562,6 +1593,51 @@ export default function Cadastros() {
                   </div>
                 </div>
 
+                <div className="space-y-4 pt-2 border-t border-border/40">
+                  <p className="text-xs text-muted-foreground">
+                    Dados da base oficial Agrofit/MAPA — busque pelo nome no campo
+                    "Nome Comercial" para preencher automaticamente; a verificação diária
+                    da base também mantém estes campos atualizados.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="prod_reg_mapa">Registro MAPA</Label>
+                      <Input
+                        id="prod_reg_mapa"
+                        placeholder="Ex: 13408"
+                        value={prodForm.nr_registro_mapa}
+                        onChange={(e) => setProdForm((p) => ({ ...p, nr_registro_mapa: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="prod_form_agrofit">Formulação oficial (Agrofit)</Label>
+                      <Input
+                        id="prod_form_agrofit"
+                        placeholder="Ex: SL - Concentrado Solúvel"
+                        value={prodForm.agrofit_formulacao}
+                        onChange={(e) => {
+                          const texto = e.target.value;
+                          setProdForm((p) => ({
+                            ...p,
+                            agrofit_formulacao: texto,
+                            formulation: formulacaoSincronizada(texto, p.formulation, allFormulations),
+                          }));
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-3">
+                      <Label htmlFor="prod_ingredientes">Ingredientes ativos (descrição do produto)</Label>
+                      <Textarea
+                        id="prod_ingredientes"
+                        rows={2}
+                        placeholder="Ex: 2,4-D (ácido 2,4-diclorofenoxiacético) + piclorama"
+                        value={prodForm.ingredientes_ativos}
+                        onChange={(e) => setProdForm((p) => ({ ...p, ingredientes_ativos: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-border/40">
                   <div className="space-y-2">
                     <Label htmlFor="prod_trib_saida">Tributação — Saída (venda/NF-e)</Label>
@@ -1655,8 +1731,19 @@ export default function Cadastros() {
                     <TableBody>
                       {products.map((p) => (
                         <TableRow key={p.id}>
-                          <TableCell className="font-medium">{p.commercial_name}</TableCell>
-                          <TableCell>{p.formulation}</TableCell>
+                          <TableCell>
+                            <div className="font-medium">{p.commercial_name}</div>
+                            {(p.nr_registro_mapa || p.ingredientes_ativos) && (
+                              <div className="text-xs text-muted-foreground truncate max-w-72">
+                                {p.nr_registro_mapa && (
+                                  <span className="font-medium">MAPA {p.nr_registro_mapa}</span>
+                                )}
+                                {p.nr_registro_mapa && p.ingredientes_ativos && " · "}
+                                {p.ingredientes_ativos}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell title={p.agrofit_formulacao || undefined}>{p.formulation}</TableCell>
                           <TableCell>{p.unit}</TableCell>
                           <TableCell>{p.package_size} {p.unit}</TableCell>
                             <TableCell>{p.preco_unitario ? formatBRL(p.preco_unitario) : ""}</TableCell>

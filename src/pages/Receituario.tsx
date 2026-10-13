@@ -30,6 +30,7 @@ import {
 } from "@/lib/fieldVisitStorage";
 import { gerarReceituarioPdf } from "@/lib/receituarioPdf";
 import { AssinaturaOS, type AssinaturaOSValue } from "@/components/os/AssinaturaOS";
+import { ProdutoAgrofitInput } from "@/components/receituario/ProdutoAgrofitInput";
 import { useAuth } from "@/context/AuthContext";
 
 const CONDICOES_PADRAO =
@@ -532,7 +533,22 @@ export default function Receituario() {
                       </div>
                       <div className="space-y-1.5">
                         <Label>Produto</Label>
-                        <Input value={item.marca} onChange={(e) => setItem(i, { marca: e.target.value })} />
+                        <ProdutoAgrofitInput
+                          value={item.marca}
+                          cultura={item.cultura}
+                          alvo={item.alvo}
+                          placeholder="Digite o nome do produto..."
+                          onTextoChange={(texto) => setItem(i, { marca: texto })}
+                          onSelecionar={(p) =>
+                            setItem(i, {
+                              marca: p.marcaComercial,
+                              nrRegistro: p.nrRegistro,
+                              ingrediente: p.ingredienteAtivo ?? item.ingrediente,
+                              forma: p.formulacao ?? item.forma,
+                              empresa: p.titular ?? item.empresa,
+                            })
+                          }
+                        />
                       </div>
                       <div className="space-y-1.5">
                         <Label>Ingrediente ativo</Label>

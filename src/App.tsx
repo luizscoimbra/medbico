@@ -23,6 +23,7 @@ import AferirVazao from "./pages/AferirVazao";
 import OrdemServico from "./pages/OrdemServico";
 import Visitas from "./pages/Visitas";
 import Receituario from "./pages/Receituario";
+import AgrofitHistorico from "./pages/AgrofitHistorico";
 import Drones from "./pages/Drones";
 import Frotas from "./pages/Frotas";
 import Equipamentos from "./pages/Equipamentos";
@@ -98,6 +99,7 @@ function AppLayout() {
             <Route path="/resultados" element={<ProtectedRoute><Resultados /></ProtectedRoute>} />
             <Route path="/historico" element={<ProtectedRoute><Historico /></ProtectedRoute>} />
             <Route path="/tabela-referencia" element={<ProtectedRoute><TabelaReferencia /></ProtectedRoute>} />
+            <Route path="/agrofit-historico" element={<ProtectedRoute><AgrofitHistorico /></ProtectedRoute>} />
             <Route path="/cadastro-produtos" element={<ProtectedRoute><CadastroProdutos /></ProtectedRoute>} />
             <Route path="/cadastros" element={<ProtectedRoute><Cadastros /></ProtectedRoute>} />
             <Route path="/estoque" element={<ProtectedRoute><Estoque /></ProtectedRoute>} />

@@ -33,7 +33,7 @@ export const MODULES: ModuleDef[] = [
     ],
   },
   { id: "motorista", label: "Área do Motorista", routes: ["/area-motorista"] },
-  { id: "consultas", label: "Consultas", routes: ["/historico", "/tabela-referencia"] },
+  { id: "consultas", label: "Consultas", routes: ["/historico", "/agrofit-historico", "/tabela-referencia"] },
   { id: "cadastros", label: "Cadastros", routes: ["/cadastros", "/cadastro-produtos"] },
   { id: "estoque", label: "Estoque", routes: ["/estoque"] },
   {

@@ -14,6 +14,9 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getSetting, setSetting, SETTINGS_KEYS } from "@/lib/settingsStorage";
 import { fetchTaxProfiles, TaxProfile } from "@/lib/taxProfilesStorage";
+import { ProdutoAgrofitInput } from "@/components/receituario/ProdutoAgrofitInput";
+import { formulacaoSincronizada } from "@/lib/fieldVisitStorage";
+import { Textarea } from "@/components/ui/textarea";
 
 const FORMULACOES_PADRAO = [
   { value: "CORRETIVO", label: "CORRETIVO — Adjuvante Corretivo (pH, quelatizante)" },
@@ -45,6 +48,9 @@ const formVazio = () => ({
   preco_galao: "",
   tax_profile_saida_id: "",
   tax_profile_entrada_id: "",
+  nr_registro_mapa: "",
+  agrofit_formulacao: "",
+  ingredientes_ativos: "",
 });
 
 /**
@@ -127,6 +133,9 @@ export function CadastrarProdutoDialog({
       preco_unitario: parseFloat(form.preco_unitario) || 0,
       tax_profile_saida_id: form.tax_profile_saida_id || null,
       tax_profile_entrada_id: form.tax_profile_entrada_id || null,
+      nr_registro_mapa: form.nr_registro_mapa.trim(),
+      agrofit_formulacao: form.agrofit_formulacao.trim(),
+      ingredientes_ativos: form.ingredientes_ativos.trim(),
       user_id: userId,
     });
     setSalvando(false);
@@ -159,13 +168,22 @@ export function CadastrarProdutoDialog({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="pop_prod_name">Nome Comercial *</Label>
-                <Input
+                <ProdutoAgrofitInput
                   id="pop_prod_name"
                   autoFocus
-                  placeholder="Ex: Roundup Original"
+                  placeholder="Ex: Roundup Original (busca na base Agrofit)"
                   value={form.commercial_name}
-                  onChange={(e) => setForm((p) => ({ ...p, commercial_name: e.target.value }))}
-                  required
+                  onTextoChange={(texto) => setForm((p) => ({ ...p, commercial_name: texto }))}
+                  onSelecionar={(prod) =>
+                    setForm((p) => ({
+                      ...p,
+                      commercial_name: prod.marcaComercial,
+                      nr_registro_mapa: prod.nrRegistro || "",
+                      agrofit_formulacao: prod.formulacao || "",
+                      ingredientes_ativos: prod.ingredienteAtivo || "",
+                      formulation: formulacaoSincronizada(prod.formulacao, p.formulation, allFormulations),
+                    }))
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -300,6 +318,50 @@ export function CadastrarProdutoDialog({
                 <p className="text-xs text-muted-foreground">
                   Preenchimento automático baseado no tamanho da embalagem
                 </p>
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-2 border-t border-border/40">
+              <p className="text-xs text-muted-foreground">
+                Dados da base oficial Agrofit/MAPA — busque pelo nome no campo
+                "Nome Comercial" para preencher automaticamente.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="pop_prod_reg_mapa">Registro MAPA</Label>
+                  <Input
+                    id="pop_prod_reg_mapa"
+                    placeholder="Ex: 13408"
+                    value={form.nr_registro_mapa}
+                    onChange={(e) => setForm((p) => ({ ...p, nr_registro_mapa: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="pop_prod_form_agrofit">Formulação oficial (Agrofit)</Label>
+                  <Input
+                    id="pop_prod_form_agrofit"
+                    placeholder="Ex: SL - Concentrado Solúvel"
+                    value={form.agrofit_formulacao}
+                    onChange={(e) => {
+                      const texto = e.target.value;
+                      setForm((p) => ({
+                        ...p,
+                        agrofit_formulacao: texto,
+                        formulation: formulacaoSincronizada(texto, p.formulation, allFormulations),
+                      }));
+                    }}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-3">
+                  <Label htmlFor="pop_prod_ingredientes">Ingredientes ativos (descrição do produto)</Label>
+                  <Textarea
+                    id="pop_prod_ingredientes"
+                    rows={2}
+                    placeholder="Ex: 2,4-D (ácido 2,4-diclorofenoxiacético) + piclorama"
+                    value={form.ingredientes_ativos}
+                    onChange={(e) => setForm((p) => ({ ...p, ingredientes_ativos: e.target.value }))}
+                  />
+                </div>
               </div>
             </div>
 

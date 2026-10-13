@@ -33,6 +33,7 @@ import {
   Calculator,
   Sprout,
   ScrollText,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/context/SidebarContext";
@@ -62,6 +63,7 @@ const navItems: NavItem[] = [
   { path: "/estoque", label: "Estoque", icon: Boxes, group: "Operações", module: "estoque" },
   { path: "/area-motorista", label: "Área do Motorista", icon: Truck, group: "Operações", module: "motorista" },
   { path: "/historico", label: "Histórico", icon: History, group: "Consultas", module: "consultas" },
+  { path: "/agrofit-historico", label: "Atualizações Agrofit", icon: RefreshCw, group: "Consultas", module: "consultas" },
   { path: "/tabela-referencia", label: "Tabela ISO", icon: BookOpen, group: "Consultas", module: "consultas" },
   { path: "/acessos", label: "Gestão de Acessos", icon: Shield, group: "Configurações", module: "acessos" },
   { path: "/empresa", label: "Empresa", icon: Building, group: "Configurações", module: "acessos" },

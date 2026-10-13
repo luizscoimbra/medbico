@@ -100,6 +100,29 @@ export interface ProdutoAgrofit {
   situacao?: string;
 }
 
+/**
+ * Extrai a sigla ("SL") da formulação oficial Agrofit
+ * ("SL - Concentrado Solúvel") para o select de formulações do cadastro.
+ */
+export function siglaFormulacao(formulacao?: string): string | null {
+  const m = (formulacao || "").match(/^\s*([A-Za-z]{2,5})\s*-/);
+  return m ? m[1].toUpperCase() : null;
+}
+
+/**
+ * Mantém o select "Formulação" do cadastro igual à "Formulação oficial (Agrofit)":
+ * usa a sigla extraída do texto Agrofit quando ela existir entre as opções
+ * disponíveis; caso contrário preserva a escolha atual.
+ */
+export function formulacaoSincronizada(
+  textoAgrofit: string | undefined,
+  atual: string,
+  opcoes: { value: string }[]
+): string {
+  const sigla = siglaFormulacao(textoAgrofit);
+  return sigla && opcoes.some((o) => o.value === sigla) ? sigla : atual;
+}
+
 export interface ReceituarioItem {
   nrRegistro: string;
   marca: string;
