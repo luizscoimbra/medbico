@@ -2091,6 +2091,7 @@ export type Database = {
         Row: {
           agrofit_formulacao: string
           branch_id: string | null
+          codigo_barras: string | null
           commercial_name: string
           created_at: string
           formulation: string
@@ -2098,6 +2099,7 @@ export type Database = {
           ingredientes_ativos: string
           nr_registro_mapa: string
           package_size: number
+          preco_custo: number | null
           preco_unitario: number | null
           tax_profile_entrada_id: string | null
           tax_profile_saida_id: string | null
@@ -2109,6 +2111,7 @@ export type Database = {
         Insert: {
           agrofit_formulacao?: string
           branch_id?: string | null
+          codigo_barras?: string | null
           commercial_name: string
           created_at?: string
           formulation: string
@@ -2116,6 +2119,7 @@ export type Database = {
           ingredientes_ativos?: string
           nr_registro_mapa?: string
           package_size: number
+          preco_custo?: number | null
           preco_unitario?: number | null
           tax_profile_entrada_id?: string | null
           tax_profile_saida_id?: string | null
@@ -2127,6 +2131,7 @@ export type Database = {
         Update: {
           agrofit_formulacao?: string
           branch_id?: string | null
+          codigo_barras?: string | null
           commercial_name?: string
           created_at?: string
           formulation?: string
@@ -2134,6 +2139,7 @@ export type Database = {
           ingredientes_ativos?: string
           nr_registro_mapa?: string
           package_size?: number
+          preco_custo?: number | null
           preco_unitario?: number | null
           tax_profile_entrada_id?: string | null
           tax_profile_saida_id?: string | null

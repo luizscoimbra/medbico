@@ -26,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Settings, FlaskConical, Plus, Trash2, Tractor, Hash, Truck, Map, MapPin, Activity, Pencil, RefreshCcw, Users, Download, Upload, FileText, ArrowLeft, Timer } from "lucide-react";
+import { Settings, FlaskConical, Plus, Trash2, Tractor, Hash, Truck, Map, MapPin, Activity, Pencil, RefreshCcw, Users, Download, Upload, FileText, FileCode2, ArrowLeft, Timer, Sparkles } from "lucide-react";
 import { saveTipoAplicacao, getAllTiposAplicacao, deleteTipoAplicacao, TipoAplicacao } from "@/lib/applicationTypeStorage";
 import { saveEquipment, getAllEquipments, deleteEquipment, Equipment } from "@/lib/equipmentStorage";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +40,7 @@ import { saveWaterTruck, getAllWaterTrucks, deleteWaterTruck, WaterTruck } from 
 import { fetchTaxProfiles, TaxProfile } from "@/lib/taxProfilesStorage";
 import { formatBRL } from "@/lib/utils";
 import { ProdutoAgrofitInput } from "@/components/receituario/ProdutoAgrofitInput";
+import { ImportarXmlNfeDialog } from "@/components/nfe/ImportarXmlNfeDialog";
 import { formulacaoSincronizada } from "@/lib/fieldVisitStorage";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -144,6 +145,7 @@ export default function Cadastros() {
   const [customFormulations, setCustomFormulations] = useState<{ value: string; label: string }[]>([]);
   const [newFormulation, setNewFormulation] = useState({ value: "", label: "" });
   const [formDialogOpen, setFormDialogOpen] = useState(false);
+  const [xmlImportOpen, setXmlImportOpen] = useState(false);
 
   // Áreas state
   const [areas, setAreas] = useState<AreaCadastro[]>([]);
@@ -1062,6 +1064,17 @@ export default function Cadastros() {
         <p className="text-muted-foreground ml-11">
           Gerencie seus equipamentos e produtos para uso rápido nas medições e cálculos.
         </p>
+        <div className="ml-11 mt-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/cadastros/novo")}
+            className="text-primary border-primary/30 hover:bg-primary/5"
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            Assistente de Cadastro (passo a passo)
+          </Button>
+        </div>
       </div>
 
       <Tabs
@@ -1416,6 +1429,10 @@ export default function Cadastros() {
                     </Button>
                   ) : (
                     <>
+                      <Button variant="outline" size="sm" onClick={() => setXmlImportOpen(true)}>
+                        <FileCode2 className="h-4 w-4 mr-2" />
+                        Importar XML
+                      </Button>
                       <Button variant="outline" size="sm" onClick={() => handleDownloadCSV('produtos')}>
                         <Download className="h-4 w-4 mr-2" />
                         Modelo CSV
@@ -1776,6 +1793,12 @@ export default function Cadastros() {
               </CardContent>
             </Card>
           )}
+
+          <ImportarXmlNfeDialog
+            open={xmlImportOpen}
+            onOpenChange={setXmlImportOpen}
+            onImported={() => void fetchProducts()}
+          />
         </TabsContent>
 
         {/* ÁREAS TAB */}

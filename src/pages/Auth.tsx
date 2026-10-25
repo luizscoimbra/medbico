@@ -10,10 +10,12 @@ import { useNavigate } from "react-router-dom";
 import { getUserProfile } from "@/lib/auth-roles";
 import { homePathFor, resolveModules } from "@/lib/permissions";
 import { useAuth } from "@/context/AuthContext";
+import { supportsFullscreen, useFullscreen } from "@/hooks/useFullscreen";
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { user, loading: authLoading, can, homePath } = useAuth();
+  const { user, loading: authLoading, homePath } = useAuth();
+  const { enter: enterFullscreen } = useFullscreen();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
@@ -26,9 +28,11 @@ export default function Auth() {
 
   useEffect(() => {
     if (!authLoading && user) {
-      navigate(can("cadastros") ? "/cadastros" : homePath, { replace: true });
+      // Sessão já válida (auto-login): sempre cai na tela de início.
+      void enterFullscreen();
+      navigate(homePath, { replace: true });
     }
-  }, [authLoading, user, can, homePath, navigate]);
+  }, [authLoading, user, homePath, navigate, enterFullscreen]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +61,22 @@ export default function Auth() {
       
       toast.success("Login realizado com sucesso!");
       const modules = resolveModules(profile?.role ?? "operador", profile?.modules);
-      navigate(modules.has("cadastros") ? "/cadastros" : homePathFor(modules));
+      navigate(homePathFor(modules));
+
+      /*
+       * Tela cheia logo após o login: o clique em "Entrar" dá ao navegador o
+       * gesto que a Fullscreen API exige. Se ainda assim bloquear (ou o
+       * dispositivo não suportar a API), oferecemos o caminho manual.
+       */
+      void enterFullscreen().then((ok) => {
+        if (!ok && supportsFullscreen()) {
+          toast.message("Não foi possível abrir em tela cheia automaticamente.", {
+            description: "Use o botão “Tela cheia” do menu lateral.",
+            action: { label: "Ativar agora", onClick: () => void enterFullscreen() },
+            duration: 8000,
+          });
+        }
+      });
     }
     setLoading(false);
   };
@@ -105,21 +124,24 @@ export default function Auth() {
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-lg">
-        <CardHeader className="text-center space-y-2">
-          <div className="flex justify-center mb-4">
-            <div className="relative">
-              <div className="absolute -inset-1 bg-emerald-500/20 rounded-full blur-md animate-pulse" />
-              <img src="/herbilog_3d.png" alt="HerbiLog" className="relative h-24 w-auto drop-shadow-xl" />
-            </div>
+        <CardHeader className="space-y-2">
+          <div className="flex justify-center mb-2">
+            <img
+              src="/herbilogosf.png"
+              alt="HerbiLog"
+              className="h-20 w-auto object-contain drop-shadow-xl"
+            />
           </div>
-          <CardTitle className="text-2xl font-heading">
-            {isLogin ? "Acessar HerbiLog" : "Criar Conta"}
-          </CardTitle>
-          <CardDescription>
-            {isLogin
-              ? "Entre com seu e-mail e senha"
-              : "Preencha os dados para se cadastrar"}
-          </CardDescription>
+          <div className="text-center space-y-2">
+            {!isLogin && (
+              <CardTitle className="text-2xl font-heading">Criar Conta</CardTitle>
+            )}
+            <CardDescription>
+              {isLogin
+                ? "Entre com seu e-mail e senha"
+                : "Preencha os dados para se cadastrar"}
+            </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={isLogin ? handleLogin : handleSignup} className="space-y-4">
@@ -201,6 +223,23 @@ export default function Auth() {
             >
               {isLogin ? "Não tem conta? Cadastre-se" : "Já tem conta? Faça login"}
             </button>
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-border/60 text-center">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-emerald-600/40 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950/40 font-medium"
+              onClick={() => {
+                localStorage.setItem("herbilog_demo_mode", "true");
+                window.location.href = "/";
+              }}
+            >
+              🚀 Acessar Demonstração Comercial Completa
+            </Button>
+            <p className="text-[11px] text-muted-foreground mt-1.5">
+              Ambiente de demonstração comercial com todos os módulos liberados
+            </p>
           </div>
         </CardContent>
       </Card>

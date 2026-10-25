@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
+import { NozzleCatalog } from "@/components/NozzleCatalog";
 import { useMeasurement } from "@/context/MeasurementContext";
 import {
   Plus,
@@ -138,11 +139,11 @@ export default function Index() {
               com precisão baseada nos padrões ISO.
             </p>
           </div>
-          <div className="hidden md:block shrink-0">
+          <div className="flex justify-end shrink-0">
             <img
-              src="/herbilog_3d.png"
+              src="/herbilognegativo.png"
               alt="HerbiLog"
-              className="w-40 h-auto drop-shadow-2xl hover:scale-105 transition-transform duration-500"
+              className="w-40 h-auto object-contain drop-shadow-2xl hover:scale-105 transition-transform duration-500"
             />
           </div>
         </div>
@@ -237,6 +238,9 @@ export default function Index() {
           ))}
         </div>
       </div>
+
+      {/* Catálogo de tipos de bico */}
+      <NozzleCatalog />
 
       {/* ISO Info Section */}
       <Card className="border-border/50 bg-gradient-to-r from-card to-card/50 overflow-hidden">
